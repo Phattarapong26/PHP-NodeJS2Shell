@@ -1,0 +1,19 @@
+services:
+  php-scanner:
+    build: .
+    image: thaicert-php-scanner:latest
+    container_name: thaicert-php-scanner
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    environment:
+      - HOST_IP=${HOST_IP:-}
+      - HOST_SUBNET=${HOST_SUBNET:-}
+      - HOST_NETMASK=${HOST_NETMASK:-}
+      - HOST_CIDR=${HOST_CIDR:-}
+      - HOST_GATEWAY=${HOST_GATEWAY:-}
+    volumes:
+      - ./host_network.json:/app/host_network.json:ro
+      - ./active_hosts.txt:/app/active_hosts.txt:ro
+      - ./GUI.html:/app/GUI.html
+      - ./app.py:/app/app.py

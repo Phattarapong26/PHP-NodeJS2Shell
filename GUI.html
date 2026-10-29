@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThaiCERT SCANNER - PHP LAN Discovery</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      max-width: 100vw;
+      max-height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden !important;
+      overflow-x: hidden !important;
+      overscroll-behavior: none !important;
+      overscroll-behavior-x: none !important;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      background-color: #edf2f7;
+      position: fixed;
+      inset: 0;
+    }
+
+    /* Soft minimal ambient background */
+    .app-viewport {
+      width: 100%;
+      height: 100%;
+      max-width: 100vw;
+      max-height: 100vh;
+      overflow: hidden !important;
+      overflow-x: hidden !important;
+      overscroll-behavior-x: none !important;
+      position: relative;
+      background: radial-gradient(circle at 10% 15%, rgba(219, 234, 254, 0.7) 0%, transparent 40%),
+                  radial-gradient(circle at 95% 85%, rgba(224, 242, 254, 0.8) 0%, transparent 45%),
+                  #edf2f7;
+    }
+
+    /* Neumorphic engraved text effect matching the image */
+    .embossed-title {
+      color: #e5edf5;
+      text-shadow: 
+        -1.5px -1.5px 2px rgba(255, 255, 255, 0.95),
+        2px 2px 3px rgba(148, 163, 184, 0.45),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.8),
+        inset -1px -1px 2px rgba(100, 116, 139, 0.3);
+      filter: drop-shadow(0 2px 3px rgba(148, 163, 184, 0.25));
+    }
+
+    .embossed-sub {
+      color: #94a3b8;
+      letter-spacing: 0.38em;
+      text-shadow: 
+        1px 1px 1px #ffffff,
+        -1px -1px 1px rgba(148, 163, 184, 0.35);
+    }
+
+    /* Neumorphic Concave & Convex Rings */
+    .outer-dish {
+      background: linear-gradient(145deg, #e7eff8, #f5f9fd);
+      box-shadow: 
+        16px 16px 36px #d1dce8,
+        -16px -16px 36px #ffffff,
+        inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+        inset -2px -2px 4px rgba(180, 198, 217, 0.3);
+    }
+
+    .inner-dish {
+      background: #edf3fa;
+      box-shadow: 
+        inset 6px 6px 14px #d2deeb,
+        inset -6px -6px 14px #ffffff;
+    }
+
+    /* Primary glowing scan button */
+    .btn-scan-sphere {
+      background: radial-gradient(circle at 35% 30%, #3b82f6 0%, #1d4ed8 70%, #1e40af 100%);
+      box-shadow: 
+        0 14px 28px -4px rgba(37, 99, 235, 0.55),
+        0 6px 12px -2px rgba(37, 99, 235, 0.3),
+        inset 0 3px 6px rgba(255, 255, 255, 0.6),
+        inset 0 -4px 8px rgba(15, 23, 42, 0.4);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-scan-sphere:hover {
+      transform: scale(1.03);
+      box-shadow: 
+        0 18px 34px -4px rgba(37, 99, 235, 0.65),
+        0 8px 16px -2px rgba(37, 99, 235, 0.4),
+        inset 0 3px 6px rgba(255, 255, 255, 0.8);
+    }
+
+    .btn-scan-sphere:active {
+      transform: scale(0.97);
+      box-shadow: 
+        0 6px 14px -2px rgba(37, 99, 235, 0.4),
+        inset 0 4px 10px rgba(15, 23, 42, 0.5);
+    }
+
+    /* Radar ring rotations */
+    @keyframes spin-cw {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes spin-ccw {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.92); opacity: 0.3; }
+      50% { transform: scale(1.06); opacity: 0.9; }
+      100% { transform: scale(0.92); opacity: 0.3; }
+    }
+
+    .animate-spin-radar {
+      animation: spin-cw 12s linear infinite;
+    }
+    .animate-spin-radar-fast {
+      animation: spin-cw 2.4s linear infinite;
+    }
+    .animate-spin-reverse {
+      animation: spin-ccw 16s linear infinite;
+    }
+    .animate-pulse-glow {
+      animation: pulse-ring 3s ease-in-out infinite;
+    }
+
+    /* Custom Glass Panel for Results */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 20px 40px -15px rgba(100, 116, 139, 0.15);
+    }
+
+    /* Soft Neumorphic Modal Theme matching main screen */
+    .neu-modal-surface {
+      background: linear-gradient(145deg, #f3f7fc 0%, #e8f0f8 100%);
+      box-shadow: 
+        0 25px 60px -15px rgba(148, 163, 184, 0.4),
+        0 10px 20px -5px rgba(148, 163, 184, 0.25),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .neu-pill-btn {
+      background: linear-gradient(145deg, #f8fafc, #edf2f9);
+      box-shadow: 
+        3px 3px 7px #d5e0ee,
+        -3px -3px 7px #ffffff;
+      transition: all 0.2s ease;
+    }
+    .neu-pill-btn:hover {
+      box-shadow: 
+        2px 2px 4px #d5e0ee,
+        -2px -2px 4px #ffffff;
+      transform: translateY(-0.5px);
+    }
+    .neu-pill-btn.active {
+      background: linear-gradient(145deg, #2563eb, #3b82f6);
+      color: #ffffff;
+      box-shadow: 
+        inset 2px 2px 4px rgba(15, 23, 42, 0.3),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.2),
+        0 4px 10px rgba(37, 99, 235, 0.35);
+    }
+
+    .neu-concave-card {
+      background: #edf3fa;
+      box-shadow: 
+        inset 3px 3px 6px #d4e0ee,
+        inset -3px -3px 6px #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .neu-step-box {
+      background: linear-gradient(145deg, #ffffff, #edf3fa);
+      box-shadow: 
+        4px 4px 10px #d8e4f1,
+        -4px -4px 10px #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .neu-step-box.active-step {
+      background: linear-gradient(145deg, #eff6ff, #dbeafe);
+      box-shadow: 
+        inset 2px 2px 5px rgba(59, 130, 246, 0.2),
+        inset -2px -2px 5px #ffffff,
+        0 6px 16px -2px rgba(37, 99, 235, 0.25);
+      border: 1.5px solid #60a5fa;
+      transform: scale(1.02);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="w-full h-full max-w-full max-h-full overflow-hidden m-0 p-0 bg-[#edf2f7]">
+
+  <!-- Desktop App Window Shell (Edge-to-Edge Full Screen) -->
+  <div class="app-viewport w-full h-full max-w-full max-h-full flex flex-col relative overflow-hidden">
+    
+    <!-- Top System Window Bar -->
+    <header class="w-full px-6 py-3.5 flex items-center justify-between z-20 select-none border-b border-slate-200/40 bg-white/30 backdrop-blur-sm">
+      <!-- Traffic lights / Window controls -->
+      <div class="flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full bg-red-400/90 shadow-sm inline-block hover:opacity-80 transition cursor-pointer" title="ปิด"></span>
+        <span class="w-3.5 h-3.5 rounded-full bg-amber-400/90 shadow-sm inline-block hover:opacity-80 transition cursor-pointer" title="ย่อ"></span>
+        <span id="btnTrafficGreen" class="w-3.5 h-3.5 rounded-full bg-emerald-400/90 shadow-sm inline-block hover:opacity-80 transition cursor-pointer" title="ขยายเต็มหน้าจอ"></span>
+      </div>
+
+      <!-- Center Status Pill (Clickable Shortcut to Settings) -->
+      <button id="statusPill" class="hidden sm:flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/70 border border-slate-200/80 text-xs font-medium text-slate-600 shadow-sm hover:bg-white hover:text-blue-600 transition cursor-pointer" title="คลิกเพื่อเปิดการตั้งค่า Subnet / CIDR">
+        <span id="statusIndicatorDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="statusPillText">System Ready · LAN Discovery Idle</span>
+        <i class="ph ph-sliders text-xs ml-0.5 text-blue-600"></i>
+      </button>
+
+      <!-- Right Window Actions -->
+      <div class="flex items-center gap-4 text-slate-400 text-sm">
+        <button id="btnToggleSettings" class="hover:text-slate-700 transition" title="Network Config">
+          <i class="ph ph-gear text-lg"></i>
+        </button>
+        <button id="btnToggleWorkflow" class="hover:text-blue-600 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50/80 text-blue-600 border border-blue-200/60" title="ดูขั้นตอนการทำงาน">
+          <i class="ph ph-tree-structure text-sm"></i>
+          <span>Diagram Flow</span>
+        </button>
+        <div class="flex items-center gap-3 pl-2 border-l border-slate-300/60">
+          <button class="hover:text-slate-700 transition" title="ย่อ"><i class="ph ph-minus"></i></button>
+          <button id="btnMaximize" class="hover:text-slate-700 transition" title="ขยายเต็มจอ"><i class="ph ph-square"></i></button>
+          <button class="hover:text-slate-700 transition" title="ปิด"><i class="ph ph-x"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col items-center justify-center relative px-4 z-10 overflow-y-auto overflow-x-hidden w-full max-w-full">
+      
+      <!-- Ambient Decorative Blurred Glows (Strictly Clipped) -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-12 -left-12 w-80 h-80 rounded-full bg-blue-100/60 blur-3xl"></div>
+        <div class="absolute -bottom-16 -right-16 w-96 h-96 rounded-full bg-indigo-100/50 blur-3xl"></div>
+      </div>
+
+      <!-- Title Area matching Image: ThaiCERT SCANER -->
+      <div class="text-center mb-6 select-none">
+        <h1 class="embossed-title text-4xl sm:text-5xl font-extrabold tracking-tight">
+          ThaiCERT
+        </h1>
+        <p class="embossed-sub text-base sm:text-lg font-bold tracking-[0.35em] mt-1 uppercase">
+          SCANER
+        </p>
+        <div class="inline-flex items-center gap-2 mt-2 px-3.5 py-1 rounded-full bg-white/40 text-slate-600 text-xs tracking-wider border border-white/60 shadow-sm">
+          <i class="ph-bold ph-shield-check text-blue-600"></i>
+          <span>PHP & NODE.JS LAN DISCOVERY & SECURITY AUDITOR</span>
+        </div>
+      </div>
+
+      <!-- Central Radar / Neumorphic Scanner Disk -->
+      <div class="relative flex items-center justify-center">
+        
+        <!-- Outermost Neumorphic Plate -->
+        <div class="outer-dish w-[280px] h-[280px] sm:w-[330px] sm:h-[330px] rounded-full flex items-center justify-center p-3 relative">
+          
+          <!-- Outer Rotating SVG Radar Graphics (Arcs & Dots like the image) -->
+          <svg id="radarSvg" class="absolute inset-0 w-full h-full animate-spin-radar transition-all duration-700" viewBox="0 0 400 400" fill="none">
+            <!-- Thick arc top-right -->
+            <path d="M 120 70 A 155 155 0 0 1 290 85" stroke="#3b82f6" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="120 40" opacity="0.95"/>
+            <!-- Medium arc bottom-left -->
+            <path d="M 85 275 A 155 155 0 0 1 180 345" stroke="#2563eb" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+            <!-- Fine dashed arcs -->
+            <path d="M 290 85 A 155 155 0 0 1 345 230" stroke="#93c5fd" stroke-width="2.5" stroke-dasharray="3 9" stroke-linecap="round"/>
+            <path d="M 60 210 A 155 155 0 0 1 120 70" stroke="#60a5fa" stroke-width="2.5" stroke-dasharray="4 8" stroke-linecap="round"/>
+            
+            <!-- Orbital Accent Dots -->
+            <circle cx="305" cy="115" r="3.5" fill="#3b82f6" />
+            <circle cx="340" cy="180" r="2.5" fill="#60a5fa" />
+            <circle cx="346" cy="225" r="3" fill="#2563eb" />
+            <circle cx="75" cy="265" r="3.5" fill="#3b82f6" />
+            <circle cx="160" cy="342" r="2" fill="#93c5fd" />
+            <circle cx="230" cy="336" r="3" fill="#60a5fa" />
+            <circle cx="250" cy="328" r="2" fill="#93c5fd" />
+          </svg>
+
+          <!-- Middle Intermediate Dish with Soft Glow -->
+          <div class="w-[225px] h-[225px] sm:w-[265px] sm:h-[265px] rounded-full border border-blue-200/50 flex items-center justify-center relative bg-gradient-to-b from-white/60 to-white/10 shadow-inner">
+            
+            <!-- Secondary Counter-Rotating Fine Ring -->
+            <div id="radarInnerRing" class="absolute inset-2 rounded-full border border-dashed border-blue-300/40 animate-spin-reverse pointer-events-none"></div>
+
+            <!-- Pulsing Wave Ripple (Active while scanning) -->
+            <div id="scanningRipple" class="absolute inset-0 rounded-full border-2 border-blue-400 opacity-0 pointer-events-none"></div>
+
+            <!-- Inner Concave Dish -->
+            <div class="inner-dish w-[165px] h-[165px] sm:w-[195px] sm:h-[195px] rounded-full flex items-center justify-center p-2.5 relative">
+              
+              <!-- Center Round Push Button (Scan / Stop) -->
+              <button 
+                id="btnScan" 
+                class="btn-scan-sphere w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white font-bold cursor-pointer group focus:outline-none"
+              >
+                <div id="btnScanContent" class="flex flex-col items-center">
+                  <i class="ph-bold ph-radar text-xl sm:text-2xl mb-0.5 group-hover:scale-110 transition-transform"></i>
+                  <span class="text-lg sm:text-xl font-bold tracking-wide drop-shadow">Scan</span>
+                </div>
+
+                <!-- Active Spinner (Hidden by default) -->
+                <div id="btnScanSpinner" class="hidden flex-col items-center">
+                  <i class="ph-bold ph-spinner animate-spin text-2xl sm:text-3xl"></i>
+                  <span id="scanPercentText" class="text-xs font-semibold mt-1 tracking-wider text-blue-100">0%</span>
+                </div>
+              </button>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Scan Progress Subtitle & Step Tracker -->
+      <div class="mt-8 text-center max-w-md w-full">
+        <div id="currentStepBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-sm transition-all">
+          <i id="stepBadgeIcon" class="ph-bold ph-magnifying-glass text-blue-600"></i>
+          <span id="stepBadgeText">กดปุ่ม Scan เพื่อเริ่มค้นหาเครื่อง PHP ในวง LAN</span>
+        </div>
+
+        <!-- Mini Progress Bar (Appears during scan) -->
+        <div id="scanProgressWrapper" class="mt-3 opacity-0 transition-opacity duration-300">
+          <div class="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden border border-white/80">
+            <div id="scanProgressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full w-0 transition-all duration-150"></div>
+          </div>
+          <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1 px-1">
+            <span id="scanProgressStats">สแกน 0 / 254 เครื่อง</span>
+            <span id="scanSpeedStat">ความเร็ว: ~65 host/s</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Bottom Footer Quick Network Info -->
+    <footer class="w-full px-6 py-3.5 bg-white/40 border-t border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-600 z-10 backdrop-blur-sm gap-2">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <i class="ph-fill ph-wifi-high text-blue-600"></i>
+          <span class="font-medium text-slate-800">LAN Host IP:</span>
+          <span id="detectedHostIp" class="font-mono bg-white/80 px-2 py-0.5 rounded border border-slate-200 font-semibold text-blue-600">กำลังตรวจจับ...</span>
+        </div>
+        <div class="hidden md:flex items-center gap-1.5">
+          <span class="text-slate-400">|</span>
+          <span class="font-medium text-slate-800">ขอบเขต Subnet:</span>
+          <span id="detectedSubnetRange" class="font-mono bg-white/80 px-2 py-0.5 rounded border border-slate-200 text-slate-700">กำลังคำนวณ...</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-slate-500">ผลการสแกนล่าสุด:</span>
+        <button id="btnOpenResultsQuick" class="font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100/70 border border-blue-200 transition">
+          <span id="quickPhpCount">ยังไม่ได้สแกน</span>
+          <i class="ph-bold ph-caret-right"></i>
+        </button>
+      </div>
+    </footer>
+
+    <!-- SLIDE-UP MODAL: Results Panel (Step 5 of Diagram) -->
+    <div id="resultsModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-30 opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-6">
+      <div class="neu-modal-surface w-full max-w-5xl max-h-[88vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300">
+        
+        <!-- Results Header matching Neumorphic Aesthetic -->
+        <div class="px-6 py-4 bg-gradient-to-r from-white/95 via-slate-50/90 to-blue-50/70 border-b border-slate-200/70 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div id="resultsHeaderIcon" class="w-10 h-10 rounded-2xl outer-dish flex items-center justify-center text-blue-600 shadow-sm">
+              <i class="ph-bold ph-shield-check text-xl"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base sm:text-lg font-bold text-slate-800">ผลการสแกนและตรวจสอบอุปกรณ์ในเครือข่าย</h2>
+                <span id="badgeFilteredCount" class="text-xs bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200 font-semibold shadow-inner">พบ 0 เครื่อง</span>
+              </div>
+              <p id="resultsSubHeader" class="text-xs text-slate-500 mt-0.5">ตรวจพบอุปกรณ์ออนไลน์จาก DHCP และคัดกรองความปลอดภัย PHP ตามเกณฑ์ ThaiCERT</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2.5">
+            <button id="btnExportReport" class="px-3 py-1.5 rounded-xl neu-pill-btn text-xs font-semibold flex items-center gap-1.5 transition text-slate-700 hover:text-blue-600" title="ส่งออกรายงานเป็นไฟล์ CSV">
+              <i class="ph-bold ph-download-simple text-blue-600"></i>
+              <span>Export CSV</span>
+            </button>
+            <button id="btnCloseResults" class="w-8 h-8 rounded-full neu-pill-btn text-slate-500 hover:text-slate-800 flex items-center justify-center transition">
+              <i class="ph-bold ph-x text-base"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Status Notification Banner -->
+        <div id="resultsStatusBanner" class="px-6 py-2.5 bg-emerald-50/90 border-b border-emerald-200/80 flex items-center justify-between text-xs text-emerald-900 backdrop-blur-sm">
+          <div class="flex items-center gap-2">
+            <i id="bannerStatusIcon" class="ph-bold ph-check-circle text-emerald-600 text-base flex-shrink-0"></i>
+            <span id="bannerStatusText" class="font-medium">ผลการสแกนเครือข่ายความปลอดภัย</span>
+          </div>
+          <span class="text-[11px] font-semibold text-slate-500 font-mono" id="bannerScannedTargetText"></span>
+        </div>
+
+        <!-- Filter & Search Tool Bar -->
+        <div class="px-6 py-2.5 bg-white/70 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs backdrop-blur-sm">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="font-semibold text-slate-600 text-[11px]">หมวดหมู่:</span>
+            <button class="filter-tab neu-pill-btn px-3 py-1 rounded-full text-slate-600 active text-xs" data-filter="all_online">
+              <i class="ph-bold ph-broadcast text-blue-500 mr-1"></i>อุปกรณ์ออนไลน์ทั้งหมด (<span id="countTabAllOnline">0</span>)
+            </button>
+            <button class="filter-tab neu-pill-btn px-3 py-1 rounded-full text-slate-600 text-xs" data-filter="php_only">
+              <i class="ph-bold ph-file-php text-indigo-500 mr-1"></i>เซิร์ฟเวอร์ PHP (<span id="countTabPhp">0</span>)
+            </button>
+            <button class="filter-tab neu-pill-btn px-3 py-1 rounded-full text-slate-600 text-xs" data-filter="node_only">
+              <i class="ph-bold ph-brackets-curly text-emerald-600 mr-1"></i>เซิร์ฟเวอร์ Node.js (<span id="countTabNode">0</span>)
+            </button>
+            <button class="filter-tab neu-pill-btn px-3 py-1 rounded-full text-slate-600 text-xs" data-filter="vulnerable">
+              <i class="ph-bold ph-warning text-rose-500 mr-1"></i>มีความเสี่ยง (<span id="countTabVuln">0</span>)
+            </button>
+            <button class="filter-tab neu-pill-btn px-3 py-1 rounded-full text-slate-600 text-xs" data-filter="workstations">
+              <i class="ph-bold ph-desktop text-slate-500 mr-1"></i>เครื่องลูกข่ายทั่วไป (<span id="countTabWorkstation">0</span>)
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <input id="inputSearchHost" type="text" placeholder="ค้นหา IP / บริการ..." class="neu-pill-inset pl-7 pr-3 py-1 rounded-full text-xs text-slate-700 placeholder-slate-400 focus:outline-none w-40 sm:w-48">
+              <i class="ph ph-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Table Scrollable Area -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/40 min-h-[300px]">
+          <div id="resultsTableContainer" class="rounded-2xl border border-white/80 bg-white/70 shadow-sm p-1 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100/50">
+                  <th class="py-2.5 px-3">IP Address</th>
+                  <th class="py-2.5 px-3">ประเภทอุปกรณ์ / บริการ</th>
+                  <th class="py-2.5 px-3">รันไทม์ (Runtime / Version)</th>
+                  <th class="py-2.5 px-3">Open Ports</th>
+                  <th class="py-2.5 px-3">Latency</th>
+                  <th class="py-2.5 px-3">การประเมินความปลอดภัย (ThaiCERT)</th>
+                  <th class="py-2.5 px-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="resultsTableBody" class="divide-y divide-slate-100/90 text-xs">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty state when no scan done yet or no host found -->
+          <div id="resultsEmptyState" class="hidden flex-col items-center justify-center py-10 px-6 text-center">
+            <div id="emptyStateIconWrap" class="w-16 h-16 rounded-full outer-dish flex items-center justify-center text-emerald-500 mb-3 shadow-sm">
+              <i id="emptyStateIcon" class="ph-bold ph-shield-check text-3xl text-emerald-500"></i>
+            </div>
+            <h3 id="emptyStateTitle" class="font-bold text-slate-800 text-base">สแกนเสร็จสิ้น — ไม่พบเครื่องที่รันบริการ PHP</h3>
+            <p id="emptyStateDesc" class="text-xs text-slate-500 mt-1.5 max-w-md">
+              ระบบส่งคำขอตรวจสอบความปลอดภัยครบทุก Host ในวง Subnet เรียบร้อย ไม่พบบริการ PHP ที่เปิดใช้งาน (เครือข่ายปลอดภัยจากช่องโหว่ php2shell / CVE-2024-4577)
+            </p>
+            <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+              <button id="btnEmptyShowAll" onclick="switchFilterToAll()" class="px-4 py-2 rounded-xl neu-pill-btn text-xs font-semibold text-blue-700 border border-blue-200 flex items-center gap-1.5">
+                <i class="ph-bold ph-broadcast text-blue-600"></i>
+                <span>ดูอุปกรณ์ออนไลน์ทั้งหมด (<span id="emptyAllCount">0</span> เครื่อง)</span>
+              </button>
+              <button onclick="closeResultsModal()" class="px-4 py-2 rounded-xl neu-pill-btn text-xs font-semibold text-slate-700">
+                เปลี่ยนเป้าหมาย Subnet อื่น
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Footer -->
+        <div class="px-6 py-3.5 bg-white/80 border-t border-slate-200/70 flex items-center justify-between text-xs text-slate-500">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>เสร็จสิ้นใน <span id="scanElapsedDuration" class="font-bold text-slate-700">3.42 วินาที</span> (Concurrent Workers: 50)</span>
+          </div>
+          <button id="btnRescanFromModal" class="neu-pill-btn px-3 py-1 rounded-xl text-blue-600 font-bold hover:text-blue-700 flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-arrows-clockwise text-blue-600"></i>
+            <span>สแกนใหม่อีกครั้ง</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- WORKFLOW DIAGRAM MODAL (Interactive viewer matching soft Neumorphic Look) -->
+    <div id="workflowModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-40 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+      <div class="neu-modal-surface text-slate-700 w-full max-w-xl rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        
+        <div class="flex items-center justify-between pb-4 border-b border-slate-200/70">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-2xl outer-dish flex items-center justify-center text-blue-600">
+              <i class="ph-bold ph-git-fork text-lg"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-base">ลำดับขั้นตอนการทำงาน (Workflow Logic)</h3>
+              <p class="text-xs text-slate-400">ระบบทำงานอัตโนมัติตาม Flowchart ที่กำหนด</p>
+            </div>
+          </div>
+          <button id="btnCloseWorkflow" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <!-- Workflow Visual Vertical Steps (Matched to soft neumorphic style) -->
+        <div class="mt-6 flex flex-col items-center gap-2 text-xs sm:text-sm">
+          
+          <!-- Box: Button Click -->
+          <div id="flowStep0" class="neu-step-box w-full max-w-md p-3.5 rounded-2xl text-center font-medium flex items-center justify-center gap-2">
+            <i class="ph-bold ph-magnifying-glass text-blue-600"></i>
+            <span>ผู้ใช้กดปุ่ม 'สแกนวง LAN หาเครื่อง PHP / Node.js'</span>
+          </div>
+          <i class="ph-bold ph-arrow-down text-slate-400 text-sm"></i>
+
+          <!-- Box 1 -->
+          <div id="flowStep1" class="neu-step-box w-full max-w-md p-3.5 rounded-2xl text-center">
+            <span class="font-bold text-blue-600">1. โปรแกรมอ่าน IP เครื่องตัวเองอัตโนมัติ</span><br>
+            <span id="step1ExampleIp" class="text-xs text-slate-500 font-mono">(ตรวจพบอัตโนมัติจาก Default Route & DHCP)</span>
+          </div>
+          <i class="ph-bold ph-arrow-down text-slate-400 text-sm"></i>
+
+          <!-- Box 2 -->
+          <div id="flowStep2" class="neu-step-box w-full max-w-md p-3.5 rounded-2xl text-center">
+            <span class="font-bold text-blue-600">2. คำนวณขอบเขตวง LAN (Subnet) อัตโนมัติ</span><br>
+            <span id="step2ExampleRange" class="text-xs text-slate-500 font-mono">คำนวณตาม Netmask จริง (รองรับ /22, /23, /24, /20)</span>
+          </div>
+          <i class="ph-bold ph-arrow-down text-slate-400 text-sm"></i>
+
+          <!-- Box 3 -->
+          <div id="flowStep3" class="neu-step-box w-full max-w-md p-3.5 rounded-2xl text-center">
+            <span class="font-bold text-blue-600">3. ส่งคำขอคู่ขนานแบบ Async (ความเร็วสูง)</span><br>
+            <span id="step3ExampleSpeed" class="text-xs text-slate-500 font-mono">Async Parallel HTTP & Port Probe สแกนทั้ง Subnet รวดเร็ว</span>
+          </div>
+          <i class="ph-bold ph-arrow-down text-slate-400 text-sm"></i>
+
+          <!-- Box 4 -->
+          <div id="flowStep4" class="neu-step-box w-full max-w-md p-3.5 rounded-2xl text-center">
+            <span class="font-bold text-blue-600">4. จำแนกเครื่องที่เป็น PHP & Node.js</span><br>
+            <span class="text-xs text-slate-500">ตรวจสอบ Fingerprints, Headers, Cookies และ Brotli Compression</span>
+          </div>
+          <i class="ph-bold ph-arrow-down text-slate-400 text-sm"></i>
+
+          <!-- Box 5 -->
+          <div id="flowStep5" class="neu-step-box w-full max-w-md p-3.5 rounded-2xl text-center">
+            <span class="font-bold text-emerald-600">5. แสดงผลตรวจช่องโหว่ความปลอดภัยทันที!</span><br>
+            <span class="text-xs text-slate-500">ประเมิน php2shell (CVE-2024-4577) และ Node2Shell (CVE-2026-111497 Brotli)</span>
+          </div>
+
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-200/70 flex justify-end">
+          <button id="btnWorkflowCloseDone" class="neu-pill-btn active px-4 py-2 rounded-xl text-xs font-semibold">
+            เข้าใจแล้ว
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Backdrop for Settings Drawer -->
+    <div id="settingsBackdrop" class="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+    <!-- SETTINGS DRAWER (Host IP / Dynamic CIDR Config) -->
+    <div id="settingsDrawer" class="fixed top-0 right-0 w-88 sm:w-96 h-full neu-modal-surface shadow-2xl border-l border-white/80 z-40 transform translate-x-full transition-transform duration-300 flex flex-col justify-between invisible">
+      
+      <!-- Drawer Header -->
+      <div class="p-5 pb-3 border-b border-slate-200/70 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl outer-dish flex items-center justify-center text-blue-600">
+            <i class="ph-bold ph-sliders text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm">การตั้งค่าสแกน LAN</h3>
+            <span class="text-[10px] text-slate-400">Network Subnet & Concurrency Config</span>
+          </div>
+        </div>
+        <button id="btnCloseSettings" class="w-7 h-7 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
+          <i class="ph-bold ph-x text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Settings Body -->
+      <div class="p-5 flex-1 overflow-y-auto space-y-4 text-xs">
+
+        <!-- 1. Subnet / IP Controller (ย้ายมาไว้ใน Setting ตามที่ต้องการ 100%) -->
+        <div class="p-3.5 rounded-xl neu-concave-card border border-blue-200/80 bg-white/70 space-y-2">
+          <div class="flex items-center justify-between text-[11px] font-semibold text-slate-700">
+            <span>Subnet / IP เป้าหมายหน่วยงาน:</span>
+            <span id="targetIpTypeBadge" class="text-blue-600 font-mono text-[10px] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">กำลังตรวจจับ...</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input 
+              id="mainSubnetInput" 
+              type="text" 
+              value="" 
+              placeholder="กำลังตรวจจับ Subnet อัตโนมัติ..." 
+              class="w-full px-3 py-2 rounded-xl neu-concave-card font-mono text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            />
+            <button id="btnAutoDetectTrigger" class="neu-pill-btn px-2.5 py-2 rounded-xl text-blue-600 text-xs font-semibold flex items-center gap-1 flex-shrink-0 hover:text-blue-700" title="ตรวจจับ Subnet อัตโนมัติจากเครือข่าย">
+              <i class="ph-bold ph-arrows-clockwise text-sm"></i>
+              <span class="whitespace-nowrap">ตรวจจับใหม่</span>
+            </button>
+          </div>
+          <span class="text-[10px] text-slate-400 block">กรอกวง Subnet ที่ต้องการสแกน หรือเลือกจากตัวเลือกด้านล่าง</span>
+        </div>
+
+        <!-- 2. Subnet Range / CIDR Selection (มาจากค่าจริงที่พบ!) -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block font-semibold text-slate-700">Subnet Range / CIDR</label>
+            <span class="text-[10px] text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+              <i class="ph-bold ph-check-circle text-xs"></i>
+              <span>มาจากค่าจริงที่พบ</span>
+            </span>
+          </div>
+          <select id="selectSubnetCidr" class="w-full px-3 py-2 rounded-xl neu-concave-card focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-slate-800 text-xs font-mono font-semibold">
+            <!-- Dynamically populated from real network values -->
+          </select>
+          <div id="cidrPreviewRange" class="text-[10px] text-slate-500 mt-1 font-mono">
+            กำลังคำนวณช่วง IP...
+          </div>
+        </div>
+
+        <!-- 3. Quick Presets (ทางลัดเลือกวงสแกน) -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1.5">ทางลัดเลือกวงสแกน (Presets)</label>
+          <div id="settingsPresetsList" class="flex flex-col gap-1.5">
+            <!-- Dynamically populated with preset buttons -->
+          </div>
+        </div>
+
+        <!-- 4. Live Detected Network Card (สถานะเครือข่ายจริงที่ตรวจพบ) -->
+        <div class="p-3 rounded-xl neu-concave-card border border-blue-200/70 bg-blue-50/40 space-y-2">
+          <div class="flex items-center justify-between font-semibold text-slate-700">
+            <span class="flex items-center gap-1.5 text-blue-800">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>สถานะเครือข่ายจริงที่ตรวจพบ</span>
+            </span>
+            <span id="hintNetworkIface" class="text-[10px] text-slate-500 font-mono bg-white/70 px-1.5 py-0.5 rounded border border-blue-200/60">Auto (DHCP/ARP)</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-[11px] pt-1.5 border-t border-slate-200/60">
+            <div>
+              <span class="text-slate-400 block text-[10px]">IP เครื่องตัวเอง:</span>
+              <span id="hintHostIp" class="font-mono font-bold text-blue-700 text-xs">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">วง Subnet จริง:</span>
+              <span id="hintHostSubnet" class="font-mono font-bold text-slate-800 text-xs">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">ขอบเขต IP ที่ใช้งาน:</span>
+              <span id="settingSubnetRange" class="font-mono text-slate-700 text-[10px]">-</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">อุปกรณ์ในวง (ARP):</span>
+              <span id="hintActiveCount" class="font-mono font-bold text-emerald-700 text-[11px]">-</span>
+            </div>
+            <div class="col-span-2 pt-1 border-t border-slate-200/40 flex items-center justify-between text-[10px] text-slate-500">
+              <span>Gateway: <b id="hintGateway" class="font-mono text-slate-700">-</b></span>
+              <span>Netmask: <b id="hintNetmask" class="font-mono text-slate-700">-</b></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Local Host IP Custom Input -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Local Host IP (ปรับเปลี่ยน IP)</label>
+          <input 
+            id="inputCustomIp" 
+            type="text" 
+            value="" 
+            placeholder="ระบุ IP เช่น 192.168.1.10 หรือ 10.0.0.5" 
+            class="w-full px-3 py-2 rounded-xl neu-concave-card focus:outline-none focus:ring-2 focus:ring-blue-500/40 font-mono text-slate-800 text-xs"
+          />
+          <span class="text-[10px] text-slate-400 mt-1 block">เปลี่ยน IP เพื่อคำนวณวงเครือข่ายเป้าหมายใหม่</span>
+        </div>
+
+        <!-- 5. Concurrency Slider -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">ความเร็ว Async Parallel Requests</label>
+          <input id="inputWorkerConcurrency" type="range" min="10" max="200" value="100" class="w-full accent-blue-600">
+          <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+            <span>10 worker</span>
+            <span id="workerDisplayVal" class="font-bold text-blue-600 font-mono">100 parallel reqs</span>
+            <span>200 worker</span>
+          </div>
+        </div>
+
+        <!-- 6. Web & PHP Probe Ports -->
+        <div class="pt-1">
+          <label class="block font-semibold text-slate-700 mb-1">พอร์ตตรวจสอบ PHP & Web</label>
+          <div class="flex flex-wrap gap-1.5">
+            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">80 (HTTP)</span>
+            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">8080 (Alt)</span>
+            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">443 (HTTPS)</span>
+            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">8000 (Dev)</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Drawer Footer -->
+      <div class="p-5 pt-3 border-t border-slate-200/70 flex-shrink-0">
+        <button id="btnSaveSettings" class="w-full py-2.5 neu-pill-btn active rounded-xl font-semibold text-xs shadow-md flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-check text-sm"></i>
+          <span>บันทึกและนำไปใช้สแกน</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toastMessage" class="absolute bottom-16 left-1/2 transform -translate-x-1/2 neu-modal-surface text-slate-800 text-xs px-4 py-2.5 rounded-full shadow-lg border border-white flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300 z-50">
+      <i class="ph-bold ph-info text-blue-600"></i>
+      <span id="toastText">การตั้งค่าเรียบร้อยแล้ว</span>
+    </div>
+
+  </div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    // State Management
+    const appState = {
+      isScanning: false,
+      hostIp: "",
+      subnet: "",
+      cidr: 24,
+      netmask: "",
+      gateway: "",
+      networkIface: "",
+      firstHost: "",
+      lastHost: "",
+      startHost: 1,
+      endHost: 254,
+      concurrency: 60,
+      scanProgress: 0,
+      totalHosts: 254,
+      allHosts: [],
+      foundPhpHosts: [],
+      foundNodeHosts: [],
+      totalActiveFound: 0,
+      totalPhpFound: 0,
+      totalNodeFound: 0,
+      totalVulnFound: 0,
+      discardedDevices: [],
+      scanStartTime: null,
+      activeFilter: 'all_online',
+      isLiveBackend: false
+    };
+
+    // DOM Elements
+    const mainSubnetInput = document.getElementById('mainSubnetInput');
+    const targetIpTypeBadge = document.getElementById('targetIpTypeBadge');
+    const btnAutoDetectTrigger = document.getElementById('btnAutoDetectTrigger');
+    const btnScan = document.getElementById('btnScan');
+    const btnScanContent = document.getElementById('btnScanContent');
+    const btnScanSpinner = document.getElementById('btnScanSpinner');
+    const scanPercentText = document.getElementById('scanPercentText');
+    const radarSvg = document.getElementById('radarSvg');
+    const scanningRipple = document.getElementById('scanningRipple');
+    const scanProgressWrapper = document.getElementById('scanProgressWrapper');
+    const scanProgressBar = document.getElementById('scanProgressBar');
+    const scanProgressStats = document.getElementById('scanProgressStats');
+    const statusPillText = document.getElementById('statusPillText');
+    const statusIndicatorDot = document.getElementById('statusIndicatorDot');
+    const currentStepBadge = document.getElementById('currentStepBadge');
+    const stepBadgeText = document.getElementById('stepBadgeText');
+    const stepBadgeIcon = document.getElementById('stepBadgeIcon');
+    const quickPhpCount = document.getElementById('quickPhpCount');
+
+    // Modals
+    const resultsModal = document.getElementById('resultsModal');
+    const btnCloseResults = document.getElementById('btnCloseResults');
+    const btnOpenResultsQuick = document.getElementById('btnOpenResultsQuick');
+    const btnRescanFromModal = document.getElementById('btnRescanFromModal');
+    const resultsTableContainer = document.getElementById('resultsTableContainer');
+    const resultsTableBody = document.getElementById('resultsTableBody');
+    const resultsEmptyState = document.getElementById('resultsEmptyState');
+    const emptyStateTitle = document.getElementById('emptyStateTitle');
+    const emptyStateDesc = document.getElementById('emptyStateDesc');
+    const badgeFilteredCount = document.getElementById('badgeFilteredCount');
+    const statDiscardedCount = document.getElementById('statDiscardedCount');
+    const scanElapsedDuration = document.getElementById('scanElapsedDuration');
+
+    // Workflow Modal
+    const workflowModal = document.getElementById('workflowModal');
+    const btnToggleWorkflow = document.getElementById('btnToggleWorkflow');
+    const btnCloseWorkflow = document.getElementById('btnCloseWorkflow');
+    const btnWorkflowCloseDone = document.getElementById('btnWorkflowCloseDone');
+
+    // Settings Drawer Elements
+    const settingsDrawer = document.getElementById('settingsDrawer');
+    const settingsBackdrop = document.getElementById('settingsBackdrop');
+    const btnToggleSettings = document.getElementById('btnToggleSettings');
+    const btnOpenSettingsBar = document.getElementById('btnOpenSettingsBar');
+    const btnCloseSettings = document.getElementById('btnCloseSettings');
+    const btnSaveSettings = document.getElementById('btnSaveSettings');
+    const inputCustomIp = document.getElementById('inputCustomIp');
+    const selectSubnetCidr = document.getElementById('selectSubnetCidr');
+    const inputWorkerConcurrency = document.getElementById('inputWorkerConcurrency');
+    const workerDisplayVal = document.getElementById('workerDisplayVal');
+    const detectedHostIp = document.getElementById('detectedHostIp');
+    const detectedSubnetRange = document.getElementById('detectedSubnetRange');
+    const settingSubnetRange = document.getElementById('settingSubnetRange');
+    const hintGateway = document.getElementById('hintGateway');
+    const hintNetmask = document.getElementById('hintNetmask');
+    const cidrPreviewRange = document.getElementById('cidrPreviewRange');
+
+    // --- IPv4 Bitwise Math & Dynamic Subnet Calculator ---
+    function ipToInt(ip) {
+      return ip.split('.').reduce((acc, octet) => ((acc << 8) + parseInt(octet, 10)) >>> 0, 0) >>> 0;
+    }
+
+    function intToIp(int) {
+      return [
+        (int >>> 24) & 255,
+        (int >>> 16) & 255,
+        (int >>> 8) & 255,
+        int & 255
+      ].join('.');
+    }
+
+    function parseSubnetDetails(targetStr) {
+      if (!targetStr) return null;
+      const trimmed = targetStr.trim();
+      
+      if (trimmed.includes('/')) {
+        const parts = trimmed.split('/');
+        const ipStr = parts[0].trim();
+        const cidr = parseInt(parts[1], 10);
+        if (isNaN(cidr) || cidr < 0 || cidr > 32) return null;
+        
+        const ipVal = ipToInt(ipStr);
+        const mask = cidr === 0 ? 0 : (0xFFFFFFFF << (32 - cidr)) >>> 0;
+        const netVal = (ipVal & mask) >>> 0;
+        const bcastVal = (netVal | (~mask >>> 0)) >>> 0;
+        
+        let firstHostVal = netVal + 1;
+        let lastHostVal = bcastVal - 1;
+        let totalHosts = (bcastVal - netVal - 1);
+        
+        if (cidr === 31) {
+          firstHostVal = netVal;
+          lastHostVal = bcastVal;
+          totalHosts = 2;
+        } else if (cidr === 32) {
+          firstHostVal = ipVal;
+          lastHostVal = ipVal;
+          totalHosts = 1;
+        }
+        
+        return {
+          type: "CIDR Subnet",
+          subnet: `${intToIp(netVal)}/${cidr}`,
+          cidr: cidr,
+          netmask: intToIp(mask),
+          firstHost: intToIp(firstHostVal),
+          lastHost: intToIp(lastHostVal),
+          totalHosts: Math.max(1, totalHosts),
+          rangeText: `${intToIp(firstHostVal)} - ${intToIp(lastHostVal)} (/${cidr} รวม ${totalHosts.toLocaleString()} เครื่อง)`
+        };
+      } else if (trimmed.includes('-')) {
+        const parts = trimmed.split('-');
+        const sIp = parts[0].trim();
+        const eIp = parts[1].trim();
+        const sVal = ipToInt(sIp);
+        const eVal = ipToInt(eIp);
+        const totalHosts = Math.max(1, eVal - sVal + 1);
+        return {
+          type: "IP Range",
+          subnet: trimmed,
+          cidr: 32,
+          firstHost: sIp,
+          lastHost: eIp,
+          totalHosts: totalHosts,
+          rangeText: `${sIp} - ${eIp} (${totalHosts.toLocaleString()} เครื่อง)`
+        };
+      } else {
+        const hostOnly = trimmed.split(':')[0];
+        return {
+          type: "Single Target",
+          subnet: `${hostOnly}/32`,
+          cidr: 32,
+          firstHost: hostOnly,
+          lastHost: hostOnly,
+          totalHosts: 1,
+          rangeText: `${hostOnly} (เป้าหมายเดี่ยว 1 เครื่อง)`
+        };
+      }
+    }
+
+    function updateCidrPreview() {
+      const previewEl = document.getElementById("cidrPreviewRange");
+      if (!previewEl || !selectSubnetCidr) return;
+      const selectedOpt = selectSubnetCidr.options[selectSubnetCidr.selectedIndex];
+      if (selectedOpt) {
+        const sub = selectedOpt.getAttribute("data-subnet") || "";
+        const netmask = selectedOpt.getAttribute("data-netmask") || "";
+        const range = selectedOpt.getAttribute("data-range") || "";
+        previewEl.innerHTML = `เป้าหมาย: <b class="text-blue-700 font-bold">${sub}</b> · Mask: <b class="text-slate-700 font-bold">${netmask}</b><br><span class="text-slate-500">${range}</span>`;
+      }
+    }
+
+    function populateDynamicCidrOptions(hostIp, detectedCidr, detectedNetmask, detectedSubnet, detectedHosts) {
+      if (!selectSubnetCidr || !hostIp) return;
+      const ip = hostIp.trim();
+      const detCidr = parseInt(detectedCidr, 10) || 24;
+
+      // Calculate candidate CIDRs around the detected IP
+      const candidateList = [detCidr, 24, 23, 22, 21, 20, 28, 32];
+      const uniqueCidrs = Array.from(new Set(candidateList))
+        .filter(c => c >= 8 && c <= 32);
+
+      // Place detected physical CIDR at the very top
+      const sortedCidrs = [detCidr, ...uniqueCidrs.filter(c => c !== detCidr)];
+
+      selectSubnetCidr.innerHTML = "";
+
+      sortedCidrs.forEach((c) => {
+        const isDetected = (c === detCidr);
+        let details = null;
+        if (isDetected && detectedSubnet) {
+          details = parseSubnetDetails(detectedSubnet) || parseSubnetDetails(`${ip}/${c}`);
+        } else {
+          details = parseSubnetDetails(`${ip}/${c}`);
+        }
+        if (!details) return;
+
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.setAttribute("data-subnet", details.subnet);
+        opt.setAttribute("data-netmask", details.netmask);
+        opt.setAttribute("data-range", details.rangeText);
+        opt.setAttribute("data-hosts", details.totalHosts);
+
+        if (isDetected) {
+          opt.textContent = `[ตรวจพบจริง] ${details.subnet} (/${c}) · ${details.totalHosts.toLocaleString()} เครื่อง`;
+          opt.selected = true;
+        } else if (c === 32) {
+          opt.textContent = `[เฉพาะเครื่องนี้] ${ip}/32 · 1 เครื่อง`;
+        } else if (c === 24) {
+          opt.textContent = `[Class C] ${details.subnet} (/24) · ${details.totalHosts.toLocaleString()} เครื่อง`;
+        } else if (c === 28) {
+          opt.textContent = `[ทดสอบด่วน] ${details.subnet} (/28) · ${details.totalHosts.toLocaleString()} เครื่อง`;
+        } else {
+          opt.textContent = `[วงกว้าง] ${details.subnet} (/${c}) · ${details.totalHosts.toLocaleString()} เครื่อง`;
+        }
+
+        selectSubnetCidr.appendChild(opt);
+      });
+
+      updateCidrPreview();
+    }
+
+    // Dynamic rendering of Recommended Subnet Chips inside Settings Drawer
+    function renderDynamicPresets(presets, currentSubnet) {
+      const container = document.getElementById('settingsPresetsList');
+      if (!container) return;
+      if (!presets || presets.length === 0) {
+        container.innerHTML = `<span class="text-slate-400 text-xs">ไม่มีทางลัด</span>`;
+        return;
+      }
+      container.innerHTML = presets.map((p) => {
+        const isActive = p.subnet === currentSubnet;
+        const activeClass = isActive 
+          ? "bg-blue-600 text-white font-semibold shadow-sm" 
+          : "bg-white/80 hover:bg-blue-50 text-slate-700 border border-slate-200/80";
+
+        let iconName = p.icon || "ph-crosshair";
+        if (p.label.includes("เฉพาะเครื่องนี้")) iconName = "ph-laptop";
+        else if (p.label.includes("วงย่อย")) iconName = "ph-lightning";
+        else if (p.label.includes("สำนักงาน")) iconName = "ph-buildings";
+        else if (p.label.includes("Enterprise")) iconName = "ph-globe";
+
+        const cleanLabel = p.label.replace(/\p{Extended_Pictographic}|[\u2600-\u27bf]/gu, '').trim();
+
+        return `<button type="button" class="settings-preset-btn ${activeClass} px-3 py-2 rounded-xl text-left text-xs transition flex items-center justify-between cursor-pointer w-full" data-subnet="${p.subnet}">
+          <div class="flex items-center gap-2">
+            <i class="ph-bold ${iconName} text-sm ${isActive ? 'text-white' : 'text-blue-600'}"></i>
+            <span class="font-medium">${cleanLabel}</span>
+          </div>
+          <i class="ph-bold ph-arrow-right text-[11px] opacity-70"></i>
+        </button>`;
+      }).join('');
+
+      container.querySelectorAll('.settings-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sub = btn.getAttribute('data-subnet');
+          if (sub) {
+            if (mainSubnetInput) {
+              mainSubnetInput.value = sub;
+              recalculateSubnet(sub);
+            }
+            // Match in selectSubnetCidr
+            const parts = sub.split('/');
+            if (parts.length === 2 && selectSubnetCidr) {
+              const cidr = parts[1];
+              const matchedOpt = Array.from(selectSubnetCidr.options).find(o => o.value === cidr || o.getAttribute('data-subnet') === sub);
+              if (matchedOpt) {
+                selectSubnetCidr.value = matchedOpt.value;
+                updateCidrPreview();
+              }
+            }
+            showToast(`เลือกเป้าหมาย: ${sub}`);
+            container.querySelectorAll('.settings-preset-btn').forEach(b => {
+              b.className = "settings-preset-btn bg-white/80 hover:bg-blue-50 text-slate-700 border border-slate-200/80 px-3 py-1.5 rounded-xl text-left text-xs transition flex items-center justify-between cursor-pointer w-full";
+            });
+            btn.className = "settings-preset-btn bg-blue-600 text-white font-semibold shadow-sm px-3 py-1.5 rounded-xl text-left text-xs transition flex items-center justify-between cursor-pointer w-full";
+          }
+        });
+      });
+    }
+
+    // Step 2: คำนวณขอบเขตวง LAN (Subnet) อัตโนมัติจาก Input
+    function recalculateSubnet(targetStr) {
+      const inputStr = targetStr || (mainSubnetInput ? mainSubnetInput.value : "");
+      if (!inputStr) return;
+      const details = parseSubnetDetails(inputStr);
+      if (details) {
+        appState.subnet = details.subnet;
+        appState.totalHosts = details.totalHosts;
+        appState.firstHost = details.firstHost;
+        appState.lastHost = details.lastHost;
+        appState.cidr = details.cidr;
+
+        if (detectedSubnetRange) {
+          detectedSubnetRange.textContent = details.rangeText;
+        }
+        if (settingSubnetRange) {
+          settingSubnetRange.textContent = details.rangeText;
+        }
+        if (targetIpTypeBadge) {
+          targetIpTypeBadge.textContent = `${details.type} (${details.totalHosts.toLocaleString()} hosts)`;
+        }
+      }
+    }
+
+    // Base API URL resolver: Supports both http://localhost:5050 and file:/// URLs
+    function getApiBase() {
+      if (window.location.protocol === "file:" || !window.location.host) {
+        return "http://localhost:5050";
+      }
+      return "";
+    }
+
+    async function apiFetch(endpoint, options = {}) {
+      const url = `${getApiBase()}${endpoint}`;
+      return await fetch(url, options);
+    }
+
+    function setDiscoveredHostIp(data) {
+      appState.hostIp = data.ip || "";
+      appState.subnet = data.subnet || "";
+      appState.cidr = data.cidr || 24;
+      appState.netmask = data.netmask || "255.255.255.0";
+      appState.gateway = data.gateway || "";
+      appState.networkIface = data.interface || "auto";
+      appState.firstHost = data.first_host || "";
+      appState.lastHost = data.last_host || "";
+      appState.totalHosts = data.total_hosts || 254;
+
+      if (inputCustomIp) inputCustomIp.value = data.ip || "";
+      if (detectedHostIp) detectedHostIp.textContent = data.ip || "-";
+      
+      const rangeStr = data.first_host && data.last_host
+        ? `${data.first_host} - ${data.last_host} (/${data.cidr} รวม ${data.total_hosts.toLocaleString()} เครื่อง)`
+        : (data.subnet || "-");
+
+      if (detectedSubnetRange) detectedSubnetRange.textContent = rangeStr;
+      if (settingSubnetRange) settingSubnetRange.textContent = rangeStr;
+
+      // Update hint elements inside Settings Drawer
+      const hintIp = document.getElementById('hintHostIp');
+      if (hintIp) hintIp.textContent = data.ip || "-";
+
+      const hintSub = document.getElementById('hintHostSubnet');
+      if (hintSub) hintSub.textContent = data.subnet ? `${data.subnet} (/${data.cidr})` : "-";
+
+      const hintCount = document.getElementById('hintActiveCount');
+      if (hintCount) hintCount.textContent = `${data.active_devices_count ?? 0} เครื่อง`;
+
+      const hintGw = document.getElementById('hintGateway');
+      if (hintGw) hintGw.textContent = data.gateway || "-";
+
+      const hintMask = document.getElementById('hintNetmask');
+      if (hintMask) hintMask.textContent = data.netmask || "-";
+
+      const hintIface = document.getElementById('hintNetworkIface');
+      if (hintIface) hintIface.textContent = `${data.interface || 'Auto'} (DHCP/ARP)`;
+
+      // Populate Dynamic CIDR Select from actual detected values!
+      populateDynamicCidrOptions(data.ip, data.cidr, data.netmask, data.subnet, data.total_hosts);
+
+      // Update Workflow diagram modal texts dynamically
+      const step1Ex = document.getElementById('step1ExampleIp');
+      if (step1Ex) step1Ex.textContent = `(ตรวจพบ IP เครื่อง: ${data.ip} บนการ์ด ${data.interface || 'Auto'})`;
+
+      const step2Ex = document.getElementById('step2ExampleRange');
+      if (step2Ex) step2Ex.textContent = `ได้เป็น ${data.first_host} ถึง ${data.last_host} (/${data.cidr} รวม ${data.total_hosts.toLocaleString()} เครื่อง)`;
+
+      const step3Ex = document.getElementById('step3ExampleSpeed');
+      if (step3Ex) step3Ex.textContent = `สแกน ${data.total_hosts.toLocaleString()} เครื่องพร้อมกันแบบ High-concurrency Async`;
+
+      // Set main input to detected subnet
+      if (mainSubnetInput && data.subnet) {
+        mainSubnetInput.value = data.subnet;
+      }
+      if (targetIpTypeBadge) {
+        targetIpTypeBadge.textContent = `CIDR Subnet (${data.total_hosts.toLocaleString()} hosts)`;
+      }
+
+      // Render preset chips inside Settings Drawer
+      renderDynamicPresets(data.presets, data.subnet);
+
+      statusPillText.textContent = `Online · เครือข่าย: ${data.subnet || data.ip}`;
+      statusIndicatorDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+      updateStepBadge(`ระบบพร้อมสแกนเป้าหมาย: ${data.subnet || data.ip}`, "ph-check-circle");
+
+      if (data.is_docker) {
+        showToast(`สภาพแวดล้อม Docker (Host IP: ${data.ip})`);
+      } else {
+        showToast(`ตรวจพบเครือข่ายอัตโนมัติ: ${data.subnet} (${data.active_devices_count ?? 0} อุปกรณ์ออนไลน์)`);
+      }
+    }
+
+    let autoDetectTimer = null;
+
+    // Initialize Network Subnet Detection (Step 1 & 2 in diagram)
+    async function autoDetectLocalNetwork() {
+      updateStepBadge("กำลังตรวจสอบการเชื่อมต่อเครือข่าย...", "ph-network");
+      try {
+        const res = await apiFetch("/api/my-ip");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.ip) {
+            appState.isLiveBackend = true;
+            if (autoDetectTimer) {
+              clearTimeout(autoDetectTimer);
+              autoDetectTimer = null;
+            }
+            setDiscoveredHostIp(data);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("API my-ip connection error:", e);
+      }
+
+      // Fallback if backend API is unreachable or offline
+      appState.isLiveBackend = false;
+      const hostIpEl = document.getElementById('detectedHostIp');
+      if (hostIpEl) hostIpEl.textContent = "รอ Backend...";
+
+      const rangeEl = document.getElementById('detectedSubnetRange');
+      if (rangeEl) rangeEl.textContent = "กรุณากรอก Subnet ด้านบนเพื่อคำนวณ";
+
+      statusPillText.textContent = "ไม่พบ Backend · กำลังลองใหม่...";
+      statusIndicatorDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-ping";
+      updateStepBadge("กรุณารัน ./run.sh เพื่อเชื่อมต่อเครื่องมือสแกนเนอร์", "ph-warning");
+
+      // Auto-retry polling every 3 seconds until backend connects!
+      if (!autoDetectTimer) {
+        autoDetectTimer = setTimeout(() => {
+          autoDetectTimer = null;
+          autoDetectLocalNetwork();
+        }, 3000);
+      }
+    }
+
+    // Start 5-Step Scan Flow according to user's diagram
+    async function startScanWorkflow() {
+      if (appState.isScanning) return;
+      appState.isScanning = true;
+      appState.scanStartTime = performance.now();
+      appState.foundPhpHosts = [];
+      appState.discardedDevices = [];
+
+      const targetSubnet = (mainSubnetInput ? mainSubnetInput.value.trim() : "") || appState.subnet;
+      if (!targetSubnet) {
+        showToast("กรุณาระบุ Subnet หรือ IP เป้าหมายก่อนเริ่มสแกน");
+        appState.isScanning = false;
+        return;
+      }
+
+      const parsedTarget = parseSubnetDetails(targetSubnet);
+      const totalToScan = parsedTarget ? parsedTarget.totalHosts : (appState.totalHosts || 254);
+
+      // UI Changes: Activate Radar Spinning
+      radarSvg.classList.add('animate-spin-radar-fast');
+      scanningRipple.classList.add('animate-pulse-glow');
+      scanningRipple.style.opacity = '1';
+      btnScanContent.classList.add('hidden');
+      btnScanSpinner.classList.remove('hidden');
+      scanProgressWrapper.classList.remove('opacity-0');
+      statusIndicatorDot.className = "w-2 h-2 rounded-full bg-blue-500 animate-ping";
+      statusPillText.textContent = `Scanning LAN ${targetSubnet}...`;
+
+      highlightWorkflowStep(0);
+
+      // STEP 1: โปรแกรมอ่าน IP เครื่องตัวเองอัตโนมัติ
+      await delay(250);
+      highlightWorkflowStep(1);
+      updateStepBadge(`1. ตรวจพบเป้าหมาย: ${targetSubnet}`, "ph-laptop");
+      
+      // STEP 2: คำนวณขอบเขตวง LAN (Subnet) อัตโนมัติ
+      await delay(250);
+      highlightWorkflowStep(2);
+      updateStepBadge(`2. ตรวจสอบขอบเขตเป้าหมาย: ${parsedTarget ? parsedTarget.rangeText : targetSubnet}`, "ph-chart-pie-slice");
+
+      // STEP 3: ส่งคำขอคู่ขนานแบบ Async (ความเร็วสูง)
+      await delay(250);
+      highlightWorkflowStep(3);
+      updateStepBadge(`3. ส่ง Async Parallel Request สแกน ${totalToScan.toLocaleString()} เครื่องพร้อมกัน...`, "ph-lightning");
+
+      // Launch Async Request to Backend
+      const scanPromise = (async () => {
+        try {
+          const res = await apiFetch("/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              subnet: targetSubnet,
+              concurrency: appState.concurrency
+            })
+          });
+          if (res.ok) {
+            return await res.json();
+          }
+        } catch (e) {
+          console.warn("Scan fetch error:", e);
+        }
+        return null;
+      })();
+
+      // Animate progress smoothly while scanning in background
+      for (let p = 15; p <= 90; p += 15) {
+        await delay(200);
+        scanProgressBar.style.width = `${p}%`;
+        scanPercentText.textContent = `${p}%`;
+        scanProgressStats.textContent = `สแกน ${Math.round((p / 100) * totalToScan).toLocaleString()} / ${totalToScan.toLocaleString()} เครื่อง`;
+      }
+
+      const backendData = await scanPromise;
+
+      // STEP 4: จำแนกอุปกรณ์ในวง LAN และระบุเซิร์ฟเวอร์ PHP & Node.js
+      highlightWorkflowStep(4);
+      updateStepBadge(`4. จำแนกอุปกรณ์ในวง LAN และระบุเซิร์ฟเวอร์ PHP / Node.js...`, "ph-funnel");
+      await delay(300);
+
+      if (backendData) {
+        appState.allHosts = backendData.all_hosts || [];
+        appState.foundPhpHosts = backendData.results || [];
+        appState.foundNodeHosts = backendData.node_results || [];
+        appState.totalActiveFound = backendData.total_active_found || appState.allHosts.length;
+        appState.totalPhpFound = backendData.total_php_found || appState.foundPhpHosts.length;
+        appState.totalNodeFound = backendData.total_node_found || appState.foundNodeHosts.length;
+        appState.totalVulnFound = backendData.total_vuln_found || 0;
+        appState.discardedDevices = backendData.discarded || [];
+      } else {
+        appState.allHosts = [];
+        appState.foundPhpHosts = [];
+        appState.foundNodeHosts = [];
+        appState.totalActiveFound = 0;
+        appState.totalPhpFound = 0;
+        appState.totalNodeFound = 0;
+        appState.totalVulnFound = 0;
+        appState.discardedDevices = [];
+      }
+
+      // Default to showing all discovered online devices
+      appState.activeFilter = 'all_online';
+
+      // Complete to 100%
+      const actualScannedCount = (backendData && backendData.scanned_hosts_count) ? backendData.scanned_hosts_count : totalToScan;
+      scanProgressBar.style.width = `100%`;
+      scanPercentText.textContent = `100%`;
+      scanProgressStats.textContent = `สแกนครบ ${actualScannedCount.toLocaleString()} เครื่องเรียบร้อย`;
+
+      // STEP 5: แสดงรายการอุปกรณ์และผลตรวจความปลอดภัย
+      highlightWorkflowStep(5);
+      const phpCount = appState.totalPhpFound;
+      const nodeCount = appState.totalNodeFound;
+      const activeCount = appState.totalActiveFound;
+      const vulnServers = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+
+      if (vulnServers > 0) {
+        updateStepBadge(`5. ตรวจพบความเสี่ยง ${vulnServers} เครื่อง! (PHP: ${phpCount}, Node.js: ${nodeCount})`, "ph-shield-warning");
+      } else if (phpCount > 0 || nodeCount > 0) {
+        updateStepBadge(`5. สแกนสำเร็จ! พบ PHP: ${phpCount}, Node.js: ${nodeCount} (${activeCount} เครื่องออนไลน์)`, "ph-check-circle");
+      } else {
+        updateStepBadge(`5. สแกนสำเร็จ! ตรวจพบ ${activeCount} เครื่องออนไลน์ (ทุกเครื่องปลอดภัย ไม่พบ PHP/Node.js)`, "ph-shield-check");
+      }
+      
+      const scanElapsed = backendData && backendData.elapsed_seconds ? backendData.elapsed_seconds : ((performance.now() - appState.scanStartTime) / 1000).toFixed(2);
+      scanElapsedDuration.textContent = `${scanElapsed} วินาที`;
+
+      await delay(300);
+      finishScan(scanElapsed);
+    }
+
+    function finishScan(elapsedSec) {
+      appState.isScanning = false;
+      radarSvg.classList.remove('animate-spin-radar-fast');
+      scanningRipple.classList.remove('animate-pulse-glow');
+      scanningRipple.style.opacity = '0';
+      btnScanContent.classList.remove('hidden');
+      btnScanSpinner.classList.add('hidden');
+      
+      statusIndicatorDot.className = "w-2 h-2 rounded-full bg-emerald-500";
+      const totalOnline = appState.allHosts.length;
+      const totalPhp = appState.foundPhpHosts.length;
+      const totalNode = appState.foundNodeHosts.length;
+      const totalVuln = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+      
+      statusPillText.textContent = `สแกนสำเร็จ (${elapsedSec}s) · ออนไลน์ ${totalOnline} เครื่อง · PHP: ${totalPhp} · Node.js: ${totalNode}`;
+
+      const quickPhpCount = document.getElementById('quickPhpCount');
+      if (quickPhpCount) {
+        if (totalVuln > 0) {
+          quickPhpCount.textContent = `พบความเสี่ยง ${totalVuln} เครื่อง (PHP/Node.js)`;
+        } else if (totalPhp > 0 || totalNode > 0) {
+          quickPhpCount.textContent = `พบเว็บ PHP ${totalPhp} | Node ${totalNode} (ปลอดภัย)`;
+        } else {
+          quickPhpCount.textContent = `ออนไลน์ ${totalOnline} เครื่อง (ปลอดภัย)`;
+        }
+      }
+
+      // Sync active tab styling
+      document.querySelectorAll('.filter-tab').forEach(t => {
+        t.classList.toggle('active', t.getAttribute('data-filter') === appState.activeFilter);
+      });
+
+      // Render the Results Table (Step 5)
+      renderResultsTable();
+
+      // Automatically open the Results Modal
+      openResultsModal();
+    }
+
+    // Step 5: Render and Filter Results Table
+    function renderResultsTable() {
+      const totalAllOnline = appState.allHosts.length;
+      const totalPhp = appState.foundPhpHosts.length;
+      const totalNode = appState.foundNodeHosts.length;
+      const totalVuln = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+      const totalWorkstations = appState.allHosts.filter(h => !h.is_php && !h.is_node).length;
+
+      // Update badge in modal header
+      if (badgeFilteredCount) {
+        if (totalVuln > 0) {
+          badgeFilteredCount.textContent = `พบความเสี่ยง ${totalVuln} เครื่อง (PHP: ${totalPhp} / Node: ${totalNode})`;
+        } else if (totalPhp > 0 || totalNode > 0) {
+          badgeFilteredCount.textContent = `พบ PHP ${totalPhp} | Node ${totalNode} (ปลอดภัย)`;
+        } else {
+          badgeFilteredCount.textContent = `ออนไลน์ ${totalAllOnline} เครื่อง`;
+        }
+      }
+
+      // Update Tab Counts
+      const elAllOnline = document.getElementById('countTabAllOnline');
+      const elPhp = document.getElementById('countTabPhp');
+      const elNode = document.getElementById('countTabNode');
+      const elVuln = document.getElementById('countTabVuln');
+      const elWorkstation = document.getElementById('countTabWorkstation');
+      const emptyAllCount = document.getElementById('emptyAllCount');
+
+      if (elAllOnline) elAllOnline.textContent = totalAllOnline;
+      if (elPhp) elPhp.textContent = totalPhp;
+      if (elNode) elNode.textContent = totalNode;
+      if (elVuln) elVuln.textContent = totalVuln;
+      if (elWorkstation) elWorkstation.textContent = totalWorkstations;
+      if (emptyAllCount) emptyAllCount.textContent = totalAllOnline;
+
+      // Update Notification Banner
+      const banner = document.getElementById('resultsStatusBanner');
+      const bannerIcon = document.getElementById('bannerStatusIcon');
+      const bannerText = document.getElementById('bannerStatusText');
+
+      if (banner && bannerText) {
+        const targetBadge = document.getElementById('bannerScannedTargetText');
+        const targetSub = mainSubnetInput ? mainSubnetInput.value : appState.subnet;
+        if (targetBadge && targetSub) targetBadge.textContent = `เป้าหมาย: ${targetSub}`;
+
+        if (totalVuln > 0) {
+          banner.className = "px-6 py-2.5 bg-rose-50/90 border-b border-rose-200/80 flex items-center justify-between text-xs text-rose-900 backdrop-blur-sm";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-shield-warning text-rose-600 text-base flex-shrink-0";
+          bannerText.innerHTML = `<b>ตรวจพบเซิร์ฟเวอร์มีความเสี่ยง ${totalVuln} เครื่อง:</b> มีช่องโหว่ความปลอดภัยระดับสูง (php2shell / CVE-2024-4577 หรือ Node2Shell / CVE-2026-111497 Brotli RCE)`;
+        } else if (totalPhp > 0 || totalNode > 0) {
+          banner.className = "px-6 py-2.5 bg-blue-50/90 border-b border-blue-200/80 flex items-center justify-between text-xs text-blue-900 backdrop-blur-sm";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-shield-check text-blue-600 text-base flex-shrink-0";
+          bannerText.innerHTML = `<b>ตรวจพบเซิร์ฟเวอร์ PHP ${totalPhp} เครื่อง และ Node.js ${totalNode} เครื่อง:</b> ได้รับการแพตช์อัปเดตความปลอดภัยเรียบร้อย ปลอดภัยตามเกณฑ์ ThaiCERT`;
+        } else if (totalAllOnline > 0) {
+          banner.className = "px-6 py-2.5 bg-emerald-50/90 border-b border-emerald-200/80 flex items-center justify-between text-xs text-emerald-900 backdrop-blur-sm";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-check-circle text-emerald-600 text-base flex-shrink-0";
+          bannerText.innerHTML = `<b>ตรวจพบอุปกรณ์ออนไลน์ในวง LAN ${totalAllOnline} เครื่อง:</b> เป็นเครื่องลูกข่าย Wi-Fi / Workstations ทั่วไป ไม่พบบริการเว็บที่เสี่ยงภัย (ปลอดภัย 100%)`;
+        } else {
+          banner.className = "px-6 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-700 backdrop-blur-sm";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-info text-slate-500 text-base flex-shrink-0";
+          bannerText.textContent = `สแกนเสร็จสิ้น — ไม่พบเครื่องที่ตอบสนองในวง ${targetSub || ''}`;
+        }
+      }
+
+      // Filter data
+      let filteredList = getFilteredResultsList();
+
+      resultsTableBody.innerHTML = '';
+
+      if (filteredList.length === 0) {
+        resultsTableContainer.classList.add('hidden');
+        resultsEmptyState.classList.remove('hidden');
+
+        const targetVal = mainSubnetInput ? mainSubnetInput.value : (appState.subnetPrefix + '0/24');
+        if (emptyStateTitle) {
+          if (appState.activeFilter === 'node_only' && totalNode === 0) {
+            emptyStateTitle.textContent = `ไม่พบเซิร์ฟเวอร์ Node.js ในวง ${targetVal}`;
+          } else if (appState.activeFilter === 'php_only' && totalPhp === 0) {
+            emptyStateTitle.textContent = `ไม่พบเซิร์ฟเวอร์ PHP ในวง ${targetVal}`;
+          } else if (appState.activeFilter === 'vulnerable' && totalVuln === 0) {
+            emptyStateTitle.textContent = `ยอดเยี่ยม! ไม่พบอุปกรณ์ที่มีความเสี่ยงในวง ${targetVal}`;
+          } else if (totalAllOnline === 0) {
+            emptyStateTitle.textContent = `ไม่พบอุปกรณ์ที่ตอบสนองในวง ${targetVal}`;
+          } else {
+            emptyStateTitle.textContent = `ไม่พบรายการในหมวดที่เลือก`;
+          }
+        }
+        if (emptyStateDesc) {
+          if (appState.activeFilter === 'node_only' && totalNode === 0) {
+            emptyStateDesc.textContent = `พบอุปกรณ์ออนไลน์ทั้งหมด ${totalAllOnline} เครื่อง แต่ไม่มีเครื่องใดเปิดบริการ Node.js (ปลอดภัยจาก Node2Shell / CVE-2026-111497)`;
+          } else if (appState.activeFilter === 'php_only' && totalPhp === 0) {
+            emptyStateDesc.textContent = `พบอุปกรณ์ออนไลน์ทั้งหมด ${totalAllOnline} เครื่อง แต่ไม่มีเครื่องใดเปิดบริการ Web Server PHP (ปลอดภัยจาก php2shell / CVE-2024-4577)`;
+          } else if (appState.activeFilter === 'vulnerable' && totalVuln === 0) {
+            emptyStateDesc.textContent = `ทุกเครื่องในเครือข่ายได้รับการอัปเดตเวอร์ชันปลอดภัย ปลอดภัยจาก php2shell และ Node2Shell เรียบร้อย`;
+          } else if (totalAllOnline === 0) {
+            emptyStateDesc.textContent = `ระบบส่งคำขอตรวจสอบครบถ้วนแล้ว แต่ไม่มีเครื่องใดตอบสนอง โปรดตรวจสอบการเชื่อมต่อเครือข่าย`;
+          } else {
+            emptyStateDesc.textContent = `ไม่มีเครื่องที่ตรงกับตัวกรองที่เลือกในขณะนี้ ลองสลับแท็บ "อุปกรณ์ออนไลน์ทั้งหมด" เพื่อดูเครื่องที่พบ`;
+          }
+        }
+        return;
+      }
+
+      resultsTableContainer.classList.remove('hidden');
+      resultsEmptyState.classList.add('hidden');
+
+      filteredList.forEach(item => {
+        const row = document.createElement('tr');
+        row.className = "hover:bg-blue-50/50 transition-colors border-b border-slate-100";
+
+        let badgeColor = "bg-emerald-100 text-emerald-800 border-emerald-200";
+        let iconType = "ph-check-circle";
+        if (item.vulnerability === "Critical") {
+          badgeColor = "bg-rose-100 text-rose-800 border-rose-200";
+          iconType = "ph-shield-warning";
+        } else if (item.vulnerability === "Outdated" || item.vulnerability === "Warning" || item.vulnerability === "Review Needed") {
+          badgeColor = "bg-amber-100 text-amber-800 border-amber-200";
+          iconType = "ph-warning";
+        } else if (item.is_node || item.is_php) {
+          badgeColor = "bg-blue-100 text-blue-800 border-blue-200";
+          iconType = "ph-shield-check";
+        }
+
+        const ports = Array.isArray(item.ports) && item.ports.length > 0 ? item.ports : [];
+        const isPhp = !!item.is_php;
+        const isNode = !!item.is_node;
+        const isGw = item.ip === appState.gateway || (item.device_name && item.device_name.includes("Gateway"));
+        const isMobile = item.is_mobile || (item.device_name && item.device_name.includes("Private Wi-Fi"));
+
+        let deviceIcon = "ph-desktop";
+        let deviceIconColor = "text-slate-500";
+        if (isNode) {
+          deviceIcon = "ph-brackets-curly";
+          deviceIconColor = "text-emerald-600";
+        } else if (isPhp) {
+          deviceIcon = "ph-file-php";
+          deviceIconColor = "text-indigo-600";
+        } else if (isGw) {
+          deviceIcon = "ph-router";
+          deviceIconColor = "text-blue-600";
+        } else if (isMobile) {
+          deviceIcon = "ph-device-mobile";
+          deviceIconColor = "text-purple-600";
+        } else if (item.device_name && item.device_name.toLowerCase().includes("apple")) {
+          deviceIcon = "ph-laptop";
+          deviceIconColor = "text-slate-700";
+        } else if (item.device_name && (item.device_name.toLowerCase().includes("printer") || item.device_name.toLowerCase().includes("canon") || item.device_name.toLowerCase().includes("epson"))) {
+          deviceIcon = "ph-printer";
+          deviceIconColor = "text-amber-600";
+        }
+
+        // Dot indicator
+        let dotColor = 'bg-slate-400';
+        if (isNode && isPhp) {
+          dotColor = 'bg-purple-600 animate-pulse';
+        } else if (isNode) {
+          dotColor = 'bg-emerald-500 animate-pulse';
+        } else if (isPhp) {
+          dotColor = 'bg-indigo-600 animate-pulse';
+        } else if (item.is_online) {
+          dotColor = 'bg-emerald-400';
+        }
+
+        // Runtime Column
+        let runtimeHtml = '';
+        if (isNode && isPhp) {
+          runtimeHtml = `
+            <div class="flex flex-col gap-1">
+              <span class="font-mono px-2 py-0.5 rounded font-bold text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1">
+                <i class="ph-bold ph-file-php"></i> ${item.phpVersion || 'PHP'}
+              </span>
+              <span class="font-mono px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+                <i class="ph-bold ph-brackets-curly"></i> ${item.nodeVersion || item.runtime_version}
+                ${item.has_brotli ? '<span class="ml-1 text-[8px] bg-emerald-200 text-emerald-800 px-1 py-0.2 rounded font-semibold">br</span>' : ''}
+              </span>
+            </div>
+          `;
+        } else if (isNode) {
+          runtimeHtml = `
+            <span class="font-mono px-2 py-0.5 rounded font-bold text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+              <i class="ph-bold ph-brackets-curly"></i> ${item.nodeVersion || item.runtime_version}
+              ${item.has_brotli ? '<span class="ml-1 text-[9px] bg-emerald-200 text-emerald-800 px-1 py-0.2 rounded font-semibold">br</span>' : ''}
+            </span>
+          `;
+        } else if (isPhp) {
+          runtimeHtml = `
+            <span class="font-mono px-2 py-0.5 rounded font-bold text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1">
+              <i class="ph-bold ph-file-php"></i> ${item.phpVersion}
+            </span>
+          `;
+        } else {
+          runtimeHtml = `
+            <span class="font-mono px-2 py-0.5 rounded font-medium text-[11px] bg-slate-100 text-slate-500 border border-slate-200">
+              ไม่มี Web Service
+            </span>
+          `;
+        }
+
+        const isActionInspect = isPhp || isNode;
+
+        row.innerHTML = `
+          <td class="py-3 px-3 font-mono font-semibold text-slate-800">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+              <span>${item.ip}</span>
+            </div>
+          </td>
+          <td class="py-3 px-3 text-slate-700">
+            <div class="flex items-start gap-2">
+              <div class="w-7 h-7 rounded-lg outer-dish flex items-center justify-center flex-shrink-0 mt-0.5 ${deviceIconColor}">
+                <i class="ph ${deviceIcon} text-base"></i>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="font-bold text-slate-800 text-xs">${item.device_name || item.webServer}</span>
+                <span class="text-[10px] text-slate-400 font-mono">${item.mac ? 'MAC: ' + item.mac : 'DHCP Host'}</span>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-3">
+            ${runtimeHtml}
+          </td>
+          <td class="py-3 px-3">
+            <div class="flex gap-1 flex-wrap">
+              ${ports.length > 0 
+                ? ports.map(p => `<span class="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold">${p === 53 ? '53 (DNS)' : (p === 5050 ? '5050 (Flask)' : (p === 3000 ? '3000 (Node)' : p))}</span>`).join('')
+                : `<span class="text-slate-400 font-mono text-[10px]">พอร์ตปิด (Firewall)</span>`}
+            </div>
+          </td>
+          <td class="py-3 px-3 font-mono text-slate-600 text-[11px]">${item.latency || '< 5 ms'}</td>
+          <td class="py-3 px-3">
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium ${badgeColor}">
+              <i class="ph-bold ${iconType}"></i>
+              <span>${item.cveNote}</span>
+            </div>
+          </td>
+          <td class="py-3 px-3 text-right">
+            <button onclick="inspectHost('${item.ip}')" class="px-2.5 py-1 rounded-lg ${isActionInspect ? 'bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'} transition text-[11px] font-semibold">
+              ${isActionInspect ? 'ตรวจเจาะลึก' : 'ข้อมูล Host'}
+            </button>
+          </td>
+        `;
+        resultsTableBody.appendChild(row);
+      });
+    }
+
+    function getFilteredResultsList() {
+      const term = (document.getElementById('inputSearchHost')?.value || '').trim().toLowerCase();
+      let baseList = [];
+      if (appState.activeFilter === 'all_online') {
+        baseList = appState.allHosts;
+      } else if (appState.activeFilter === 'php_only') {
+        baseList = appState.allHosts.filter(h => h.is_php);
+      } else if (appState.activeFilter === 'node_only') {
+        baseList = appState.allHosts.filter(h => h.is_node);
+      } else if (appState.activeFilter === 'vulnerable') {
+        baseList = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning'));
+      } else if (appState.activeFilter === 'workstations') {
+        baseList = appState.allHosts.filter(h => !h.is_php && !h.is_node);
+      } else {
+        baseList = appState.allHosts;
+      }
+
+      if (term) {
+        baseList = baseList.filter(item => 
+          (item.ip && item.ip.toLowerCase().includes(term)) ||
+          (item.webServer && item.webServer.toLowerCase().includes(term)) ||
+          (item.phpVersion && item.phpVersion.toLowerCase().includes(term)) ||
+          (item.nodeVersion && item.nodeVersion.toLowerCase().includes(term)) ||
+          (item.runtime_version && item.runtime_version.toLowerCase().includes(term)) ||
+          (item.cveNote && item.cveNote.toLowerCase().includes(term))
+        );
+      }
+      return baseList;
+    }
+
+    function switchFilterToAll() {
+      appState.activeFilter = 'all_online';
+      document.querySelectorAll('.filter-tab').forEach(t => {
+        t.classList.toggle('active', t.getAttribute('data-filter') === 'all_online');
+      });
+      renderResultsTable();
+    }
+
+    function inspectHost(ip) {
+      const host = appState.allHosts.find(h => h.ip === ip);
+      if (!host) {
+        showToast(`ข้อมูล Host: ${ip}`);
+        return;
+      }
+      if (host.is_node && host.is_php) {
+        showToast(`${ip}: ตรวจพบ PHP และ Node.js — ${host.cveNote}`);
+      } else if (host.is_node) {
+        showToast(`${ip}: Node.js (${host.nodeVersion}) — ${host.cveNote}`);
+      } else if (host.is_php) {
+        showToast(`${ip}: PHP (${host.phpVersion}) — php2shell: ${host.vulnerability}`);
+      } else {
+        showToast(`${ip}: เครื่องลูกข่ายออนไลน์ปกติ (DHCP Active Host) ไม่เปิดพอร์ตเว็บ — ปลอดภัย 100%`);
+      }
+    }
+
+    // Export CSV feature
+    function exportToCsv() {
+      const listToExport = getFilteredResultsList();
+      if (!listToExport || listToExport.length === 0) {
+        showToast("ไม่พบข้อมูลที่จะส่งออก");
+        return;
+      }
+      let csvContent = "\uFEFFIP Address,Device Type,Runtime / Version,Open Ports,Latency,Security Assessment\n";
+      listToExport.forEach(item => {
+        const portsStr = Array.isArray(item.ports) && item.ports.length > 0 ? item.ports.join(';') : 'Closed';
+        const runtimeVal = item.runtime_version || item.phpVersion || 'ไม่มี Web Service';
+        csvContent += `"${item.ip}","${item.device_name || item.webServer}","${runtimeVal}","${portsStr}","${item.latency || '1ms'}","${item.cveNote}"\n`;
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `ThaiCERT_Network_Scan_${appState.subnetPrefix}0.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast(`ส่งออกรายงาน CSV สำเร็จ (${listToExport.length} รายการ)`);
+    }
+
+    // Modal Control Functions
+    function openResultsModal() {
+      resultsModal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeResultsModal() {
+      resultsModal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function updateStepBadge(text, iconClass) {
+      stepBadgeText.textContent = text;
+      stepBadgeIcon.className = `ph-bold ${iconClass} text-blue-600`;
+    }
+
+    function highlightWorkflowStep(stepIndex) {
+      for (let s = 0; s <= 5; s++) {
+        const stepEl = document.getElementById(`flowStep${s}`);
+        if (!stepEl) continue;
+        if (s === stepIndex) {
+          stepEl.classList.add('active-step');
+        } else {
+          stepEl.classList.remove('active-step');
+        }
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastMessage');
+      document.getElementById('toastText').textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Event Listeners
+    btnScan.addEventListener('click', () => {
+      startScanWorkflow();
+    });
+
+    btnOpenResultsQuick.addEventListener('click', openResultsModal);
+    btnCloseResults.addEventListener('click', closeResultsModal);
+
+    btnRescanFromModal.addEventListener('click', () => {
+      closeResultsModal();
+      startScanWorkflow();
+    });
+
+    if (btnAutoDetectTrigger) {
+      btnAutoDetectTrigger.addEventListener('click', () => {
+        autoDetectLocalNetwork();
+        showToast("รีเซ็ต Subnet ตามเครือข่ายเครื่องเรียบร้อย");
+      });
+    }
+
+    if (mainSubnetInput) {
+      mainSubnetInput.addEventListener('input', () => {
+        document.querySelectorAll('.preset-chip').forEach(c => {
+          c.className = "preset-chip neu-pill text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-full text-[11px] whitespace-nowrap transition-all shadow-sm flex items-center gap-1 cursor-pointer";
+        });
+        const val = mainSubnetInput.value.trim();
+        recalculateSubnet(val);
+      });
+    }
+
+    // Workflow Diagram Modal
+    btnToggleWorkflow.addEventListener('click', () => {
+      workflowModal.classList.remove('opacity-0', 'pointer-events-none');
+    });
+    btnCloseWorkflow.addEventListener('click', () => {
+      workflowModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+    btnWorkflowCloseDone.addEventListener('click', () => {
+      workflowModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+
+    // Settings Drawer Controls
+    function openSettingsDrawer() {
+      settingsDrawer.classList.remove('invisible');
+      if (settingsBackdrop) {
+        settingsBackdrop.classList.remove('pointer-events-none', 'opacity-0');
+      }
+      requestAnimationFrame(() => {
+        settingsDrawer.classList.remove('translate-x-full');
+      });
+    }
+
+    function closeSettingsDrawer() {
+      settingsDrawer.classList.add('translate-x-full');
+      if (settingsBackdrop) {
+        settingsBackdrop.classList.add('opacity-0', 'pointer-events-none');
+      }
+      setTimeout(() => settingsDrawer.classList.add('invisible'), 300);
+    }
+
+    const statusPillBtn = document.getElementById('statusPill');
+    if (statusPillBtn) statusPillBtn.addEventListener('click', openSettingsDrawer);
+    if (btnToggleSettings) btnToggleSettings.addEventListener('click', openSettingsDrawer);
+    if (btnCloseSettings) btnCloseSettings.addEventListener('click', closeSettingsDrawer);
+    if (settingsBackdrop) settingsBackdrop.addEventListener('click', closeSettingsDrawer);
+
+    if (selectSubnetCidr) {
+      selectSubnetCidr.addEventListener('change', () => {
+        updateCidrPreview();
+        const selectedOpt = selectSubnetCidr.options[selectSubnetCidr.selectedIndex];
+        if (selectedOpt && mainSubnetInput) {
+          const sub = selectedOpt.getAttribute('data-subnet');
+          if (sub) {
+            mainSubnetInput.value = sub;
+            recalculateSubnet(sub);
+          }
+        }
+      });
+    }
+
+    if (mainSubnetInput) {
+      mainSubnetInput.addEventListener('input', () => {
+        recalculateSubnet();
+      });
+    }
+
+    if (inputCustomIp) {
+      inputCustomIp.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val && /^(\d{1,3}\.){3}\d{1,3}$/.test(val)) {
+          populateDynamicCidrOptions(val, appState.cidr, appState.netmask, null, null);
+        }
+      });
+    }
+
+    inputWorkerConcurrency.addEventListener('input', (e) => {
+      workerDisplayVal.textContent = `${e.target.value} parallel reqs`;
+    });
+
+    btnSaveSettings.addEventListener('click', () => {
+      let targetToSet = mainSubnetInput ? mainSubnetInput.value.trim() : "";
+      if (!targetToSet) {
+        const selectedOpt = selectSubnetCidr ? selectSubnetCidr.options[selectSubnetCidr.selectedIndex] : null;
+        if (selectedOpt) {
+          targetToSet = selectedOpt.getAttribute('data-subnet') || "";
+        }
+      }
+
+      if (targetToSet && mainSubnetInput) {
+        mainSubnetInput.value = targetToSet;
+        recalculateSubnet(targetToSet);
+        if (statusPillText) {
+          statusPillText.textContent = `Online · เป้าหมาย: ${targetToSet}`;
+        }
+        updateStepBadge(`ระบบพร้อมสแกนเป้าหมาย: ${targetToSet}`, "ph-check-circle");
+      }
+      appState.concurrency = parseInt(inputWorkerConcurrency.value, 10);
+      closeSettingsDrawer();
+      showToast(`บันทึกเป้าหมายสแกน: ${targetToSet}`);
+    });
+
+    document.getElementById('btnExportReport').addEventListener('click', exportToCsv);
+
+    // Results Tabs Filtering
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-tab').forEach(t => {
+          t.classList.remove('active');
+        });
+        e.currentTarget.classList.add('active');
+        appState.activeFilter = e.currentTarget.getAttribute('data-filter');
+        renderResultsTable();
+      });
+    });
+
+    // Keyboard Shortcuts (ESC to close modals)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeResultsModal();
+        workflowModal.classList.add('opacity-0', 'pointer-events-none');
+        closeSettingsDrawer();
+      }
+    });
+
+    // Fullscreen Toggle for Maximize button and Traffic Green
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    }
+    const btnTrafficGreen = document.getElementById('btnTrafficGreen');
+    if (btnTrafficGreen) btnTrafficGreen.addEventListener('click', toggleFullScreen);
+    const btnMaximize = document.getElementById('btnMaximize');
+    if (btnMaximize) btnMaximize.addEventListener('click', toggleFullScreen);
+
+    // Search Host Filter Input
+    const inputSearchHost = document.getElementById('inputSearchHost');
+    if (inputSearchHost) {
+      inputSearchHost.addEventListener('input', () => {
+        renderResultsTable();
+      });
+    }
+
+    // Initialize on page load
+    window.onload = function() {
+      autoDetectLocalNetwork();
+    };
+  </script>
+</body>
+</html>

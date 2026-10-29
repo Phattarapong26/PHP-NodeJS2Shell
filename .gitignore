@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+venv/
+.DS_Store
+server.log
+.env
+host_network.json
+active_hosts.txt
