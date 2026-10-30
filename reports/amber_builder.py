@@ -821,36 +821,50 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             confirm_vuln = c.get("confirm_vuln") or "พบเวอร์ชันอยู่ในช่วงที่ได้รับผลกระทบ"
             confirm_safe = c.get("confirm_safe") or "อัปเดตเป็นเวอร์ชันที่ได้รับแพตช์ความปลอดภัยล่าสุด"
 
-            badge_cls = "adv-item-badge-crit" if cve_sev == "Critical" else ("adv-item-badge-high" if cve_sev == "High" else "adv-item-badge-med")
+            # Severity mapping in Thai
+            sev_th_map = {
+                "Critical": "ระดับวิกฤต (Critical)",
+                "High": "ระดับสูง (High)",
+                "Medium": "ระดับปานกลาง (Medium)",
+                "Low": "ระดับต่ำ (Low)",
+                "Warning": "ระดับควรเฝ้าระวัง (Warning)"
+            }
+            cve_sev_th = sev_th_map.get(cve_sev, f"ระดับ {cve_sev}")
 
             findings_html += f"""
-            <div class="adv-finding-item">
-              <div class="adv-finding-head">
-                <span class="{badge_cls}">{cve_sev.upper()} (CVSS {cvss})</span>
-                <span class="adv-item-title">ข้อค้นพบที่ ๒.{finding_idx}: {html.escape(cve_id)} — {html.escape(cve_name)}</span>
+            <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
+              <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px;">
+                ข้อค้นพบที่ ๒.{finding_idx}: {html.escape(cve_id)} — {html.escape(cve_name)}
               </div>
-              <p class="adv-para">
-                <strong>ระบบเป้าหมายที่ได้รับผลกระทบ:</strong> <code>{html.escape(h_ip)}</code> (หมวดหมู่: {html.escape(cat)})
-              </p>
-              <p class="adv-para">
-                <strong>ลักษณะของข้อค้นพบ (What it is):</strong> จากการตรวจประเมินระบบ พบว่า{html.escape(reason)} ซึ่งจัดเป็นช่องโหว่ระดับ {cve_sev} ตามเกณฑ์ความมั่นคงปลอดภัยของ สกมช. และ ThaiCERT หากระบบเป้าหมายมีการเปิดรับการเชื่อมต่อจากภายนอก ผู้ไม่ประสงค์ดีอาจสามารถใช้ประโยชน์จากข้อบกพร่องดังกล่าวในการข้ามผ่านการควบคุม หรือรันคำสั่งโดยไม่ได้รับอนุญาตได้
-              </p>
-              <p class="adv-para">
-                <strong>เกณฑ์การยืนยันสถานะความเสี่ยง (Verification Criteria):</strong>
-                <br>• เงื่อนไขที่มีความเสี่ยง: {html.escape(confirm_vuln)}
-                <br>• เงื่อนไขที่ปลอดภัย: {html.escape(confirm_safe)}
-              </p>
-              <p class="adv-para" style="margin-bottom: 4px;">
-                <strong>คำสั่งตรวจสอบเพื่อยืนยันบนเครื่องเซิร์ฟเวอร์ (Host Verification CLI):</strong>
-              </p>
-              <div class="adv-code-box">
-                <pre><code># รันคำสั่งนี้บนเครื่องเซิร์ฟเวอร์ {html.escape(h_ip)} เพื่อยืนยันสถานะความปลอดภัย:\n{html.escape(host_check)}</code></pre>
+              <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
+                <strong>ระบบเป้าหมายที่ได้รับผลกระทบ:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
+                <strong>หมวดหมู่เทคโนโลยี:</strong> {html.escape(cat)} &nbsp;|&nbsp; 
+                <strong>ระดับความรุนแรง:</strong> {cve_sev_th} &nbsp;|&nbsp; 
+                <strong>คะแนนมาตรฐาน CVSS:</strong> {cvss}
               </div>
-              <p class="adv-para" style="margin-bottom: 4px;">
-                <strong>แนวทางการแก้ไขและปรับแต่งคอนฟิก (Hardening Blueprint):</strong>
+
+              <p class="adv-para">
+                จากการตรวจสอบและประเมินความมั่นคงปลอดภัยบนระบบเป้าหมายอย่างละเอียด พบข้อค้นพบทางเทคนิคว่า {html.escape(reason)} ซึ่งจัดเป็นช่องโหว่ความมั่นคงปลอดภัย {cve_sev_th} ตามเกณฑ์มาตรฐานของ สกมช. และศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT) ทั้งนี้ หากระบบเปิดให้บริการและสามารถเข้าถึงได้จากเครือข่าย อาจเปิดโอกาสให้ผู้ไม่ประสงค์ดีส่งข้อมูลทดสอบเพื่อแทรกแซงหรือข้ามผ่านการควบคุมความปลอดภัย และกระทำการเข้าถึงระบบโดยไม่ได้รับอนุญาตได้
               </p>
-              <div class="adv-code-box">
-                <pre><code># แนวทางแก้ไข: ทำการอัปเกรดแพ็กเกจซอฟต์แวร์ {html.escape(cat)} บนโฮสต์ {html.escape(h_ip)}\n# ตามคำแนะนำ: {html.escape(confirm_safe)}\nsudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum update {cat.lower()}</code></pre>
+
+              <p class="adv-para">
+                ในการพิจารณาเกณฑ์ความเสี่ยง ระบบจะเข้าข่ายมีช่องโหว่เมื่อ {html.escape(confirm_vuln)} ในขณะที่เกณฑ์การดำเนินงานที่ปลอดภัยตามมาตรฐานสากลคือการปรับปรุงระบบให้เข้าสู่สภาวะ {html.escape(confirm_safe)} ทั้งนี้ เพื่อความแม่นยำในการยืนยันสภาพแวดล้อมจริง ผู้ดูแลระบบสามารถใช้ชุดคำสั่งด้านล่างนี้รันบนเครื่องเซิร์ฟเวอร์เป้าหมายโดยตรง:
+              </p>
+
+              <div class="adv-code-box" style="margin: 8px 0 12px 0;">
+                <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">ชุดคำสั่งสำหรับผู้ดูแลระบบตรวจสอบการตั้งค่าบนเครื่องเซิร์ฟเวอร์จริง:</div>
+                <pre><code>{html.escape(host_check)}</code></pre>
+              </div>
+
+              <p class="adv-para">
+                สำหรับแนวทางการแก้ไขและยกระดับความมั่นคงปลอดภัยเชิงป้องกัน ขอแนะนำให้ผู้ดูแลระบบดำเนินการปรับปรุงและอัปเกรดเวอร์ชันของซอฟต์แวร์ {html.escape(cat)} ให้เป็นรุ่นล่าสุดที่ได้รับการแพตช์แก้ไขแล้ว หรือดำเนินการปรับแต่งคอนฟิกตามแนวทางปฏิบัติด้านล่างนี้:
+              </p>
+
+              <div class="adv-code-box" style="margin: 8px 0 14px 0;">
+                <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">แนวทางการปรับปรุงระบบและการตั้งค่าความมั่นคงปลอดภัย:</div>
+                <pre><code># ดำเนินการอัปเกรดแพ็กเกจซอฟต์แวร์ {html.escape(cat)} บนโฮสต์ {html.escape(h_ip)}
+# เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(confirm_safe)}
+sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum update {cat.lower()}</code></pre>
               </div>
             </div>
             """
@@ -867,22 +881,20 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                     c_ini = c_val.get("hardening_ini") or "; ปรับแต่ง php.ini เพื่อความมั่นคงปลอดภัย"
                     
                     findings_html += f"""
-                    <div class="adv-finding-item">
-                      <div class="adv-finding-head">
-                        <span class="adv-item-badge-med">REVIEW / HARDENING</span>
-                        <span class="adv-item-title">ข้อค้นพบที่ ๒.{finding_idx}: ห่วงโซ่ความเสี่ยงเซสชัน {html.escape(c_title)}</span>
+                    <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
+                      <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px;">
+                        ข้อค้นพบที่ ๒.{finding_idx}: การตรวจสอบความมั่นคงปลอดภัยการจัดการเซสชัน — {html.escape(c_title)}
+                      </div>
+                      <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
+                        <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
+                        <strong>สถานะการประเมิน:</strong> ควรตรวจสอบและปรับปรุงการตั้งค่า (Review & Hardening)
                       </div>
                       <p class="adv-para">
-                        <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code>
+                        จากการตรวจสอบค่าคอนฟิกและพฤติกรรมการจัดการเซสชัน {html.escape(c_verdict)} ซึ่งขอแนะนำให้ผู้ดูแลระบบพิจารณาปรับปรุงค่ากำหนดในไฟล์คอนฟิก {html.escape(c_remedy)} เพื่อลดความเสี่ยงที่อาจเกิดขึ้น
                       </p>
-                      <p class="adv-para">
-                        <strong>ผลการประเมินเชิงลึก:</strong> {html.escape(c_verdict)}
-                      </p>
-                      <p class="adv-para">
-                        <strong>คำแนะนำในการแก้ไข:</strong> {html.escape(c_remedy)}
-                      </p>
-                      <div class="adv-code-box">
-                        <pre><code>; ค่าปรับแต่ง php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:\n{html.escape(c_ini)}</code></pre>
+                      <div class="adv-code-box" style="margin: 8px 0 14px 0;">
+                        <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">แนวทางการตั้งค่าคอนฟิก php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:</div>
+                        <pre><code>{html.escape(c_ini)}</code></pre>
                       </div>
                     </div>
                     """
