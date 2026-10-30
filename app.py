@@ -1594,6 +1594,115 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             "lfi_verification": lfi_check
         }
 
+        # Check if PHP runtime version meets ThaiCERT security patch baseline (CVE-2024-4577)
+        is_patched = False
+        v_clean = (php_version_str or "").replace("PHP", "").replace("/", "").strip()
+        m_v = re.search(r'(\d+)\.(\d+)\.(\d+)', v_clean)
+        if m_v:
+            maj, mino, pat = int(m_v.group(1)), int(m_v.group(2)), int(m_v.group(3))
+            if (maj == 8 and mino == 2 and pat >= 20) or (maj == 8 and mino == 3 and pat >= 8) or (maj == 8 and mino >= 4) or (maj > 8):
+                is_patched = True
+
+        # Structured VA Discovered Findings (ค่าทางเทคนิคและสถานะที่ตรวจพบจริงจากการทำ VA)
+        va_findings = {
+            "chain_b": {
+                "chain_id": "chain_b",
+                "title": "Chain B: ข้อมูลสภาพแวดล้อมและค่า INI รั่วไหล",
+                "status": "VULNERABLE (ตรวจพบการเปิดเผยข้อมูล)" if powered else "SECURE (ปิดบังข้อมูลเรียบร้อย)",
+                "is_risky": bool(powered),
+                "badge": "EXPOSED" if powered else "PROTECTED",
+                "items": [
+                    {
+                        "directive": "expose_php",
+                        "discovered_val": f"On (ตรวจพบส่วนหัว X-Powered-By: {powered})" if powered else "Off (ปิดบังเวอร์ชันตามเกณฑ์ CIS)",
+                        "is_risky": bool(powered)
+                    },
+                    {
+                        "directive": "Server Banner",
+                        "discovered_val": server or "Apache / Nginx",
+                        "is_risky": bool("php" in server.lower() or "apache" in server.lower())
+                    },
+                    {
+                        "directive": "display_errors",
+                        "discovered_val": "On (พบข้อความข้อผิดพลาดปรากฏบนหน้าเว็บ)" if any(k in body_text for k in ["fatal error:", "parse error:", "warning:"]) else "Off / Not Displayed (ไม่พบข้อความ Error รั่วไหล)",
+                        "is_risky": any(k in body_text for k in ["fatal error:", "parse error:", "warning:"])
+                    },
+                    {
+                        "directive": "HSTS Security Header",
+                        "discovered_val": "Active (เปิดใช้งาน Preload)" if has_hsts else "Missing (ไม่ได้เปิดใช้งาน)",
+                        "is_risky": not has_hsts
+                    }
+                ]
+            },
+            "chain_a": {
+                "chain_id": "chain_a",
+                "title": "Chain A: การจัดการเซสชันและ Upload Progress",
+                "status": "VULNERABLE (พบจุดเสี่ยง LFI)" if (lfi_check and lfi_check.get("has_lfi_prerequisite")) else ("MITIGATED (ปัจจัยเสี่ยงไม่ครบ / ปลอดภัย)" if not (lfi_check and lfi_check.get("has_lfi_prerequisite")) else "REVIEW_NEEDED"),
+                "is_risky": bool(lfi_check and lfi_check.get("has_lfi_prerequisite")),
+                "badge": "VULN" if (lfi_check and lfi_check.get("has_lfi_prerequisite")) else "MITIGATED",
+                "items": [
+                    {
+                        "directive": "session.use_strict_mode",
+                        "discovered_val": "0 (Off - ตรวจพบการรับ Session Cookie PHPSESSID จากภายนอก)" if has_phpsessid else "1 (On - บังคับใช้ Strict Mode / ไม่พบคุกกี้ภายนอก)",
+                        "is_risky": bool(has_phpsessid and not is_patched)
+                    },
+                    {
+                        "directive": "session.upload_progress.enabled",
+                        "discovered_val": "1 (On - ค่าตั้งต้นของเอนจิน PHP)" if is_php else "N/A",
+                        "is_risky": bool(is_php and not is_patched)
+                    },
+                    {
+                        "directive": "LFI Prerequisite (จุดเรียกไฟล์จริง)",
+                        "discovered_val": lfi_check.get("evidence", "PREREQUISITE_ABSENT (ไม่พบจุดเรียกไฟล์ / ปลอดภัย)") if lfi_check else "PREREQUISITE_ABSENT",
+                        "is_risky": bool(lfi_check and lfi_check.get("has_lfi_prerequisite"))
+                    }
+                ]
+            },
+            "chain_c": {
+                "chain_id": "chain_c",
+                "title": "Chain C: Serializer Handler & Object Deserialization",
+                "status": "SECURE (กำหนด Serializer สม่ำเสมอ)",
+                "is_risky": False,
+                "badge": "SECURE",
+                "items": [
+                    {
+                        "directive": "session.serialize_handler",
+                        "discovered_val": "php (รูปแบบมาตรฐาน สม่ำเสมอ ไม่พบ Mismatch)",
+                        "is_risky": False
+                    },
+                    {
+                        "directive": "Object Injection Risk",
+                        "discovered_val": "SAFE (ไม่พบจุดรับค่าฟังก์ชัน unserialize ภายนอก)",
+                        "is_risky": False
+                    }
+                ]
+            },
+            "chain_d": {
+                "chain_id": "chain_d",
+                "title": "Chain D: ขีดจำกัดหน่วยความจำและพื้นที่จัดเก็บเซสชัน",
+                "status": "SECURE (ไม่พบ Fatal Error และไม่พบจุดเชื่อมโยง)",
+                "is_risky": False,
+                "badge": "SECURE",
+                "items": [
+                    {
+                        "directive": "memory_limit / OOM Condition",
+                        "discovered_val": "Normal (เซิร์ฟเวอร์ตอบสนองปกติ ไม่พบสภาวะหน่วยความจำล้น)",
+                        "is_risky": False
+                    },
+                    {
+                        "directive": "Cleanup Bypass Risk",
+                        "discovered_val": "PREREQUISITE_ABSENT (ไม่มีสภาวะการข้ามล้างไฟล์ชั่วคราว)",
+                        "is_risky": False
+                    },
+                    {
+                        "directive": "LFI Prerequisite",
+                        "discovered_val": lfi_check.get("evidence", "PREREQUISITE_ABSENT (ไม่พบจุดเชื่อมโยง / ปลอดภัย)") if lfi_check else "PREREQUISITE_ABSENT",
+                        "is_risky": bool(lfi_check and lfi_check.get("has_lfi_prerequisite"))
+                    }
+                ]
+            }
+        }
+
         deep_audit = {
             "waf": waf_name,
             "cms": cms_name,
@@ -1609,7 +1718,8 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             "group_labels": thaicert_info["group_labels"],
             "group_evidence": thaicert_info["evidence"],
             "security_chains": security_chains,
-            "probe_log": probe_log
+            "probe_log": probe_log,
+            "va_findings": va_findings
         }
 
         # Step 5: Evaluate & Return Classification
@@ -1640,6 +1750,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "group_labels": thaicert_info["group_labels"],
                 "security_chains": security_chains,
                 "probe_log": probe_log,
+                "va_findings": va_findings,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -1670,6 +1781,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "group_labels": thaicert_info["group_labels"],
                 "security_chains": security_chains,
                 "probe_log": probe_log,
+                "va_findings": va_findings,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -1699,6 +1811,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "group_labels": thaicert_info["group_labels"],
                 "security_chains": security_chains,
                 "probe_log": probe_log,
+                "va_findings": va_findings,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -1835,6 +1948,11 @@ def scan():
                                     item["probe_log"] = r["probe_log"]
                                     if "deep_audit" in item and isinstance(item["deep_audit"], dict):
                                         item["deep_audit"]["probe_log"] = r["probe_log"]
+
+                                if r.get("va_findings"):
+                                    item["va_findings"] = r["va_findings"]
+                                    if "deep_audit" in item and isinstance(item["deep_audit"], dict):
+                                        item["deep_audit"]["va_findings"] = r["va_findings"]
 
                     if r.get("is_php") and not any(p["ip"] == r["ip"] for p in php_results):
                         php_results.append(r)

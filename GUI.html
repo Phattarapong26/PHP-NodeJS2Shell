@@ -1088,13 +1088,29 @@
               <!-- Dynamically populated with 6-stage cards -->
             </div>
 
+            <!-- Discovered VA Findings & Configuration State (ค่าของการ VA ที่ตรวจพบจริง) -->
+            <div class="pt-3 border-t border-slate-200/60 space-y-2.5">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <span class="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
+                  <i class="ph-bold ph-magnifying-glass-plus text-indigo-600 text-base"></i>
+                  ค่าทางเทคนิคและสถานะที่ตรวจพบจากการทำ VA (Audited Vulnerability Assessment Findings):
+                </span>
+                <span class="text-[10px] text-slate-400 font-mono">Real-time Audited Parameter Values</span>
+              </div>
+
+              <!-- 4-Card Responsive Grid for Discovered VA Findings -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5" id="vaDiscoveredCardsContainer">
+                <!-- Dynamically populated via renderVaDiscoveredCards(host) -->
+              </div>
+            </div>
+
             <!-- Hardening Directives (php.ini) with 1-Click Copy -->
-            <div class="pt-2 border-t border-slate-200/60">
-              <div class="flex items-center justify-between mb-1.5">
+            <div class="pt-3 border-t border-slate-200/60 space-y-2">
+              <div class="flex items-center justify-between mb-1">
                 <span class="font-bold text-slate-700 text-[11px] flex items-center gap-1">
                   <i class="ph-bold ph-file-code text-indigo-600"></i> แนวทางปรับปรุงค่า php.ini เพื่อความปลอดภัย (Hardening Directives):
                 </span>
-                <button id="btnCopyHardeningIni" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold flex items-center gap-1 transition cursor-pointer">
+                <button id="btnCopyHardeningIni" onclick="copyHardeningIni()" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold flex items-center gap-1 transition cursor-pointer">
                   <i class="ph-bold ph-copy"></i>
                   <span id="copyIniBtnText">คัดลอก php.ini Hardening</span>
                 </button>
@@ -1115,97 +1131,6 @@ session.serialize_handler = php
 ; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]
 memory_limit = 256M
 session.save_path = "/var/lib/php/sessions"</div>
-            </div>
-
-            <!-- Per-Chain / Per-Component Hardening Directives Cards -->
-            <div class="pt-3 border-t border-slate-200/60 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="font-bold text-slate-700 text-[11px] flex items-center gap-1">
-                  <i class="ph-bold ph-puzzle-piece text-indigo-600"></i> แนวทางปรับปรุงค่า php.ini เพื่อความปลอดภัยเฉพาะแต่ละตัวที่ทดสอบ:
-                </span>
-                <span class="text-[10px] text-slate-400">เลือกคัดลอกเฉพาะส่วนที่ต้องการนำไปปรับใช้ในระบบ</span>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                <!-- Card Chain A -->
-                <div class="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between gap-2">
-                  <div>
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center">A</span>
-                        Chain A: Session Upload Progress & Strict Mode
-                      </span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">ป้องกันการแทรกข้อมูลเซสชันแฝงผ่านความคืบหน้าการอัปโหลดไฟล์ และบังคับใช้ Strict Mode</p>
-                    <div class="p-2 rounded-lg bg-slate-950 font-mono text-[10px] text-emerald-400 select-all overflow-x-auto whitespace-pre leading-relaxed border border-slate-800" id="chainAHardeningCode">session.upload_progress.enabled = Off
-session.upload_progress.cleanup = On
-session.use_strict_mode = 1</div>
-                  </div>
-                  <button onclick="copySpecificHardening('chain_a', this)" class="w-full py-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[10px] font-semibold border border-slate-200 hover:border-indigo-300 flex items-center justify-center gap-1 transition cursor-pointer">
-                    <i class="ph-bold ph-copy"></i>
-                    <span>คัดลอกเฉพาะส่วน Chain A</span>
-                  </button>
-                </div>
-
-                <!-- Card Chain B -->
-                <div class="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between gap-2">
-                  <div>
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center">B</span>
-                        Chain B: INI Leak & Error Suppression
-                      </span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">ปิดกั้นการเปิดเผยเวอร์ชัน X-Powered-By และระงับการแสดงผล Error สู่หน้าเว็บภายนอก</p>
-                    <div class="p-2 rounded-lg bg-slate-950 font-mono text-[10px] text-emerald-400 select-all overflow-x-auto whitespace-pre leading-relaxed border border-slate-800" id="chainBHardeningCode">expose_php = Off
-display_errors = Off
-log_errors = On
-error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT</div>
-                  </div>
-                  <button onclick="copySpecificHardening('chain_b', this)" class="w-full py-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[10px] font-semibold border border-slate-200 hover:border-indigo-300 flex items-center justify-center gap-1 transition cursor-pointer">
-                    <i class="ph-bold ph-copy"></i>
-                    <span>คัดลอกเฉพาะส่วน Chain B</span>
-                  </button>
-                </div>
-
-                <!-- Card Chain C -->
-                <div class="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between gap-2">
-                  <div>
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center">C</span>
-                        Chain C: Serializer Handler Consistency
-                      </span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">ควบคุมความสม่ำเสมอของ Serializer Handler ป้องกันข้อผิดพลาด Deserialization Mismatch</p>
-                    <div class="p-2 rounded-lg bg-slate-950 font-mono text-[10px] text-emerald-400 select-all overflow-x-auto whitespace-pre leading-relaxed border border-slate-800" id="chainCHardeningCode">session.serialize_handler = php</div>
-                  </div>
-                  <button onclick="copySpecificHardening('chain_c', this)" class="w-full py-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[10px] font-semibold border border-slate-200 hover:border-indigo-300 flex items-center justify-center gap-1 transition cursor-pointer">
-                    <i class="ph-bold ph-copy"></i>
-                    <span>คัดลอกเฉพาะส่วน Chain C</span>
-                  </button>
-                </div>
-
-                <!-- Card Chain D -->
-                <div class="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between gap-2">
-                  <div>
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                        <span class="w-5 h-5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center justify-center">D</span>
-                        Chain D: Memory Limit & Storage Isolation
-                      </span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">ควบคุมขนาดหน่วยความจำป้องกัน OOM ขัดขวางการล้างไฟล์ และแยกโฟลเดอร์เซสชันพร้อม chmod 0700</p>
-                    <div class="p-2 rounded-lg bg-slate-950 font-mono text-[10px] text-emerald-400 select-all overflow-x-auto whitespace-pre leading-relaxed border border-slate-800" id="chainDHardeningCode">memory_limit = 256M
-session.save_path = "/var/lib/php/sessions"
-; สิทธิ์: chmod 0700 /var/lib/php/sessions</div>
-                  </div>
-                  <button onclick="copySpecificHardening('chain_d', this)" class="w-full py-1 px-2.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[10px] font-semibold border border-slate-200 hover:border-indigo-300 flex items-center justify-center gap-1 transition cursor-pointer">
-                    <i class="ph-bold ph-copy"></i>
-                    <span>คัดลอกเฉพาะส่วน Chain D</span>
-                  </button>
-                </div>
-              </div>
             </div>
 
             <!-- Probe Inspection Log & Response Evidence Section -->
@@ -2856,25 +2781,8 @@ Content-Type: text/html; charset=UTF-8</div>
         iniBox.textContent = secChains.hardening_ini || "; [Chain B Defense: ปิดกั้นการเปิดเผยข้อมูลสภาพแวดล้อม]\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On\n\n; [Chain A Defense: ป้องกันการสร้างข้อมูลเซสชันแฝงผ่าน Upload Progress]\nsession.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\n\n; [Chain C Defense: ป้องกันความไม่สอดคล้องของ Serializer]\nsession.serialize_handler = php\n\n; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"";
       }
 
-      // Update per-chain code boxes if available
-      if (secChains.chains) {
-        if (secChains.chains.chain_a && secChains.chains.chain_a.hardening_ini) {
-          const el = document.getElementById('chainAHardeningCode');
-          if (el) el.textContent = secChains.chains.chain_a.hardening_ini;
-        }
-        if (secChains.chains.chain_b && secChains.chains.chain_b.hardening_ini) {
-          const el = document.getElementById('chainBHardeningCode');
-          if (el) el.textContent = secChains.chains.chain_b.hardening_ini;
-        }
-        if (secChains.chains.chain_c && secChains.chains.chain_c.hardening_ini) {
-          const el = document.getElementById('chainCHardeningCode');
-          if (el) el.textContent = secChains.chains.chain_c.hardening_ini;
-        }
-        if (secChains.chains.chain_d && secChains.chains.chain_d.hardening_ini) {
-          const el = document.getElementById('chainDHardeningCode');
-          if (el) el.textContent = secChains.chains.chain_d.hardening_ini;
-        }
-      }
+      // Render Audited Vulnerability Assessment (VA) Findings Cards (ค่าของการ VA ที่ตรวจพบจริง)
+      renderVaDiscoveredCards(host);
 
       // Populate Probe Inspection Log & Response Evidence
       const pLog = host.probe_log || deep.probe_log || {};
@@ -3200,32 +3108,68 @@ Content-Type: text/html; charset=UTF-8</div>
       }
     }
 
-    function copySpecificHardening(chainKey, btnElement) {
-      let text = '';
-      if (chainKey === 'chain_a') {
-        text = document.getElementById('chainAHardeningCode')?.textContent.trim() || 'session.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1';
-      } else if (chainKey === 'chain_b') {
-        text = document.getElementById('chainBHardeningCode')?.textContent.trim() || 'expose_php = Off\ndisplay_errors = Off\nlog_errors = On\nerror_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT';
-      } else if (chainKey === 'chain_c') {
-        text = document.getElementById('chainCHardeningCode')?.textContent.trim() || 'session.serialize_handler = php';
-      } else if (chainKey === 'chain_d') {
-        text = document.getElementById('chainDHardeningCode')?.textContent.trim() || 'memory_limit = 256M\nsession.save_path = "/var/lib/php/sessions"';
+    function renderVaDiscoveredCards(host) {
+      const container = document.getElementById('vaDiscoveredCardsContainer');
+      if (!container) return;
+
+      const va = host.va_findings || (host.deep_audit && host.deep_audit.va_findings);
+      if (!va || Object.keys(va).length === 0 || !host.is_php) {
+        container.innerHTML = `
+          <div class="col-span-full p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-500 text-xs">
+            <i class="ph-bold ph-shield-check text-2xl text-emerald-500 mb-1 inline-block"></i>
+            <p class="font-bold text-slate-700">ไม่พบความเสี่ยงด้านค่าคอนฟิก PHP (อุปกรณ์เครือข่ายทั่วไป)</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">อุปกรณ์นี้ไม่มีบริการ PHP Runtime รันอยู่ จึงปลอดภัยจากความเสี่ยงการเปิดเผยค่า INI และ Session Injection</p>
+          </div>
+        `;
+        return;
       }
 
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-          const origHtml = btnElement.innerHTML;
-          btnElement.innerHTML = '<i class="ph-bold ph-check text-emerald-600"></i> <span class="text-emerald-700 font-bold">คัดลอกเรียบร้อย!</span>';
-          showToast(`คัดลอกชุดคำสั่ง ${chainKey.toUpperCase()} สำเร็จ`);
-          setTimeout(() => {
-            btnElement.innerHTML = origHtml;
-          }, 2000);
-        }).catch(() => {
-          showToast("คำแนะนำ: " + text);
-        });
-      } else {
-        showToast("คำแนะนำ: " + text);
-      }
+      const order = ['chain_b', 'chain_a', 'chain_c', 'chain_d'];
+      container.innerHTML = order.map(k => {
+        const section = va[k];
+        if (!section) return '';
+        const isRisky = section.is_risky;
+        const badgeCls = isRisky 
+          ? 'bg-rose-50 text-rose-700 border-rose-300' 
+          : 'bg-emerald-50 text-emerald-700 border-emerald-300';
+        const cardBorder = isRisky ? 'border-amber-200/90' : 'border-slate-200/90';
+
+        const itemsHtml = (section.items || []).map(it => {
+          const valBadge = it.is_risky 
+            ? 'bg-rose-50 text-rose-800 border border-rose-200 font-semibold' 
+            : 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium';
+          return `
+            <div class="p-2 rounded-xl bg-slate-50/90 border border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
+              <span class="font-mono font-bold text-slate-700 flex items-center gap-1.5">
+                <i class="ph-bold ${it.is_risky ? 'ph-warning text-amber-600' : 'ph-check-circle text-emerald-600'} text-xs"></i>
+                ${it.directive}
+              </span>
+              <span class="font-mono text-[10px] px-2 py-0.5 rounded-md ${valBadge} break-all self-start sm:self-auto shadow-2xs">
+                ${it.discovered_val}
+              </span>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="p-3.5 rounded-2xl bg-white border ${cardBorder} shadow-xs flex flex-col justify-between gap-2.5">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-100">
+                <span class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                  <i class="ph-bold ${isRisky ? 'ph-shield-warning text-amber-600' : 'ph-shield-check text-emerald-600'} text-sm"></i>
+                  ${section.title}
+                </span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded font-bold border ${badgeCls} flex-shrink-0 shadow-2xs">
+                  ${section.badge}
+                </span>
+              </div>
+              <div class="space-y-1.5">
+                ${itemsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function closeDeepAuditModal() {
