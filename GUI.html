@@ -1081,6 +1081,9 @@
               <button id="tabBtnChainD" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_d')">
                 Chain D: OOM Session Cleanup
               </button>
+              <button id="tabBtnChainE" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_e')">
+                Chain E: PHP-FPM Worker OOM
+              </button>
             </div>
 
             <!-- Active Chain Stages Content -->
@@ -1098,8 +1101,8 @@
                 <span class="text-[10px] text-slate-400 font-mono">Real-time Audited Parameter Values</span>
               </div>
 
-              <!-- 4-Card Responsive Grid for Discovered VA Findings -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5" id="vaDiscoveredCardsContainer">
+              <!-- 5-Card Responsive Grid for Discovered VA Findings -->
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5" id="vaDiscoveredCardsContainer">
                 <!-- Dynamically populated via renderVaDiscoveredCards(host) -->
               </div>
             </div>
@@ -2868,7 +2871,7 @@ Content-Type: text/html; charset=UTF-8</div>
           { step: "1. TCP Handshake", desc: `ตรวจพบพอร์ต ${(host.ports && host.ports[0]) || 80}/TCP เปิดรับการเชื่อมต่อ`, status: "pass" },
           { step: "2. Passive HTTP Probe", desc: `ส่งคำขอ GET http://${host.ip}:${(host.ports && host.ports[0]) || 80}/ เชิงรับ`, status: "pass" },
           { step: "3. Header & Cookie Inspection", desc: `วิเคราะห์ส่วนหัว Server และรันไทม์ (${host.webServer || 'Web'})`, status: "pass" },
-          { step: "4. Security Chains Assessment", desc: "ประเมินความปลอดภัยตามเกณฑ์ ThaiCERT Chains A, B, C, D", status: host.vulnerability === 'Secure' ? 'pass' : 'warn' }
+          { step: "4. Security Chains Assessment", desc: "ประเมินความปลอดภัยตามเกณฑ์ ThaiCERT Chains A, B, C, D, E", status: host.vulnerability === 'Secure' ? 'pass' : 'warn' }
         ];
         steps.forEach(st => {
           const isP = st.status === 'pass';
@@ -2898,8 +2901,8 @@ Content-Type: text/html; charset=UTF-8</div>
 
     function switchAuditChain(chainKey) {
       appState.activeAuditChain = chainKey;
-      ['chain_a', 'chain_b', 'chain_c', 'chain_d'].forEach(k => {
-        const btnId = k === 'chain_a' ? 'tabBtnChainA' : (k === 'chain_b' ? 'tabBtnChainB' : (k === 'chain_c' ? 'tabBtnChainC' : 'tabBtnChainD'));
+      ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e'].forEach(k => {
+        const btnId = k === 'chain_a' ? 'tabBtnChainA' : (k === 'chain_b' ? 'tabBtnChainB' : (k === 'chain_c' ? 'tabBtnChainC' : (k === 'chain_d' ? 'tabBtnChainD' : 'tabBtnChainE')));
         const btn = document.getElementById(btnId);
         if (btn) {
           if (k === chainKey) {
@@ -2935,7 +2938,7 @@ Content-Type: text/html; charset=UTF-8</div>
           <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-500">
             <i class="ph-bold ph-shield-check text-3xl text-emerald-500 mb-2 inline-block"></i>
             <p class="font-bold text-slate-700 text-sm">อุปกรณ์นี้ไม่ใช่เซิร์ฟเวอร์ PHP</p>
-            <p class="text-xs text-slate-500 mt-1">จึงไม่อยู่ในเงื่อนไขความเสี่ยงของกลไก PHP Session & Configuration Chains (Chains A, B, C, D)</p>
+            <p class="text-xs text-slate-500 mt-1">จึงไม่อยู่ในเงื่อนไขความเสี่ยงของกลไก PHP Session & Configuration Chains (Chains A, B, C, D, E)</p>
           </div>
         `;
         return;
@@ -3124,7 +3127,7 @@ Content-Type: text/html; charset=UTF-8</div>
         return;
       }
 
-      const order = ['chain_b', 'chain_a', 'chain_c', 'chain_d'];
+      const order = ['chain_b', 'chain_a', 'chain_c', 'chain_d', 'chain_e'];
       container.innerHTML = order.map(k => {
         const section = va[k];
         if (!section) return '';

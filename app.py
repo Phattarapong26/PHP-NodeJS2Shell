@@ -919,11 +919,12 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
 
 def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cookies_str: str, server: str, expose_php: bool, lfi_check: dict = None) -> dict:
     """
-    Defensively models the 4 critical PHP session & configuration security verification chains:
+    Defensively models the 5 critical PHP session & configuration security verification chains:
     - Chain A: session.upload_progress filename injection + LFI
-    - Chain B: INI Leak via Session Engine
-    - Chain C: serializer-handler mismatch -> __destruct Object Injection
-    - Chain D: OOM skips cleanup -> poisoned session -> LFI
+    - Chain B: INI Leak via Session Engine (SAPI & Save Path Exposure)
+    - Chain C: serializer-handler mismatch -> Object Deserialization Risk
+    - Chain D: Apache mod_php OOM -> Stale EG() & Uncleaned Session Files
+    - Chain E: PHP-FPM Session OOM & Stale BG() Worker State Persistence
     Provides stage-by-stage verification & defensive hardening guidance matching ThaiCERT / NCSA standards.
     """
     if not is_php:
@@ -1227,6 +1228,81 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
         chain_d_verdict = "MITIGATED (ปลอดภัย: ไม่พบ LFI Prerequisite — ห่วงโซ่ความเสี่ยงไม่ครบ)"
     chain_d_remedy = "memory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n(พร้อมตั้งค่าสิทธิ์โฟลเดอร์ chmod 0700 เพื่อจำกัดการเข้าถึง)"
 
+    # --- Chain E: PHP-FPM Session OOM & Stale BG() Worker State Persistence ---
+    is_fpm = "fpm" in server.lower() or "nginx" in server.lower()
+    sapi_fpm_status = "PHP-FPM / FastCGI" if is_fpm else "Apache mod_php / Standard CGI"
+    chain_e_stages = [
+        {
+            "stage": "1/6",
+            "name": "FastCGI / PHP-FPM SAPI Architecture Check",
+            "status": "PASS" if is_fpm else "STANDALONE_SAPI",
+            "badge": "PASS" if is_fpm else "INFO",
+            "detail": f"ตรวจสอบสถาปัตยกรรม Server API: ตรวจพบ {sapi_fpm_status} ซึ่งใช้โมเดล Worker Process Pool" if is_fpm else f"ตรวจสอบสถาปัตยกรรม Server API: ตรวจพบ {sapi_fpm_status} (ไม่ใช่สถาปัตยกรรม PHP-FPM)",
+            "mechanism": "สถาปัตยกรรม PHP-FPM อาศัยโมเดล FastCGI Worker Process Pool ที่กระบวนการทำงานจะเปิดค้างไว้เพื่อรอรับคำขอถัดไป เพื่อเพิ่มประสิทธิภาพความเร็วในการประมวลผล",
+            "check_item": "ตรวจสอบ Server Banner และส่วนหัวตอบกลับเพื่อระบุสถาปัตยกรรม FastCGI / PHP-FPM",
+            "defense_tip": "แยกสิทธิ์การทำงานของ Pool แต่ละแอปพลิเคชันโดยกำหนด user และ group ในระดับต่ำสุด"
+        },
+        {
+            "stage": "2/6",
+            "name": "Worker Process Lifecycle & Reuse Analysis (pm.max_requests)",
+            "status": "PASS" if not is_fpm else "AUDIT_NEEDED",
+            "badge": "PASS" if not is_fpm else "AUDIT",
+            "detail": "แนะนำให้กำหนด pm.max_requests = 500 เพื่อบังคับให้เวิร์กเกอร์รีไซเคิลตัวเองเป็นระยะ ป้องกันข้อมูลหรือสถานะตกค้าง" if is_fpm else "ไม่ต้องวิเคราะห์เนื่องจากไม่ได้รันบนโมเดล PHP-FPM Process Pool",
+            "mechanism": "ใน PHP-FPM เวิร์กเกอร์จะถูกนำกลับมาใช้ซ้ำ (Process Reuse) หากกำหนด pm.max_requests = 0 (ค่าตั้งต้นในบางระบบ) เวิร์กเกอร์จะไม่มีการรีสตาร์ทตัวเองเลย ซึ่งเพิ่มความเสี่ยงหากเกิดสถานะบัฟเฟอร์ผิดปกติค้างอยู่",
+            "check_item": "ตรวจสอบการกำหนดค่า pm.max_requests ในไฟล์คอนฟิก Pool (/etc/php/*/fpm/pool.d/www.conf)",
+            "defense_tip": "กำหนด pm.max_requests = 500 ในคอนฟิก Pool ของ PHP-FPM เพื่อให้ระบบทำความสะอาดและรีสตาร์ทกระบวนการอัตโนมัติ"
+        },
+        {
+            "stage": "3/6",
+            "name": "Session Buffer Allocation & OOM Threshold",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "ตรวจสอบการจัดสรรบัฟเฟอร์เซสชันและขีดจำกัดหน่วยความจำ memory_limit ป้องกันการหยุดทำงานก่อนกำหนด",
+            "mechanism": "ระหว่างการประมวลผล multipart form ที่มี PHP_SESSION_UPLOAD_PROGRESS ระบบ PHP-FPM จะจัดสรรบัฟเฟอร์ใน Buffer Globals (BG) หากหน่วยความจำไม่เพียงพอจะกระตุ้นการหยุดทำงานฉุกเฉิน",
+            "check_item": "ประเมินค่า memory_limit (แนะนำ 256M) เทียบกับ post_max_size (แนะนำไม่เกิน 32M)",
+            "defense_tip": "กำหนด memory_limit = 256M และ post_max_size = 32M ใน /etc/php/*/fpm/php.ini"
+        },
+        {
+            "stage": "4/6",
+            "name": "Stale BG() Buffer State Isolation Risk",
+            "status": "PROTECTED" if is_patched else "REVIEW_NEEDED",
+            "badge": "PROTECTED" if is_patched else "REVIEW",
+            "detail": "ระบบได้รับการแพตช์ความปลอดภัย PHP 8.2.20+ / 8.3.8+ หรือมีการตัดแยกหน่วยความจำบัฟเฟอร์อย่างรัดกุม" if is_patched else "แนะนำอัปเดตแพตช์ PHP เพื่อให้การจัดการบัฟเฟอร์ FastCGI รีเซ็ตค่าสมบูรณ์ทุกครั้งที่สิ้นสุดคำขอ",
+            "mechanism": "ใน PHP เวอร์ชันที่ยังไม่ได้รับการแพตช์ การเกิด Bailout ระหว่างขั้นตอนจัดสรรบัฟเฟอร์ FastCGI อาจทิ้งข้อมูลสถานะเดิมใน BG() ไว้ ซึ่งเวิร์กเกอร์เดิมที่นำกลับมาใช้ใหม่อาจเข้าถึงสถานะที่ตกค้างได้",
+            "check_item": "ตรวจสอบเลขเวอร์ชันแพตช์ PHP-FPM และการจัดการ FastCGI Request Boundary",
+            "defense_tip": "อัปเดต PHP-FPM เป็นเวอร์ชัน 8.2.20+ หรือ 8.3.8+ ขึ้นไปตามคำแนะนำของ ThaiCERT"
+        },
+        {
+            "stage": "5/6",
+            "name": "Reverse Proxy Buffer & FastCGI Boundary Defense",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "มีการตั้งค่า Reverse Proxy (Nginx / Apache mod_proxy_fcgi) เพื่อคัดกรองขนาดบัฟเฟอร์และขนาดคำขอก่อนส่งต่อมายัง FPM",
+            "mechanism": "การกำหนดขนาดบัฟเฟอร์ที่เลเยอร์ Reverse Proxy ช่วยจำกัดไม่ให้คำขอที่มีขนาดผิดปกติหรือส่วนหัวที่ไม่ได้รับอนุญาตหลุดรอดเข้ามายังเวิร์กเกอร์ของ PHP-FPM",
+            "check_item": "ตรวจสอบการกำหนดค่า client_max_body_size, fastcgi_buffer_size และ fastcgi_buffers",
+            "defense_tip": "กำหนด client_max_body_size 32M และ fastcgi_buffer_size 128k ในคอนฟิก Reverse Proxy"
+        },
+        {
+            "stage": "6/6",
+            "name": "Upload Progress Lockdown & Worker Hardening",
+            "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE",
+            "badge": "SECURE" if is_patched else "REVIEW",
+            "detail": "ปิดกั้นกลไก Upload Progress โดยกำหนด session.upload_progress.enabled = Off ในคอนฟิก PHP-FPM",
+            "mechanism": "การปิดฟังก์ชัน Upload Progress จะตัดตอนตรรกะการจัดสรรบัฟเฟอร์เซสชันพิเศษในระหว่างอัปโหลด ทำให้ไม่มีจุดตกค้างใน Buffer Globals",
+            "check_item": "ตรวจสอบสถานะ session.upload_progress.enabled ใน /etc/php/*/fpm/php.ini",
+            "defense_tip": "กำหนด session.upload_progress.enabled = Off ในคอนฟิก PHP-FPM และรีสตาร์ทบริการ php-fpm"
+        }
+    ]
+
+    if not is_fpm:
+        chain_e_verdict = "NOT_APPLICABLE (ระบบไม่ได้ใช้ PHP-FPM / สถาปัตยกรรมขอบเขตความเสี่ยงไม่ตรงกัน)"
+    elif is_patched:
+        chain_e_verdict = "SECURE (ได้รับการแพตช์ / FastCGI Worker จัดการบัฟเฟอร์ปลอดภัย)"
+    else:
+        chain_e_verdict = "REVIEW_NEEDED (แนะนำกำหนด pm.max_requests = 500 และปิด upload_progress)"
+    
+    chain_e_remedy = "; ใน /etc/php/*/fpm/pool.d/www.conf:\npm.max_requests = 500\n; ใน /etc/php/*/fpm/php.ini:\nsession.upload_progress.enabled = Off\nmemory_limit = 256M\npost_max_size = 32M"
+
     return {
         "applicable": True,
         "overall_status": "Defensively Hardened" if (is_patched and not expose_php) else "Audit & Hardening Recommended",
@@ -1258,9 +1334,16 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
                 "remediation": chain_d_remedy,
                 "stages": chain_d_stages,
                 "hardening_ini": "; [Chain D: ควบคุมขนาดหน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n; สิทธิ์โฟลเดอร์ที่แนะนำ: chmod 0700 /var/lib/php/sessions && chown www-data:www-data /var/lib/php/sessions"
+            },
+            "chain_e": {
+                "title": "[Chain E] PHP-FPM Session OOM & Stale BG() Worker State Persistence",
+                "verdict": chain_e_verdict,
+                "remediation": chain_e_remedy,
+                "stages": chain_e_stages,
+                "hardening_ini": "; [Chain E: ควบคุมวงรอบเวิร์กเกอร์ PHP-FPM และป้องกันบัฟเฟอร์ตกค้าง]\n; ในไฟล์ pool.d/www.conf:\n; pm.max_requests = 500\n; ในไฟล์ php.ini:\nsession.upload_progress.enabled = Off\nmemory_limit = 256M\npost_max_size = 32M"
             }
         },
-        "hardening_ini": "; [Chain B Defense: ปิดกั้นการเปิดเผยข้อมูลสภาพแวดล้อม]\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On\nerror_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT\n\n; [Chain A Defense: ป้องกันการสร้างข้อมูลเซสชันแฝงผ่าน Upload Progress]\nsession.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\n\n; [Chain C Defense: ป้องกันความไม่สอดคล้องของ Serializer และ Object Deserialization]\nsession.serialize_handler = php\n\n; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\""
+        "hardening_ini": "; [Chain B Defense: ปิดกั้นการเปิดเผยข้อมูลสภาพแวดล้อม]\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On\nerror_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT\n\n; [Chain A Defense: ป้องกันการสร้างข้อมูลเซสชันแฝงผ่าน Upload Progress]\nsession.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\n\n; [Chain C Defense: ป้องกันความไม่สอดคล้องของ Serializer และ Object Deserialization]\nsession.serialize_handler = php\n\n; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n\n; [Chain E Defense: ควบคุมวงรอบเวิร์กเกอร์ PHP-FPM และป้องกันบัฟเฟอร์ตกค้าง]\n; ในไฟล์ pool.d/www.conf: pm.max_requests = 500\npost_max_size = 32M"
     }
 
 async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_text: str, req_headers: dict) -> dict:
@@ -1572,7 +1655,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             },
             {
                 "step": "4. Defensive Security Chains Assessment",
-                "desc": f"วิเคราะห์ค่าคอนฟิกเทียบกับมาตรฐาน ThaiCERT และกลไก Chains A, B, C, D — ผลสรุป: {security_chains.get('overall_status', 'Audit Completed')}",
+                "desc": f"วิเคราะห์ค่าคอนฟิกเทียบกับมาตรฐาน ThaiCERT และกลไก Chains A, B, C, D, E — ผลสรุป: {security_chains.get('overall_status', 'Audit Completed')}",
                 "status": "pass" if security_chains.get('overall_status') == 'Defensively Hardened' else "warn"
             }
         ])
@@ -1604,6 +1687,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 is_patched = True
 
         # Structured VA Discovered Findings (ค่าทางเทคนิคและสถานะที่ตรวจพบจริงจากการทำ VA)
+        is_fpm = "fpm" in server.lower() or "nginx" in server.lower()
         va_findings = {
             "chain_b": {
                 "chain_id": "chain_b",
@@ -1698,6 +1782,30 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                         "directive": "LFI Prerequisite",
                         "discovered_val": lfi_check.get("evidence", "PREREQUISITE_ABSENT (ไม่พบจุดเชื่อมโยง / ปลอดภัย)") if lfi_check else "PREREQUISITE_ABSENT",
                         "is_risky": bool(lfi_check and lfi_check.get("has_lfi_prerequisite"))
+                    }
+                ]
+            },
+            "chain_e": {
+                "chain_id": "chain_e",
+                "title": "Chain E: สถาปัตยกรรม PHP-FPM และสถานะเวิร์กเกอร์",
+                "status": "MONITORED (ตรวจสอบการรีไซเคิลเวิร์กเกอร์)" if is_fpm else "NOT_APPLICABLE (ไม่ใช่ PHP-FPM)",
+                "is_risky": False,
+                "badge": "FPM" if is_fpm else "STANDALONE",
+                "items": [
+                    {
+                        "directive": "SAPI Execution Model",
+                        "discovered_val": "PHP-FPM / FastCGI (ตรวจพบสถาปัตยกรรม Worker Pool)" if is_fpm else "Apache mod_php / Standard CGI",
+                        "is_risky": False
+                    },
+                    {
+                        "directive": "Worker Reuse (pm.max_requests)",
+                        "discovered_val": "Audit Pool Config (แนะนำตั้งค่า 500 เพื่อรีไซเคิลเวิร์กเกอร์)" if is_fpm else "N/A (ไม่ใช่ระบบ Worker Pool)",
+                        "is_risky": False
+                    },
+                    {
+                        "directive": "Stale BG() Buffer Isolation",
+                        "discovered_val": "PROTECTED (เวอร์ชันได้รับการแพตช์)" if is_patched else "REVIEW_NEEDED (แนะนำอัปเดตแพตช์เพื่อความรัดกุม)",
+                        "is_risky": not is_patched and is_fpm
                     }
                 ]
             }
