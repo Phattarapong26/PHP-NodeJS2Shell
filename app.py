@@ -2451,13 +2451,9 @@ def verify_asan_memory():
     if clean_token and clean_token not in candidate_hosts:
         candidate_hosts.append(clean_token)
 
-    # In Docker environments, allow fallback resolution for localhost and container alias
+    # In containerized environments, if scanning the host machine loopback, allow host.docker.internal
     if clean_token in ("127.0.0.1", "localhost", "0.0.0.0"):
-        for alt in ["test-target", "opscaner-test-target", "host.docker.internal", "192.168.65.254", "172.25.0.3", "127.0.0.1"]:
-            if alt not in candidate_hosts:
-                candidate_hosts.append(alt)
-    elif target_port in (8080, 8088):
-        for alt in ["test-target", "opscaner-test-target", "host.docker.internal", "192.168.65.254"]:
+        for alt in ["host.docker.internal", "127.0.0.1"]:
             if alt not in candidate_hosts:
                 candidate_hosts.append(alt)
 
