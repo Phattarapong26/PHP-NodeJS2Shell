@@ -2,6 +2,7 @@ import os
 import re
 import json
 import socket
+import struct
 import asyncio
 import ipaddress
 import subprocess
@@ -427,6 +428,18 @@ def get_host_network_info():
         "is_docker": is_container,
         "source": "offline"
     }
+
+def get_docker_gateway() -> str:
+    """Detect default bridge gateway inside Docker container to connect to host ports."""
+    try:
+        with open('/proc/net/route') as f:
+            for line in f:
+                fields = line.strip().split()
+                if len(fields) >= 3 and fields[1] == '00000000':
+                    return socket.inet_ntoa(struct.pack('<L', int(fields[2], 16)))
+    except Exception:
+        pass
+    return None
 
 def parse_target_hosts(target_str, max_scan=2048, host_ip=""):
     """Parse any CIDR, IP range, single IP, or Domain with optional port into target host list."""
@@ -1430,13 +1443,38 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
     """Deep inspection of a target IP and port for PHP and Node.js signatures and vulnerabilities."""
     scheme = "https" if port in (443, 8443) else "http"
     target_host = hostname if hostname else ip_str
-    base_url = f"{scheme}://{target_host}:{port}"
     check_host = hostname if hostname else ip_str
     display_ip = f"{ip_str} ({hostname})" if (hostname and hostname != ip_str) else ip_str
+    reported_base_url = f"{scheme}://{target_host}:{port}"
+    connect_host = check_host
 
     # Pre-flight TCP check
-    if not await check_tcp_port(check_host, port, timeout=0.8 if hostname else 0.35):
-        return None
+    if not await check_tcp_port(connect_host, port, timeout=0.8 if hostname else 0.35):
+        # In Docker on macOS/Windows, container-to-host LAN IP often drops due to NAT hairpin.
+        # Transparently fallback to Docker host gateway or host.docker.internal if target is host machine
+        net_info = get_host_network_info()
+        is_docker = net_info.get("is_docker", False)
+        host_ip = net_info.get("ip", "")
+        if is_docker and (check_host == host_ip or check_host in ("127.0.0.1", "localhost", "0.0.0.0")):
+            gw = get_docker_gateway()
+            candidates = []
+            if gw:
+                candidates.append(gw)
+            candidates.extend(["host.docker.internal", "127.0.0.1"])
+            
+            found_conn = None
+            for cand in candidates:
+                if await check_tcp_port(cand, port, timeout=0.3):
+                    found_conn = cand
+                    break
+            if found_conn:
+                connect_host = found_conn
+            else:
+                return None
+        else:
+            return None
+
+    base_url = f"{scheme}://{connect_host}:{port}"
 
     try:
         t0 = time.perf_counter()
@@ -1444,6 +1482,8 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             "Accept-Encoding": "br, gzip, deflate",
             "User-Agent": "ThaiCERT-OPScaner/2.0 (LAN Discovery & Security Audit)"
         }
+        if connect_host != target_host:
+            req_headers["Host"] = f"{target_host}:{port}"
         resp = await client.get(f"{base_url}/", headers=req_headers, timeout=2.2, follow_redirects=True)
         latency = f"{(time.perf_counter() - t0) * 1000:.1f} ms"
 
@@ -1693,7 +1733,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
         ])
 
         probe_log = {
-            "target_url": f"{base_url}/",
+            "target_url": f"{reported_base_url}/",
             "method": "GET",
             "port": port,
             "status_code": resp.status_code,
@@ -1944,7 +1984,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
         deep_audit = {
             "target_id": f"{display_ip}:{port}",
             "port": port,
-            "target_url": base_url,
+            "target_url": reported_base_url,
             "waf": waf_name,
             "cms": cms_name,
             "site_title": site_name,
@@ -1975,7 +2015,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
-                "target_url": base_url,
+                "target_url": reported_base_url,
                 "is_php": True,
                 "is_node": True,
                 "runtime": "PHP & Node.js",
@@ -2009,7 +2049,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
-                "target_url": base_url,
+                "target_url": reported_base_url,
                 "is_php": False,
                 "is_node": True,
                 "runtime": "Node.js",
@@ -2042,7 +2082,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
-                "target_url": base_url,
+                "target_url": reported_base_url,
                 "is_php": True,
                 "is_node": False,
                 "runtime": "PHP",
@@ -2077,7 +2117,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
-                "target_url": base_url,
+                "target_url": reported_base_url,
                 "is_php": False,
                 "is_node": False,
                 "runtime": "None",
@@ -2445,8 +2485,16 @@ def verify_asan_memory():
     if clean_token and clean_token not in candidate_hosts:
         candidate_hosts.append(clean_token)
 
-    # In containerized environments, if scanning the host machine loopback, allow host.docker.internal
-    if clean_token in ("127.0.0.1", "localhost", "0.0.0.0"):
+    # In containerized environments, if scanning the host machine loopback or host LAN IP, prioritize gateway / host.docker.internal
+    net_info = get_host_network_info()
+    host_ip = net_info.get("ip", "")
+    if net_info.get("is_docker") and (clean_token in ("127.0.0.1", "localhost", "0.0.0.0") or clean_token == host_ip):
+        gw = get_docker_gateway()
+        if gw and gw not in candidate_hosts:
+            candidate_hosts.insert(0, gw)
+        if "host.docker.internal" not in candidate_hosts:
+            candidate_hosts.append("host.docker.internal")
+    elif clean_token in ("127.0.0.1", "localhost", "0.0.0.0"):
         for alt in ["host.docker.internal", "127.0.0.1"]:
             if alt not in candidate_hosts:
                 candidate_hosts.append(alt)
