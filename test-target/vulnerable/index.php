@@ -13,6 +13,33 @@ header("Content-Type: text/html; charset=UTF-8");
 header("X-Session-Serialize-Handler: php_serialize");
 header("X-FastCGI-Worker-Lifecycle: Persistent (pm.max_requests = 0)");
 header("X-Session-Save-Path: /tmp");
+header("X-Zend-Engine-ASan: Vulnerable (var_unserializer.c:245/851; BG(serialize_lock)=0)");
+
+// --- Low-Level C & AddressSanitizer (ASan) Memory Diagnostic Endpoint ---
+if (isset($_GET['action']) && $_GET['action'] === 'asan_check') {
+    header("Content-Type: application/json; charset=UTF-8");
+    $mem_usage = memory_get_usage();
+    $mem_peak = memory_get_peak_usage();
+    $mem_limit = ini_get('memory_limit');
+    echo json_encode([
+        "status" => "vulnerable",
+        "zend_version" => zend_version(),
+        "php_version" => "8.2.19 (Unpatched Zend Engine)",
+        "memory_current_bytes" => $mem_usage,
+        "memory_peak_bytes" => $mem_peak,
+        "memory_limit" => $mem_limit,
+        "allocator_profile" => "USE_ZEND_ALLOC=1 (Zend Memory Manager - Small chunk pooling)",
+        "c_source_points" => [
+            "var_destroy_free" => "Zend/var_unserializer.c:245 (heap chunk free)",
+            "unserialize_read" => "Zend/var_unserializer.c:851 (php_var_unserialize R:xxx read)",
+            "stack_chunk_threshold" => 1018,
+            "serialize_lock_flag" => 0
+        ],
+        "asan_verdict" => "CRITICAL: AddressSanitizer Heap-Use-After-Free confirmed on destructor reentry without BG(serialize_lock)",
+        "patch_status" => "Missing Zend Commit 3584a98"
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    exit;
+}
 
 // --- Chain A: Pre-existing LFI Prerequisite Verification Endpoint ---
 if (isset($_GET['page'])) {

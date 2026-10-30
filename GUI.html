@@ -1136,6 +1136,65 @@ memory_limit = 256M
 session.save_path = "/var/lib/php/sessions"</div>
             </div>
 
+            <!-- Low-Level C & AddressSanitizer (ASan) Memory Diagnostic Module -->
+            <div id="asanMemoryDiagnosticSection" class="pt-4 border-t border-slate-200/60 space-y-3">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h4 class="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-2">
+                    <i class="ph-bold ph-cpu text-purple-600 text-base"></i>
+                    การตรวจวัดระดับหน่วยความจำลึกและสถาปัตยกรรม Zend C (Low-Level C & ASan Memory Diagnostics)
+                  </h4>
+                  <span class="text-[10px] text-slate-400">วิเคราะห์ข้อผิดพลาดหน่วยความจำ Heap Use-After-Free ใน Zend Engine (var_unserializer.c:245/851), สถานะ BG(serialize_lock) และการตรวจจับ AddressSanitizer</span>
+                </div>
+                <button id="btnRunAsanAudit" onclick="runLiveAsanAudit()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+                  <i class="ph-bold ph-lightning"></i>
+                  <span id="btnRunAsanAuditText">รันการทดสอบระดับ C / ASan Probe (Live)</span>
+                </button>
+              </div>
+
+              <!-- C-Level Architecture Metrics Grid -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="asanMetricsGrid">
+                <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div class="text-[10px] text-slate-400 font-mono">Zend Core Source</div>
+                  <div class="text-xs font-bold text-slate-800 mt-0.5" id="asanMetricSource">var_unserializer.c</div>
+                  <div class="text-[9px] text-slate-500 font-mono mt-0.5">Lines: 245 (free) / 851 (read)</div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div class="text-[10px] text-slate-400 font-mono">BG(serialize_lock)</div>
+                  <div class="text-xs font-bold text-slate-800 mt-0.5" id="asanMetricLock">0 (Unprotected)</div>
+                  <div class="text-[9px] text-slate-500 font-mono mt-0.5">Reentry Destructor Guard</div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div class="text-[10px] text-slate-400 font-mono">VAR_ENTRIES_MAX Bound</div>
+                  <div class="text-xs font-bold text-slate-800 mt-0.5" id="asanMetricChunk">> 1018 Entries</div>
+                  <div class="text-[9px] text-slate-500 font-mono mt-0.5">Dynamic Heap Chunk Shift</div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                  <div class="text-[10px] text-slate-400 font-mono">Allocator Profile</div>
+                  <div class="text-xs font-bold text-slate-800 mt-0.5" id="asanMetricAlloc">USE_ZEND_ALLOC=1</div>
+                  <div class="text-[9px] text-slate-500 font-mono mt-0.5">ASan Exposed under =0</div>
+                </div>
+              </div>
+
+              <!-- Interactive ASan Terminal Output Box -->
+              <div class="p-3 rounded-2xl bg-slate-950 font-mono text-[11px] border border-slate-800 text-slate-300 shadow-inner space-y-2">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                    <span class="text-[10px] text-slate-400 ml-1">AddressSanitizer / Zend Engine Runtime Memory Inspector</span>
+                  </div>
+                  <span id="asanStatusPill" class="px-2 py-0.5 rounded text-[9px] font-bold bg-purple-900/60 text-purple-300 border border-purple-700/50">ASAN READY</span>
+                </div>
+                <div class="overflow-x-auto whitespace-pre leading-relaxed select-all text-[10.5px]" id="asanTerminalTrace">=================================================================
+== AddressSanitizer & Zend Core Deep Diagnostic Subsystem ==
+Target: Ready for Live Probe
+กดปุ่ม "รันการทดสอบระดับ C / ASan Probe (Live)" เพื่อเริ่มการประเมินสถานะหน่วยความจำระดับ C Code และ AddressSanitizer แบบเรียลไทม์
+=================================================================</div>
+              </div>
+            </div>
+
             <!-- Probe Inspection Log & Response Evidence Section -->
             <div id="auditProbeLogSection" class="pt-4 border-t border-slate-200/60 space-y-3">
               <div class="flex items-center justify-between flex-wrap gap-2">
@@ -2787,6 +2846,42 @@ Content-Type: text/html; charset=UTF-8</div>
       // Render Audited Vulnerability Assessment (VA) Findings Cards (ค่าของการ VA ที่ตรวจพบจริง)
       renderVaDiscoveredCards(host);
 
+      // Populate Low-Level C & ASan Memory Diagnostics
+      const zendC = host.zend_c_telemetry || deep.zend_c_telemetry || {};
+      const asanSec = document.getElementById('asanMemoryDiagnosticSection');
+      if (asanSec) {
+        if (!host.is_php) {
+          asanSec.classList.add('hidden');
+        } else {
+          asanSec.classList.remove('hidden');
+          const metricLock = document.getElementById('asanMetricLock');
+          const metricSource = document.getElementById('asanMetricSource');
+          const metricChunk = document.getElementById('asanMetricChunk');
+          const metricAlloc = document.getElementById('asanMetricAlloc');
+          const asanStatusPill = document.getElementById('asanStatusPill');
+          const asanTerminal = document.getElementById('asanTerminalTrace');
+
+          if (metricLock) metricLock.textContent = zendC.serialize_lock_status || (zendC.is_vulnerable ? "0 (Unprotected)" : "1 (Enforced)");
+          if (metricSource) metricSource.textContent = zendC.source_free ? "var_unserializer.c" : "Guarded";
+          if (metricChunk) metricChunk.textContent = zendC.stack_chunk_threshold ? "1018 Bound Checked" : "Bound Enforced";
+          if (metricAlloc) metricAlloc.textContent = zendC.allocator_profile || "USE_ZEND_ALLOC=1";
+          
+          if (asanStatusPill) {
+            if (zendC.is_vulnerable) {
+              asanStatusPill.textContent = "ASAN VULN DETECTED";
+              asanStatusPill.className = "px-2 py-0.5 rounded text-[9px] font-bold bg-rose-900/60 text-rose-300 border border-rose-700/50";
+            } else {
+              asanStatusPill.textContent = "ASAN VERIFIED CLEAN";
+              asanStatusPill.className = "px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-900/60 text-emerald-300 border border-emerald-700/50";
+            }
+          }
+
+          if (asanTerminal) {
+            asanTerminal.textContent = zendC.asan_trace_preview || `AddressSanitizer Status for ${host.ip}:\nClick 'รันการทดสอบระดับ C / ASan Probe (Live)' to perform a real-time memory diagnostic.`;
+          }
+        }
+      }
+
       // Populate Probe Inspection Log & Response Evidence
       const pLog = host.probe_log || deep.probe_log || {};
       const targetUrlEl = document.getElementById('probeTargetUrl');
@@ -3111,6 +3206,68 @@ Content-Type: text/html; charset=UTF-8</div>
       }
     }
 
+    async function runLiveAsanAudit() {
+      const host = appState.selectedAuditHost;
+      if (!host) {
+        showToast("ไม่พบข้อมูล Host ที่เลือก");
+        return;
+      }
+      const btn = document.getElementById('btnRunAsanAudit');
+      const btnText = document.getElementById('btnRunAsanAuditText');
+      const terminal = document.getElementById('asanTerminalTrace');
+      const pill = document.getElementById('asanStatusPill');
+
+      if (btn) btn.disabled = true;
+      if (btnText) btnText.textContent = "กำลังส่งคำขอตรวจสอบ C/ASan...";
+      if (terminal) {
+        terminal.textContent = `[+] Initiating deep C-level & AddressSanitizer probe to ${host.ip}:${(host.ports && host.ports[0]) || 8080}...\n[*] Probing Zend Engine memory boundaries and var_destroy reentrancy...\n`;
+      }
+
+      try {
+        const port = (host.ports && host.ports[0]) || 8080;
+        const res = await fetch(`/api/verify-asan-memory?ip=${encodeURIComponent(host.ip)}&port=${encodeURIComponent(port)}`);
+        const data = await res.json();
+
+        if (data.status === 'ERROR') {
+          terminal.textContent += `[-] Error probing target: ${data.message || 'Connection failed'}`;
+          if (pill) {
+            pill.textContent = "PROBE FAILED";
+            pill.className = "px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-400";
+          }
+        } else {
+          const isV = data.is_vulnerable;
+          if (pill) {
+            pill.textContent = isV ? "ASAN VULN DETECTED" : "ASAN VERIFIED CLEAN";
+            pill.className = isV 
+              ? "px-2 py-0.5 rounded text-[9px] font-bold bg-rose-900/60 text-rose-300 border border-rose-700/50"
+              : "px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-900/60 text-emerald-300 border border-emerald-700/50";
+          }
+
+          terminal.textContent = 
+`=================================================================
+== AddressSanitizer & Zend Core Deep Diagnostic Subsystem ==
+Target: ${data.target} | Runtime: ${data.php_version}
+Memory Usage: ${data.memory_current ? (data.memory_current/1024).toFixed(1) + ' KB' : 'N/A'} | Peak: ${data.memory_peak ? (data.memory_peak/1024).toFixed(1) + ' KB' : 'N/A'} | Limit: ${data.memory_limit}
+Allocator Mode: ${data.allocator_profile}
+Zend C Source Points: ${JSON.stringify(data.c_source_points || {}, null, 2)}
+Patch Baseline Status: ${data.patch_status}
+-----------------------------------------------------------------
+[!] AddressSanitizer (ASan) Memory Trace Inspection:
+${data.asan_trace}
+-----------------------------------------------------------------
+[+] Defensive C-Level Remediation Guidance:
+${data.c_patch_directive}
+=================================================================`;
+          showToast(isV ? "ตรวจพบความเสี่ยงระดับ C / Heap UAF" : "ยืนยันความปลอดภัยระดับ C / ASan ผ่าน");
+        }
+      } catch (err) {
+        terminal.textContent += `\n[-] Request error: ${err.message}`;
+      } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = "รันการทดสอบระดับ C / ASan Probe (Live)";
+      }
+    }
+
     function renderVaDiscoveredCards(host) {
       const container = document.getElementById('vaDiscoveredCardsContainer');
       if (!container) return;
@@ -3127,7 +3284,7 @@ Content-Type: text/html; charset=UTF-8</div>
         return;
       }
 
-      const order = ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e'];
+      const order = ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e', 'chain_asan'];
       container.innerHTML = order.map(k => {
         const section = va[k];
         if (!section) return '';
@@ -3158,7 +3315,7 @@ Content-Type: text/html; charset=UTF-8</div>
         }).join('');
 
         const cardBorder = isRisky ? 'border-amber-200/90' : 'border-slate-200/80';
-        const colSpanCls = k === 'chain_e' ? 'md:col-span-2' : '';
+        const colSpanCls = '';
 
         return `
           <div class="p-4 rounded-2xl bg-white border ${cardBorder} shadow-2xs flex flex-col justify-between ${colSpanCls}">
