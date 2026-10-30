@@ -917,11 +917,12 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         "evidence": list(set(group_evidence))
     }
 
-def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cookies_str: str, server: str, expose_php: bool) -> dict:
+def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cookies_str: str, server: str, expose_php: bool, lfi_check: dict = None) -> dict:
     """
-    Defensively models the 3 critical PHP session & configuration security verification chains:
+    Defensively models the 4 critical PHP session & configuration security verification chains:
     - Chain A: session.upload_progress filename injection + LFI
-    - Chain C: serializer-handler mismatch -> __destruct RCE
+    - Chain B: INI Leak via Session Engine
+    - Chain C: serializer-handler mismatch -> __destruct Object Injection
     - Chain D: OOM skips cleanup -> poisoned session -> LFI
     Provides stage-by-stage verification & defensive hardening guidance matching ThaiCERT / NCSA standards.
     """
@@ -944,6 +945,12 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
         maj, mino, pat = int(m_v.group(1)), int(m_v.group(2)), int(m_v.group(3))
         if (maj == 8 and mino == 2 and pat >= 20) or (maj == 8 and mino == 3 and pat >= 8) or (maj == 8 and mino >= 4) or (maj > 8):
             is_patched = True
+
+    # Real LFI Prerequisite Dynamic Evaluation
+    has_lfi = lfi_check.get("has_lfi_prerequisite", False) if lfi_check else False
+    lfi_evidence = lfi_check.get("evidence", "ไม่พบพารามิเตอร์เรียกไฟล์และไม่พบสัญญาณข้อผิดพลาด include stream") if lfi_check else "ไม่พบพารามิเตอร์เรียกไฟล์"
+    lfi_param = lfi_check.get("param") if lfi_check else None
+    lfi_tested_url = lfi_check.get("tested_url", "") if lfi_check else ""
 
     # --- Chain A: session.upload_progress filename injection + LFI ---
     chain_a_stages = [
@@ -989,12 +996,12 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
         },
         {
             "stage": "5/6",
-            "name": "Pre-existing LFI Prerequisite Check",
-            "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE",
-            "badge": "PROTECTED" if is_patched else "REVIEW",
-            "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในแอปพลิเคชันอยู่ก่อนแล้ว เพื่อใช้ Include ไฟล์เซสชัน (sess_ID หรือ phpXXXXXX) ที่มีข้อมูลทดสอบตกค้าง",
+            "name": "Pre-existing LFI Prerequisite Check (การตรวจสอบเงื่อนไขจุดเรียกไฟล์จริง)",
+            "status": "DETECTED" if has_lfi else "PREREQUISITE_ABSENT",
+            "badge": "VULN" if has_lfi else "SECURE",
+            "detail": f"ตรวจพบหลักฐานเชิงประจักษ์: แอปพลิเคชันมีพฤติกรรมนำพารามิเตอร์ ?{lfi_param}= ไปใช้ในฟังก์ชันเรียกไฟล์ ({lfi_evidence})" if has_lfi else f"ผลการทดสอบจริงด้วย Canary Probe: ไม่พบจุดรับค่าพารามิเตอร์เรียกไฟล์ในแอปพลิเคชัน ({lfi_evidence}) — ปัจจัยเสี่ยงจำเป็นไม่ครบถ้วน ทำให้กลไก Chain นี้ถูกตัดตอนและปลอดภัยจากความเสี่ยงลูกโซ่",
             "mechanism": "แม้ว่าไฟล์เซสชันจะมีข้อมูลตกค้างอยู่บนดิสก์ แต่หากตัวแอปพลิเคชันไม่มีฟังก์ชันที่นำพารามิเตอร์ของผู้ใช้ไปใช้ใน include, require หรือ file_get_contents โดยตรง ก็จะไม่สามารถนำไฟล์เซสชันมารันคำสั่งได้",
-            "check_item": "ตรวจสอบการคัดกรองพารามิเตอร์ชื่อไฟล์ และการป้องกัน Directory Traversal (../) ในแอปพลิเคชัน",
+            "check_item": f"ส่งคำขอทดสอบเชิงรับ (Non-destructive Canary Probe): {lfi_tested_url or 'GET /?page=...'}",
             "defense_tip": "หลีกเลี่ยงการใช้พารามิเตอร์จากผู้ใช้ในการโหลดไฟล์ ใช้ Whitelist ของชื่อไฟล์ที่อนุญาตเท่านั้น และบังคับใช้ open_basedir"
         },
         {
@@ -1008,7 +1015,12 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             "defense_tip": "อัปเกรด PHP เป็นเวอร์ชัน 8.2.20+ หรือ 8.3.8+ ทันที และติดตั้ง WAF กรองคำสั่งอาร์กิวเมนต์ที่ผิดปกติ"
         }
     ]
-    chain_a_verdict = "SECURE (ได้รับการแพตช์ / ป้องกันแล้ว)" if is_patched else "REVIEW_NEEDED (แนะนำตรวจสอบคำสั่งใน php.ini)"
+    if has_lfi:
+        chain_a_verdict = "VULNERABLE (พบจุดเชื่อมโยง LFI และฟังก์ชันเซสชันมีความเสี่ยง)"
+    elif is_patched:
+        chain_a_verdict = "SECURE (ได้รับการแพตช์ / ปลอดภัยและไม่พบ LFI Prerequisite)"
+    else:
+        chain_a_verdict = "MITIGATED (ปลอดภัย: ไม่พบ LFI Prerequisite — ห่วงโซ่ความเสี่ยงไม่ครบ)"
     chain_a_remedy = "session.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1"
 
     # --- Chain B: INI Leak via Session Engine (SAPI & Save Path Exposure) ---
@@ -1188,12 +1200,12 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
         },
         {
             "stage": "5/6",
-            "name": "Pre-existing LFI Prerequisite Check",
-            "status": "PROTECTED",
-            "badge": "PROTECTED",
-            "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในโค้ด เพื่อเรียกประมวลผลไฟล์ตกค้างดังกล่าว",
+            "name": "Pre-existing LFI Prerequisite Check (การตรวจสอบเงื่อนไขจุดเรียกไฟล์จริง)",
+            "status": "DETECTED" if has_lfi else "PREREQUISITE_ABSENT",
+            "badge": "VULN" if has_lfi else "SECURE",
+            "detail": f"ตรวจพบหลักฐานเชิงประจักษ์: แอปพลิเคชันมีพฤติกรรมนำพารามิเตอร์ ?{lfi_param}= ไปใช้ในฟังก์ชันเรียกไฟล์ ({lfi_evidence})" if has_lfi else f"ผลการทดสอบจริงด้วย Canary Probe: ไม่พบจุดรับค่าพารามิเตอร์เรียกไฟล์ในแอปพลิเคชัน ({lfi_evidence}) — แม้เกิด Fatal Error จาก OOM แต่ไม่มีจุดเชื่อมโยงให้ประมวลผลไฟล์ตกค้าง",
             "mechanism": "ปัจจัยเสี่ยงจำเป็น: แม้ว่าไฟล์ชั่วคราวจะตกค้างอยู่บนระบบ แต่ต้องมีจุดเสี่ยง LFI ภายในโค้ดเพื่อเรียกประมวลผลไฟล์ดังกล่าว",
-            "check_item": "ตรวจสอบการกรองพารามิเตอร์การเปิดไฟล์และการเข้าถึงไฟล์ชั่วคราว",
+            "check_item": f"ส่งคำขอทดสอบเชิงรับ (Non-destructive Canary Probe): {lfi_tested_url or 'GET /?page=...'}",
             "defense_tip": "บังคับใช้ open_basedir เพื่อจำกัดไม่ให้ PHP เข้าถึงไฟล์นอกเหนือจากไดเรกทอรีที่กำหนด"
         },
         {
@@ -1207,7 +1219,12 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             "defense_tip": "กำหนด session.save_path = \"/var/lib/php/sessions\" และตั้งค่าสิทธิ์โฟลเดอร์เป็น chmod 0700"
         }
     ]
-    chain_d_verdict = "SECURE (แยกพื้นที่จัดเก็บเซสชันและจำกัดสิทธิ์)" if is_patched else "REVIEW_NEEDED"
+    if has_lfi:
+        chain_d_verdict = "VULNERABLE (พบจุดเชื่อมโยง LFI และระบบยังไม่ได้จำกัดหน่วยความจำ)"
+    elif is_patched:
+        chain_d_verdict = "SECURE (แยกพื้นที่จัดเก็บเซสชันและไม่พบ LFI Prerequisite)"
+    else:
+        chain_d_verdict = "MITIGATED (ปลอดภัย: ไม่พบ LFI Prerequisite — ห่วงโซ่ความเสี่ยงไม่ครบ)"
     chain_d_remedy = "memory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n(พร้อมตั้งค่าสิทธิ์โฟลเดอร์ chmod 0700 เพื่อจำกัดการเข้าถึง)"
 
     return {
@@ -1244,6 +1261,60 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             }
         },
         "hardening_ini": "; [Chain B Defense: ปิดกั้นการเปิดเผยข้อมูลสภาพแวดล้อม]\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On\nerror_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT\n\n; [Chain A Defense: ป้องกันการสร้างข้อมูลเซสชันแฝงผ่าน Upload Progress]\nsession.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\n\n; [Chain C Defense: ป้องกันความไม่สอดคล้องของ Serializer และ Object Deserialization]\nsession.serialize_handler = php\n\n; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\""
+    }
+
+async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_text: str, req_headers: dict) -> dict:
+    """
+    Non-destructive LFI Prerequisite Verification:
+    Tests whether the target web application has an active parameter that feeds into PHP file inclusion functions.
+    Dispatches a benign diagnostic canary probe and looks for real PHP stream/include errors.
+    Avoids false alarms and eliminates mock/hardcoded assumptions.
+    """
+    canary_token = "thaicert_audit_probe_canary_test"
+    found_params = set()
+    for m in re.finditer(r'[?&]([a-zA-Z0-9_\-]+)=', body_text):
+        p_name = m.group(1).lower()
+        if p_name in ["page", "file", "include", "view", "template", "doc", "load", "module", "lang", "action"]:
+            found_params.add(p_name)
+    
+    probe_params = list(found_params) if found_params else ["page", "file"]
+    
+    for param in probe_params[:2]:
+        test_url = f"{base_url}/?{param}={canary_token}"
+        try:
+            r = await client.get(test_url, headers=req_headers, timeout=1.5)
+            r_text = r.text.lower() if r.text else ""
+            
+            inclusion_indicators = [
+                "failed to open stream: no such file or directory",
+                f"failed opening required '{canary_token}'",
+                f"failed opening required \"{canary_token}\"",
+                f"include({canary_token})",
+                f"require({canary_token})",
+                "open_basedir restriction in effect",
+                "warning: include(",
+                "warning: require("
+            ]
+            for sig in inclusion_indicators:
+                if sig in r_text:
+                    return {
+                        "has_lfi_prerequisite": True,
+                        "tested_url": test_url,
+                        "param": param,
+                        "status": "DETECTED",
+                        "evidence": f"ตรวจพบข้อผิดพลาด include stream บนพารามิเตอร์ ?{param}=",
+                        "badge": "VULN"
+                    }
+        except Exception:
+            pass
+            
+    return {
+        "has_lfi_prerequisite": False,
+        "tested_url": f"{base_url}/?page={canary_token}",
+        "param": None,
+        "status": "PREREQUISITE_ABSENT",
+        "evidence": "ไม่พบพารามิเตอร์เรียกไฟล์และไม่พบสัญญาณข้อผิดพลาด include stream",
+        "badge": "SECURE"
     }
 
 async def check_tcp_port(ip: str, port: int, timeout: float = 0.22) -> bool:
@@ -1413,14 +1484,20 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             cms_name=cms_name
         )
 
-        # Deep PHP Security Chains Evaluation (Chains A, C, D from ThaiCERT Assessment)
+        # Step 4.2: Dynamic Non-destructive LFI Prerequisite Verification
+        lfi_check = None
+        if is_php:
+            lfi_check = await probe_lfi_prerequisite(client, base_url, body_text, req_headers)
+
+        # Deep PHP Security Chains Evaluation (Chains A, B, C, D from ThaiCERT Assessment)
         security_chains = evaluate_security_chains(
             is_php=is_php,
             php_version=php_version_str or "",
             headers=headers,
             cookies_str=cookies_str,
             server=server,
-            expose_php=(powered != "")
+            expose_php=(powered != ""),
+            lfi_check=lfi_check
         )
         
         # Collect signatures matched for verification evidence
@@ -1450,6 +1527,12 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
         else:
             signatures_matched.append("Security Header: Missing CSP")
 
+        if lfi_check:
+            if lfi_check.get("has_lfi_prerequisite"):
+                signatures_matched.append(f"LFI Prerequisite: DETECTED (?{lfi_check.get('param')}=)")
+            else:
+                signatures_matched.append("LFI Prerequisite: ABSENT (ปลอดภัย ไม่พบจุดเรียกไฟล์)")
+
         response_headers_display = {}
         for k, v in headers.items():
             k_lower = k.lower()
@@ -1471,7 +1554,17 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "step": "2. Passive HTTP Probe Request",
                 "desc": f"ส่งคำขอ GET {base_url}/ พร้อมส่วนหัว User-Agent ตรวจสอบเชิงรับ (Non-destructive)",
                 "status": "pass"
-            },
+            }
+        ]
+
+        if lfi_check:
+            probe_steps.append({
+                "step": "2.1 LFI Prerequisite Verification (Dynamic Canary Probe)",
+                "desc": f"ส่ง Canary Token ตรวจสอบจุดรับค่าพารามิเตอร์เรียกไฟล์ ({lfi_check.get('evidence', '')}) — สถานะ: {'พบจุดเสี่ยง LFI' if lfi_check.get('has_lfi_prerequisite') else 'ไม่พบจุดเสี่ยง (Prerequisite Absent)'}",
+                "status": "warn" if lfi_check.get("has_lfi_prerequisite") else "pass"
+            })
+
+        probe_steps.extend([
             {
                 "step": "3. Header & Cookie Forensic Inspection",
                 "desc": f"ได้รับรหัสตอบสนอง HTTP {resp.status_code} ({latency}) วิเคราะห์ส่วนหัว Server, X-Powered-By และคุกกี้เซสชัน",
@@ -1482,7 +1575,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "desc": f"วิเคราะห์ค่าคอนฟิกเทียบกับมาตรฐาน ThaiCERT และกลไก Chains A, B, C, D — ผลสรุป: {security_chains.get('overall_status', 'Audit Completed')}",
                 "status": "pass" if security_chains.get('overall_status') == 'Defensively Hardened' else "warn"
             }
-        ]
+        ])
 
         probe_log = {
             "target_url": f"{base_url}/",
@@ -1497,7 +1590,8 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             "all_response_headers": dict(headers),
             "cookies_found": [c.strip() for c in cookies_str.split(";") if c.strip() and "=" in c][:6] if cookies_str else [],
             "signatures_matched": signatures_matched,
-            "probe_steps": probe_steps
+            "probe_steps": probe_steps,
+            "lfi_verification": lfi_check
         }
 
         deep_audit = {
