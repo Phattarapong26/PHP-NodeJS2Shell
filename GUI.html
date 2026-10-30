@@ -1072,6 +1072,9 @@
               <button id="tabBtnChainA" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 cursor-pointer transition" onclick="switchAuditChain('chain_a')">
                 Chain A: Upload Progress LFI
               </button>
+              <button id="tabBtnChainB" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_b')">
+                Chain B: INI Leak via Session
+              </button>
               <button id="tabBtnChainC" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_c')">
                 Chain C: Serializer Mismatch
               </button>
@@ -1096,11 +1099,22 @@
                   <span id="copyIniBtnText">คัดลอก php.ini Hardening</span>
                 </button>
               </div>
-              <div class="p-2.5 rounded-xl bg-slate-900 font-mono text-[11px] text-emerald-400 border border-slate-800 select-all overflow-x-auto whitespace-pre leading-relaxed" id="hardeningIniCodeBox">session.upload_progress.enabled = Off
+              <div class="p-2.5 rounded-xl bg-slate-900 font-mono text-[11px] text-emerald-400 border border-slate-800 select-all overflow-x-auto whitespace-pre leading-relaxed" id="hardeningIniCodeBox">; [Chain B Defense: ปิดกั้นการเปิดเผยข้อมูลสภาพแวดล้อม]
+expose_php = Off
+display_errors = Off
+log_errors = On
+
+; [Chain A Defense: ป้องกันการสร้างข้อมูลเซสชันแฝงผ่าน Upload Progress]
+session.upload_progress.enabled = Off
+session.upload_progress.cleanup = On
 session.use_strict_mode = 1
+
+; [Chain C Defense: ป้องกันความไม่สอดคล้องของ Serializer และ Object Deserialization]
 session.serialize_handler = php
+
+; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]
 memory_limit = 256M
-expose_php = Off</div>
+session.save_path = "/var/lib/php/sessions"</div>
             </div>
           </div>
 
@@ -2679,8 +2693,8 @@ expose_php = Off</div>
 
     function switchAuditChain(chainKey) {
       appState.activeAuditChain = chainKey;
-      ['chain_a', 'chain_c', 'chain_d'].forEach(k => {
-        const btnId = k === 'chain_a' ? 'tabBtnChainA' : (k === 'chain_c' ? 'tabBtnChainC' : 'tabBtnChainD');
+      ['chain_a', 'chain_b', 'chain_c', 'chain_d'].forEach(k => {
+        const btnId = k === 'chain_a' ? 'tabBtnChainA' : (k === 'chain_b' ? 'tabBtnChainB' : (k === 'chain_c' ? 'tabBtnChainC' : 'tabBtnChainD'));
         const btn = document.getElementById(btnId);
         if (btn) {
           if (k === chainKey) {

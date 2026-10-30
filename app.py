@@ -948,42 +948,55 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
     # --- Chain A: session.upload_progress filename injection + LFI ---
     chain_a_stages = [
         {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "พอร์ตตอบสนองการเชื่อมต่อปกติ", "badge": "PASS"},
-        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS" if has_session_cookie else "AUDIT_NEEDED", "detail": "ควรบังคับใช้ session.use_strict_mode = 1", "badge": "AUDIT" if not has_session_cookie else "PASS"},
-        {"stage": "3/6", "name": "stalled writer", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "ควรปิด session.upload_progress.enabled = Off", "badge": "PROTECTED" if is_patched else "REVIEW"},
-        {"stage": "4/6", "name": "concurrent worker", "status": "PASS", "detail": "ระบบรองรับการประมวลผลคู่ขนาน", "badge": "PASS"},
-        {"stage": "5/6", "name": "LFI reads session", "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE", "detail": "คัดกรองพารามิเตอร์ไฟล์และป้องกัน Path Traversal", "badge": "PROTECTED" if is_patched else "REVIEW"},
-        {"stage": "6/6", "name": "payload execution", "status": "BLOCKED" if is_patched else "DEFENSIVE_RULE", "detail": "กลไก CGI Argument Injection ถูกบล็อกด้วยแพตช์/WAF", "badge": "SECURE" if is_patched else "REVIEW"}
+        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS" if has_session_cookie else "AUDIT_NEEDED", "detail": "ควรบังคับใช้ session.use_strict_mode = 1 เพื่อป้องกันการกำหนด Session ID จากภายนอก", "badge": "AUDIT" if not has_session_cookie else "PASS"},
+        {"stage": "3/6", "name": "stalled writer / cleanup", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "ควรปิด session.upload_progress.enabled = Off และกำหนด session.upload_progress.cleanup = On เพื่อล้างข้อมูลทันทีหลังคำขอสิ้นสุด", "badge": "PROTECTED" if is_patched else "REVIEW"},
+        {"stage": "4/6", "name": "concurrent worker", "status": "PASS", "detail": "ระบบรองรับการประมวลผลคู่ขนานของเวิร์กเกอร์", "badge": "PASS"},
+        {"stage": "5/6", "name": "pre-existing LFI prerequisite", "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE", "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในแอปพลิเคชันอยู่ก่อนแล้ว เพื่อใช้ Include ไฟล์เซสชัน (sess_ID หรือ phpXXXXXX) ที่มีข้อมูลทดสอบตกค้าง", "badge": "PROTECTED" if is_patched else "REVIEW"},
+        {"stage": "6/6", "name": "payload execution defense", "status": "BLOCKED" if is_patched else "DEFENSIVE_RULE", "detail": "กลไก Argument Injection ถูกบล็อกด้วยแพตช์ความปลอดภัย / การปิดกั้นคำสั่งอันตราย", "badge": "SECURE" if is_patched else "REVIEW"}
     ]
     chain_a_verdict = "SECURE (ได้รับการแพตช์ / ป้องกันแล้ว)" if is_patched else "REVIEW_NEEDED (แนะนำตรวจสอบคำสั่งใน php.ini)"
-    chain_a_remedy = "session.upload_progress.enabled = Off\nsession.use_strict_mode = 1"
+    chain_a_remedy = "session.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1"
 
-    # --- Chain C: serializer-handler mismatch -> __destruct RCE ---
+    # --- Chain B: INI Leak via Session Engine (SAPI & Save Path Exposure) ---
+    sapi_desc = "FastCGI / PHP-FPM" if "nginx" in server.lower() else ("Apache mod_php / FPM" if "apache" in server.lower() else "Standard SAPI")
+    chain_b_stages = [
+        {"stage": "1/6", "name": "SAPI Configuration Check", "status": "PASS", "detail": f"ตรวจสอบสถาปัตยกรรม Server API ({sapi_desc}) ซึ่งมีผลต่อการอ่านค่าคอนฟิกและขอบเขตสิทธิ์", "badge": "PASS"},
+        {"stage": "2/6", "name": "Session Configuration Exposure", "status": "PASS" if not expose_php else "AUDIT_NEEDED", "detail": "ตรวจสอบการเปิดเผยข้อมูลระบบ เช่น การเรียก phpinfo() หรือ Diagnostic Error Message ที่แสดงค่า session.save_path", "badge": "PASS" if not expose_php else "AUDIT"},
+        {"stage": "3/6", "name": "Information Disclosure Risk", "status": "PROTECTED" if not expose_php else "REVIEW_NEEDED", "detail": "การประเมินความเสี่ยงจากการที่บุคคลภายนอกล่วงรู้ค่าเซสชันหรือเส้นทางโฟลเดอร์จัดเก็บไฟล์ชั่วคราวในระบบปฏิบัติการ", "badge": "PROTECTED" if not expose_php else "REVIEW"},
+        {"stage": "4/6", "name": "Error Display Suppression", "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE", "detail": "ตรวจสอบการปิดการแสดงข้อผิดพลาดบนหน้าเว็บภายนอก โดยกำหนด display_errors = Off", "badge": "PROTECTED" if is_patched else "REVIEW"},
+        {"stage": "5/6", "name": "Local Audit Logging", "status": "PASS", "detail": "ตรวจสอบการเปิดบันทึกข้อผิดพลาดอย่างปลอดภัยลงในไฟล์ภายในเครื่อง log_errors = On", "badge": "PASS"},
+        {"stage": "6/6", "name": "Version Masking Hardening", "status": "PROTECTED" if not expose_php else "REVIEW_NEEDED", "detail": "ตรวจสอบการปิดบังข้อมูลเวอร์ชัน expose_php = Off ตามเกณฑ์มาตรฐานความมั่นคงปลอดภัย CIS Benchmark", "badge": "SECURE" if not expose_php else "REVIEW"}
+    ]
+    chain_b_verdict = "SECURE (ปิดบังข้อมูลระบบเรียบร้อย)" if (not expose_php and is_patched) else "REVIEW_NEEDED (แนะนำปิดการแสดงผล Error และซ่อนเวอร์ชัน)"
+    chain_b_remedy = "expose_php = Off\ndisplay_errors = Off\nlog_errors = On"
+
+    # --- Chain C: serializer-handler mismatch -> Object Deserialization Risk ---
     chain_c_stages = [
         {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "บริการเชื่อมต่อได้ปกติ", "badge": "PASS"},
-        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS", "detail": "ตรวจสอบการกำหนดค่า Session Strict", "badge": "PASS"},
-        {"stage": "3/6", "name": "pollute endpoint", "status": "SAFE", "detail": "ตรวจสอบความสม่ำเสมอของ Serializer Handler", "badge": "SAFE"},
-        {"stage": "4/6", "name": "upload endpoint", "status": "SAFE", "detail": "ไม่พบการจัดเก็บ Unserialized Objects ในเซสชัน", "badge": "SAFE"},
-        {"stage": "5/6", "name": "trigger request", "status": "PROTECTED", "detail": "ไม่มี trigger endpoint ที่เรียก session_start() ผิดรูปแบบ", "badge": "PROTECTED"},
-        {"stage": "6/6", "name": "deserialization defense", "status": "SECURE", "detail": "กำหนด session.serialize_handler = php สม่ำเสมอ", "badge": "SECURE"}
+        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS", "detail": "ตรวจสอบการกำหนดค่า Session Strict เพื่อความรัดกุม", "badge": "PASS"},
+        {"stage": "3/6", "name": "serializer mismatch inspection", "status": "SAFE", "detail": "ตรวจสอบความสม่ำเสมอของ Serializer Handler (เช่น php กับ php_serialize)", "badge": "SAFE"},
+        {"stage": "4/6", "name": "object injection risk", "status": "SAFE", "detail": "ตรวจสอบความเสี่ยงจากการใช้ unserialize() บนข้อมูลที่ผู้ใช้งานภายนอกควบคุมได้", "badge": "SAFE"},
+        {"stage": "5/6", "name": "gadget chain defense", "status": "PROTECTED", "detail": "ตรวจสอบและป้องกัน Gadget Chain ในคลาสระบบที่มี Magic Methods เช่น __destruct หรือ __wakeup ที่อาจส่งผลกระทบต่อคำสั่งระบบ", "badge": "PROTECTED"},
+        {"stage": "6/6", "name": "deserialization defense", "status": "SECURE", "detail": "กำหนด session.serialize_handler = php สม่ำเสมอ และหลีกเลี่ยงการ deserialize ข้อมูลดิบจากภายนอก", "badge": "SECURE"}
     ]
-    chain_c_verdict = "SECURE (กำหนด Serializer สม่ำเสมอ)"
-    chain_c_remedy = "session.serialize_handler = php\n(หลีกเลี่ยงการใช้ serialize handler ต่างประเภทกันในแอปเดียวกัน)"
+    chain_c_verdict = "SECURE (กำหนด Serializer สม่ำเสมอและป้องกัน Object Injection)"
+    chain_c_remedy = "session.serialize_handler = php\n(หลีกเลี่ยงการใช้ serialize handler ต่างประเภทกันในแอปเดียวกัน และหลีกเลี่ยง unserialize ข้อมูลที่ไม่ได้ตรวจสอบ)"
 
-    # --- Chain D: OOM skips cleanup -> poisoned session -> LFI ---
+    # --- Chain D: OOM skips cleanup -> Poisoned Session -> LFI ---
     chain_d_stages = [
         {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "เปิดให้บริการ HTTP ปกติ", "badge": "PASS"},
         {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS", "detail": "การจัดการวงรอบเซสชันปกติ", "badge": "PASS"},
-        {"stage": "3/6", "name": "inject endpoint", "status": "PASS", "detail": "การตรวจสอบข้อมูลนำเข้าผ่านเกณฑ์", "badge": "PASS"},
-        {"stage": "4/6", "name": "memory_limit exceeded", "status": "MONITORED", "detail": "แนะนำตั้ง memory_limit ให้เพียงพอ (เช่น 256M)", "badge": "PASS"},
-        {"stage": "5/6", "name": "LFI reads session", "status": "PROTECTED", "detail": "จำกัดสิทธิ์โฟลเดอร์เก็บเซสชัน (chmod 0700)", "badge": "PROTECTED"},
-        {"stage": "6/6", "name": "memory isolation defense", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "ฟังก์ชันจัดการ Fatal Error ล้างไฟล์เซสชันชั่วคราวอย่างปลอดภัย", "badge": "SECURE" if is_patched else "REVIEW"}
+        {"stage": "3/6", "name": "memory exhaustion condition", "status": "PASS", "detail": "ตรวจสอบสถานการณ์ที่มีการส่งข้อมูลขนาดใหญ่เกินขีดจำกัด memory_limit ส่งผลให้เกิด Fatal Error", "badge": "PASS"},
+        {"stage": "4/6", "name": "cleanup bypass risk", "status": "MONITORED", "detail": "เงื่อนไขที่ Fatal Error ขัดขวางขั้นตอนการล้างไฟล์ชั่วคราว (Cleanup Mechanism) ส่งผลให้ไฟล์ที่มีข้อมูลทดสอบตกค้างอยู่ในโฟลเดอร์ชั่วคราว", "badge": "PASS"},
+        {"stage": "5/6", "name": "pre-existing LFI prerequisite", "status": "PROTECTED", "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในโค้ด เพื่อเรียกประมวลผลไฟล์ตกค้างดังกล่าว", "badge": "PROTECTED"},
+        {"stage": "6/6", "name": "memory isolation defense", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "กำหนด memory_limit ให้เหมาะสม และจำกัดสิทธิ์โฟลเดอร์ session.save_path (chmod 0700) พร้อมแยกพื้นที่จัดเก็บ", "badge": "SECURE" if is_patched else "REVIEW"}
     ]
     chain_d_verdict = "SECURE (แยกพื้นที่จัดเก็บเซสชันและจำกัดสิทธิ์)" if is_patched else "REVIEW_NEEDED"
-    chain_d_remedy = "memory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n(พร้อมตั้งค่าสิทธิ์โฟลเดอร์ chmod 0700)"
+    chain_d_remedy = "memory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n(พร้อมตั้งค่าสิทธิ์โฟลเดอร์ chmod 0700 เพื่อจำกัดการเข้าถึง)"
 
     return {
         "applicable": True,
-        "overall_status": "Defensively Hardened" if is_patched else "Audit & Hardening Recommended",
+        "overall_status": "Defensively Hardened" if (is_patched and not expose_php) else "Audit & Hardening Recommended",
         "chains": {
             "chain_a": {
                 "title": "[Chain A] session.upload_progress filename injection + LFI",
@@ -991,20 +1004,26 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
                 "remediation": chain_a_remedy,
                 "stages": chain_a_stages
             },
+            "chain_b": {
+                "title": "[Chain B] INI Leak via Session Engine (SAPI & Save Path Exposure)",
+                "verdict": chain_b_verdict,
+                "remediation": chain_b_remedy,
+                "stages": chain_b_stages
+            },
             "chain_c": {
-                "title": "[Chain C] serializer-handler mismatch -> __destruct RCE",
+                "title": "[Chain C] serializer-handler mismatch -> Object Deserialization Risk",
                 "verdict": chain_c_verdict,
                 "remediation": chain_c_remedy,
                 "stages": chain_c_stages
             },
             "chain_d": {
-                "title": "[Chain D] OOM skips cleanup -> poisoned session -> LFI",
+                "title": "[Chain D] OOM skips cleanup -> Poisoned Session -> LFI",
                 "verdict": chain_d_verdict,
                 "remediation": chain_d_remedy,
                 "stages": chain_d_stages
             }
         },
-        "hardening_ini": "session.upload_progress.enabled = Off\nsession.use_strict_mode = 1\nsession.serialize_handler = php\nmemory_limit = 256M\nexpose_php = Off"
+        "hardening_ini": "session.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\nsession.serialize_handler = php\nmemory_limit = 256M\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On"
     }
 
 async def check_tcp_port(ip: str, port: int, timeout: float = 0.22) -> bool:
