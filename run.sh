@@ -118,23 +118,35 @@ echo "[*] Active ARP Hosts:   $(echo "$ACTIVE_IPS" | tr ',' '\n' | grep -v '^$' 
 # Check execution mode: Docker or Native
 if [ "$1" == "--docker" ] || [ ! -f "$DIR/venv/bin/python" ]; then
   echo "[*] Running mode: DOCKER CONTAINER..."
-  echo "[*] Building Docker Image (thaicert-php-scanner)..."
-  docker build -t thaicert-php-scanner .
+  echo "[*] Clearing existing port 5050 listeners and containers..."
+  docker compose down 2>/dev/null || true
   docker rm -f thaicert-php-scanner 2>/dev/null || true
-  docker run -d --name thaicert-php-scanner \
-    -p 5050:5050 \
-    -e HOST_IP="$HOST_IP" \
-    -e HOST_SUBNET="$HOST_SUBNET" \
-    -e HOST_NETMASK="$HOST_NETMASK" \
-    -e HOST_CIDR="$HOST_CIDR" \
-    -e HOST_GATEWAY="$HOST_GATEWAY" \
-    -e HOST_INTERFACE="$HOST_INTERFACE" \
-    -e ACTIVE_HOSTS="$ACTIVE_IPS" \
-    -v "$DIR/host_network.json:/app/host_network.json" \
-    -v "$DIR/active_hosts.txt:/app/active_hosts.txt" \
-    -v "$DIR/GUI.html:/app/GUI.html" \
-    -v "$DIR/app.py:/app/app.py" \
-    thaicert-php-scanner
+  lsof -ti:5050 | xargs kill -9 2>/dev/null || true
+  
+  if docker compose version >/dev/null 2>&1; then
+    echo "[*] Building & Starting with Docker Compose..."
+    docker compose up -d --build
+  else
+    echo "[*] Building Docker Image (thaicert-php-scanner)..."
+    docker build -t thaicert-php-scanner .
+    docker run -d --name thaicert-php-scanner \
+      --restart unless-stopped \
+      -p 5050:5050 \
+      -e HOST_IP="$HOST_IP" \
+      -e HOST_SUBNET="$HOST_SUBNET" \
+      -e HOST_NETMASK="$HOST_NETMASK" \
+      -e HOST_CIDR="$HOST_CIDR" \
+      -e HOST_GATEWAY="$HOST_GATEWAY" \
+      -e HOST_INTERFACE="$HOST_INTERFACE" \
+      -e ACTIVE_HOSTS="$ACTIVE_IPS" \
+      -e IS_DOCKER="true" \
+      -e DOCKER_CONTAINER="true" \
+      -v "$DIR/host_network.json:/app/host_network.json:ro" \
+      -v "$DIR/active_hosts.txt:/app/active_hosts.txt:ro" \
+      -v "$DIR/GUI.html:/app/GUI.html" \
+      -v "$DIR/app.py:/app/app.py" \
+      thaicert-php-scanner
+  fi
 else
   echo "[*] Running mode: NATIVE (Direct Physical Interface - Zero Virtualization)..."
   # Stop container if running on port 5050

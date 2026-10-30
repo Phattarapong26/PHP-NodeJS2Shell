@@ -281,13 +281,41 @@
       </div>
 
       <!-- Title Area matching Image: ThaiCERT SCANER -->
-      <div class="text-center mb-6 select-none">
+      <div class="text-center mb-5 select-none w-full max-w-md mx-auto">
         <h1 class="embossed-title text-4xl sm:text-5xl font-extrabold tracking-tight">
           ThaiCERT
         </h1>
         <p class="embossed-sub text-base sm:text-lg font-bold tracking-[0.35em] mt-1 uppercase">
           SCANER
         </p>
+
+        <!-- Search Input Bar under SCANER -->
+        <div class="mt-3 px-2 sm:px-4">
+          <div class="relative flex items-center shadow-sm rounded-full bg-white/80 backdrop-blur-md border border-white/90 p-1 pl-3.5 focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:border-blue-400 focus-within:bg-white transition-all duration-200 hover:shadow-md">
+            <i class="ph-bold ph-magnifying-glass text-slate-400 text-base mr-2 flex-shrink-0"></i>
+            <input 
+              id="heroSearchInput" 
+              type="text" 
+              placeholder="กรอกชื่อ Domain หรือ IP (เช่น thaicert.or.th)..." 
+              class="w-full bg-transparent text-slate-800 placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none select-text"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button 
+              id="btnHeroSearch" 
+              class="ml-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-xs shadow-sm flex items-center gap-1.5 transition-all active:scale-95 flex-shrink-0 cursor-pointer"
+              title="กด Enter หรือคลิกเพื่อเริ่มสแกน"
+            >
+              <span>สแกน</span>
+              <i class="ph-bold ph-arrow-right text-[11px]"></i>
+            </button>
+          </div>
+          <!-- Faint message: สำหรับตรวจสอบdomain -->
+          <p class="text-[11px] text-slate-400/80 font-normal mt-1.5 tracking-wide text-center">
+            สำหรับตรวจสอบdomain
+          </p>
+        </div>
+
         <div class="inline-flex items-center gap-2 mt-2 px-3.5 py-1 rounded-full bg-white/40 text-slate-600 text-xs tracking-wider border border-white/60 shadow-sm">
           <i class="ph-bold ph-shield-check text-blue-600"></i>
           <span>PHP & NODE.JS LAN DISCOVERY & SECURITY AUDITOR</span>
@@ -597,11 +625,106 @@
       </div>
     </div>
 
+    <!-- MODAL: Deep Security Posture Audit & Credentialed Host Check -->
+    <div id="deepAuditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
+      <div class="neu-modal-surface w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/90 transform scale-95 transition-transform duration-200" id="deepAuditContent">
+        
+        <!-- Header -->
+        <div class="px-6 py-4 bg-gradient-to-r from-white via-slate-50 to-blue-50/60 border-b border-slate-200/70 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl outer-dish flex items-center justify-center text-blue-600">
+              <i class="ph-bold ph-shield-check text-xl"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                <span>ผลการตรวจสอบเชิงรับ & สภาพแวดล้อมความปลอดภัย</span>
+                <span id="auditTargetBadge" class="text-xs font-mono font-normal bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full"></span>
+              </h3>
+              <p class="text-[11px] text-slate-500">Defensive Security Posture & Patch Verification Guidance</p>
+            </div>
+          </div>
+          <button id="btnCloseDeepAudit" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
+          
+          <!-- Layer 1: Edge & Network Security -->
+          <div class="p-4 rounded-2xl bg-white/70 border border-slate-200/80 shadow-sm space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-800">
+              <span class="flex items-center gap-1.5 text-blue-700">
+                <i class="ph-bold ph-globe"></i> 1. การป้องกันระดับหน้าบ้าน (Edge & WAF)
+              </span>
+              <span id="auditWafBadge" class="px-2 py-0.5 rounded-md font-mono text-[11px] bg-slate-100 text-slate-700"></span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100">
+              <div><span class="text-slate-400">Web Application Firewall:</span> <b id="auditWafName" class="text-slate-800 block"></b></div>
+              <div><span class="text-slate-400">Transport Security (HSTS):</span> <b id="auditHsts" class="text-slate-800 block"></b></div>
+            </div>
+          </div>
+
+          <!-- Layer 2: Application & Runtime Hardening -->
+          <div class="p-4 rounded-2xl bg-white/70 border border-slate-200/80 shadow-sm space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-800">
+              <span class="flex items-center gap-1.5 text-indigo-700">
+                <i class="ph-bold ph-cpu"></i> 2. สภาพแวดล้อมภาษาและระบบ (Application & Runtime)
+              </span>
+              <span id="auditHardeningBadge" class="px-2 py-0.5 rounded-md font-medium text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200"></span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100">
+              <div><span class="text-slate-400">CMS / Framework:</span> <b id="auditCmsName" class="text-slate-800 block"></b></div>
+              <div><span class="text-slate-400">Web Server Engine:</span> <b id="auditServerName" class="text-slate-800 block"></b></div>
+              <div><span class="text-slate-400">การเปิดเผยเวอร์ชัน (expose_php):</span> <b id="auditExposeStatus" class="text-slate-800 block"></b></div>
+              <div><span class="text-slate-400">พอร์ตที่เปิดให้บริการ:</span> <b id="auditOpenPorts" class="text-slate-800 block"></b></div>
+            </div>
+          </div>
+
+          <!-- Layer 3: Host Verification Guidance (คำสั่งตรวจสอบเลขแพตช์จริงบนเซิร์ฟเวอร์) -->
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-slate-200 shadow-md space-y-2.5">
+            <div class="flex items-center justify-between text-xs font-bold text-white">
+              <span class="flex items-center gap-1.5 text-blue-300">
+                <i class="ph-bold ph-terminal-window"></i> 3. คำสั่งตรวจสอบเลขแพตช์จริงบนเซิร์ฟเวอร์ (Local Credentialed Audit)
+              </span>
+              <button id="btnCopyAuditCmd" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-semibold flex items-center gap-1 transition cursor-pointer">
+                <i class="ph-bold ph-copy"></i>
+                <span id="copyCmdText">คัดลอกคำสั่ง</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+              เนื่องจากเซิร์ฟเวอร์ตั้งค่าปิดบังเวอร์ชัน (<code class="text-amber-300">expose_php = Off</code>) ตามหลักความมั่นคงปลอดภัย จึงไม่ควรส่งคำขอรบกวนระบบ ผู้ดูแลระบบสามารถรันคำสั่งด้านล่างนี้ใน Terminal ของเซิร์ฟเวอร์ เพื่อตรวจเลขแพตช์ที่แท้จริง:
+            </p>
+            <div class="p-2.5 rounded-xl bg-slate-950 font-mono text-[11px] text-emerald-400 overflow-x-auto select-all border border-slate-700/60">
+              <span id="auditTerminalCmd">php -v && (dpkg -l | grep -E "php[0-9]" || rpm -qa | grep php)</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-blue-950/60 border border-blue-800/40 text-[11px] text-blue-200">
+              <b class="text-blue-100">เกณฑ์ความปลอดภัยมาตรฐาน ThaiCERT:</b>
+              <ul class="list-disc list-inside mt-1 space-y-0.5 text-blue-300">
+                <li>สำหรับ PHP 8.2: ต้องเป็นเวอร์ชัน <span class="font-bold text-emerald-300">8.2.20+</span> ขึ้นไป</li>
+                <li>สำหรับ PHP 8.3: ต้องเป็นเวอร์ชัน <span class="font-bold text-emerald-300">8.3.8+</span> ขึ้นไป</li>
+                <li>(หากพบ PHP 5.x / 7.x / 8.0 / 8.1 ถือว่าหมดอายุการสนับสนุน End-of-Life ควรอัปเกรดด่วน)</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-3 bg-white/60 border-t border-slate-200/70 flex justify-end">
+          <button id="btnCloseDeepAuditBottom" class="neu-pill-btn active px-4 py-1.5 rounded-xl text-xs font-semibold cursor-pointer">
+            ปิดหน้าต่าง
+          </button>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Backdrop for Settings Drawer -->
     <div id="settingsBackdrop" class="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] z-30 opacity-0 pointer-events-none transition-opacity duration-300"></div>
 
     <!-- SETTINGS DRAWER (Host IP / Dynamic CIDR Config) -->
-    <div id="settingsDrawer" class="fixed top-0 right-0 w-88 sm:w-96 h-full neu-modal-surface shadow-2xl border-l border-white/80 z-40 transform translate-x-full transition-transform duration-300 flex flex-col justify-between invisible">
+    <div id="settingsDrawer" class="fixed top-0 right-0 w-full sm:w-[480px] max-w-full h-full neu-modal-surface shadow-2xl border-l border-white/80 z-40 transform translate-x-full transition-transform duration-300 flex flex-col justify-between invisible">
       
       <!-- Drawer Header -->
       <div class="p-5 pb-3 border-b border-slate-200/70 flex items-center justify-between flex-shrink-0">
@@ -727,14 +850,177 @@
           </div>
         </div>
 
-        <!-- 6. Web & PHP Probe Ports -->
-        <div class="pt-1">
-          <label class="block font-semibold text-slate-700 mb-1">พอร์ตตรวจสอบ PHP & Web</label>
-          <div class="flex flex-wrap gap-1.5">
-            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">80 (HTTP)</span>
-            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">8080 (Alt)</span>
-            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">443 (HTTPS)</span>
-            <span class="px-2 py-1 neu-pill-btn text-blue-700 rounded-lg text-[10px] font-mono">8000 (Dev)</span>
+        <!-- 6. Web & PHP Probe Ports (3 Modes Selection) -->
+        <div class="pt-3 border-t border-slate-200/70 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="block font-bold text-slate-800 text-xs flex items-center gap-1.5">
+              <i class="ph-bold ph-plugs text-blue-600"></i>
+              <span>พอร์ตตรวจสอบ PHP & Web</span>
+            </label>
+            <span id="portCountBadge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+              17 พอร์ตที่เลือก
+            </span>
+          </div>
+
+          <!-- 3-Mode Selection Tabs -->
+          <div class="grid grid-cols-3 gap-1.5 p-1 rounded-xl neu-concave-card bg-slate-100/80">
+            <!-- Mode 1: Custom / Slider -->
+            <button type="button" id="tabPortModeCustom" class="port-mode-tab neu-pill-btn py-2 px-1 rounded-xl text-[10px] font-semibold text-slate-600 transition-all flex flex-col items-center justify-center gap-1 cursor-pointer">
+              <i class="ph-bold ph-sliders-horizontal text-sm"></i>
+              <span>1. กำหนดเอง/สไลเดอร์</span>
+            </button>
+            <!-- Mode 2: Standard Dictionary (Default) -->
+            <button type="button" id="tabPortModeStandard" class="port-mode-tab neu-pill-btn active py-2 px-1 rounded-xl text-[10px] font-bold text-blue-700 transition-all flex flex-col items-center justify-center gap-1 cursor-pointer">
+              <i class="ph-bold ph-book-bookmark text-sm"></i>
+              <span>2. มาตรฐาน Dev</span>
+            </button>
+            <!-- Mode 3: Wide Scan -->
+            <button type="button" id="tabPortModeWide" class="port-mode-tab neu-pill-btn py-2 px-1 rounded-xl text-[10px] font-semibold text-slate-600 hover:text-amber-700 transition-all flex flex-col items-center justify-center gap-1 cursor-pointer">
+              <i class="ph-bold ph-broadcast text-sm"></i>
+              <span>3. ปล่อยสแกนกว้าง</span>
+            </button>
+          </div>
+
+          <!-- MODE 1 PANEL: Custom & UI Range Slider -->
+          <div id="panelPortCustom" class="port-mode-panel hidden space-y-3 p-3 rounded-xl neu-concave-card bg-white/70 border border-slate-200/80">
+            <!-- Sub-type selector: Slider vs List -->
+            <div class="flex items-center justify-between border-b border-slate-200/60 pb-2">
+              <span class="text-[10.5px] font-semibold text-slate-700">รูปแบบการกำหนด:</span>
+              <div class="flex gap-1.5">
+                <button type="button" id="subTypeBtnSlider" class="px-2.5 py-1 rounded-lg neu-pill-btn active text-[10px] font-semibold flex items-center gap-1 cursor-pointer">
+                  <i class="ph-bold ph-sliders text-xs"></i>
+                  <span>ลากช่วง (Slider UI)</span>
+                </button>
+                <button type="button" id="subTypeBtnList" class="px-2.5 py-1 rounded-lg neu-pill-btn text-[10px] font-semibold text-slate-600 flex items-center gap-1 cursor-pointer">
+                  <i class="ph-bold ph-list-numbers text-xs"></i>
+                  <span>ระบุรายการ</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Sub-mode A: Port Range Slider -->
+            <div id="subViewSlider" class="space-y-3">
+              <!-- Start Port Input & Presets -->
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[10px] text-slate-500 font-semibold mb-1">พอร์ตเริ่มต้น (Start Port):</label>
+                  <input type="number" id="inputStartPort" min="1" max="65535" value="8000" class="w-full px-2.5 py-1.5 rounded-lg neu-concave-card text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-500 font-semibold mb-1">จุดเริ่มต้นยอดนิยม:</label>
+                  <div class="flex flex-wrap gap-1">
+                    <button type="button" class="preset-start-port px-2 py-0.5 neu-pill-btn text-[9.5px] font-mono text-slate-700 cursor-pointer" data-port="80">80</button>
+                    <button type="button" class="preset-start-port px-2 py-0.5 neu-pill-btn text-[9.5px] font-mono text-slate-700 cursor-pointer" data-port="3000">3000</button>
+                    <button type="button" class="preset-start-port px-2 py-0.5 neu-pill-btn active text-[9.5px] font-mono font-bold cursor-pointer" data-port="8000">8000</button>
+                    <button type="button" class="preset-start-port px-2 py-0.5 neu-pill-btn text-[9.5px] font-mono text-slate-700 cursor-pointer" data-port="18000">18000</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Slider UI for Port Span -->
+              <div class="space-y-1">
+                <div class="flex justify-between items-center text-[10.5px]">
+                  <span class="font-semibold text-slate-700">ขนาดช่วงพอร์ต (UI Range Slider):</span>
+                  <span id="sliderSpanValueDisplay" class="font-bold font-mono text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    ช่วง 8000 - 8020 (21 พอร์ต)
+                  </span>
+                </div>
+                <input id="inputPortRangeSpan" type="range" min="1" max="250" value="20" class="w-full accent-blue-600 cursor-pointer">
+                <div class="flex justify-between text-[9px] text-slate-400 font-mono">
+                  <span>1 พอร์ต (แคบ)</span>
+                  <span class="text-emerald-600 font-semibold">เกณฑ์แนะนำ &le; 50 พอร์ต</span>
+                  <span>250 พอร์ต (กว้าง)</span>
+                </div>
+              </div>
+
+              <!-- Dynamic Network Impact Alert Box (Dynamic Safe / Warning) -->
+              <div id="sliderAlertSafe" class="p-2.5 rounded-xl bg-emerald-50/90 border border-emerald-300 text-emerald-900 text-[11px] flex items-start gap-2">
+                <i class="ph-bold ph-shield-check text-base text-emerald-600 flex-shrink-0 mt-0.5"></i>
+                <div class="leading-relaxed">
+                  <span class="font-bold">ขนาดช่วงพอร์ตเหมาะสม (Makes Sense):</span>
+                  <span>ช่วงพอร์ตอยู่ในเกณฑ์ที่ปลอดภัย ไม่สร้างความหนาแน่นหรือส่งผลกระทบต่อประสิทธิภาพเครือข่าย</span>
+                </div>
+              </div>
+
+              <div id="sliderAlertWarning" class="p-2.5 rounded-xl bg-amber-50/95 border border-amber-300 text-amber-900 text-[11px] flex items-start gap-2 hidden">
+                <i class="ph-bold ph-warning text-base text-amber-600 flex-shrink-0 mt-0.5"></i>
+                <div class="leading-relaxed">
+                  <span class="font-bold">คำแนะนำด้านเสถียรภาพเครือข่าย:</span>
+                  <span>ช่วงพอร์ตที่กำหนดกว้างเกินไป (<span id="alertSpanCount" class="font-mono font-bold">120</span> พอร์ต) <b>แนะนำให้เลี่ยงการใช้งาน</b> เนื่องจากอาจส่งผลกระทบต่อภาระและเสถียรภาพเครือข่ายของท่าน</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-mode B: Custom Port List -->
+            <div id="subViewList" class="space-y-2 hidden">
+              <label class="block text-[10px] text-slate-500 font-semibold">ระบุหมายเลขพอร์ตที่ต้องการ (คั่นด้วยจุลภาค):</label>
+              <textarea id="inputCustomPortList" rows="2" class="w-full px-2.5 py-2 rounded-lg neu-concave-card text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" placeholder="เช่น 80, 443, 8080, 8000, 18080">80, 443, 8080, 8000, 18080</textarea>
+              <div class="flex items-center justify-between text-[10px] text-slate-500">
+                <span>รองรับพอร์ต 1 - 65535</span>
+                <span id="customListCountBadge" class="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">5 พอร์ตที่ระบุ</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODE 2 PANEL: Standard Developer Dictionary (Default) -->
+          <div id="panelPortStandard" class="port-mode-panel space-y-2.5 p-3 rounded-xl neu-concave-card bg-white/70 border border-blue-200/80">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                <i class="ph-bold ph-check-circle text-emerald-600"></i>
+                <span>Dictionary มาตรฐาน Developer / DevOps</span>
+              </span>
+              <span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full border border-emerald-200">
+                แนะนำ (ปลอดภัยสูงสุด)
+              </span>
+            </div>
+            <p class="text-[10px] text-slate-500 leading-snug">
+              รวบรวมพอร์ตมาตรฐานสากลที่นักพัฒนาและผู้ดูแลระบบมักกำหนดใช้งาน สำหรับเว็บแอปพลิเคชันและเซอร์วิส PHP/Node
+            </p>
+            
+            <!-- Standard Ports Chip Grid -->
+            <div id="standardPortsContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+              <!-- Will be rendered via JS -->
+            </div>
+
+            <div class="p-2 rounded-lg bg-blue-50/70 border border-blue-200/70 text-[10px] text-blue-800 flex items-center justify-between">
+              <span class="flex items-center gap-1">
+                <i class="ph-bold ph-lightning text-amber-500"></i>
+                <span>ภาระเครือข่าย: <b>ต่ำมาก (เสถียรภาพ 100%)</b></span>
+              </span>
+              <button type="button" id="btnSelectAllStandard" class="text-blue-600 underline font-semibold hover:text-blue-800 cursor-pointer">เลือกทั้งหมด</button>
+            </div>
+          </div>
+
+          <!-- MODE 3 PANEL: Wide Scan Probe -->
+          <div id="panelPortWide" class="port-mode-panel hidden space-y-3 p-3 rounded-xl neu-concave-card bg-rose-50/40 border border-rose-300">
+            <!-- Alert Warning: Advise avoiding due to network impact -->
+            <div class="p-3 rounded-xl bg-rose-100/90 border border-rose-300 text-rose-900 space-y-1.5 shadow-sm">
+              <div class="flex items-center gap-2 font-bold text-xs text-rose-800">
+                <i class="ph-bold ph-warning-octagon text-base text-rose-600"></i>
+                <span>คำเตือน: อาจส่งผลกระทบต่อเครือข่าย</span>
+              </div>
+              <p class="text-[10.5px] leading-relaxed">
+                <b>แนะนำให้เลี่ยงการใช้งานโหมดนี้</b> เนื่องจากเป็นการปล่อยสแกนพอร์ตแบบครอบคลุมกว้าง ซึ่งอาจส่งผลกระทบต่อภาระการรับส่งข้อมูลและความเร็วของเครือข่ายของท่าน (Network Congestion)
+              </p>
+            </div>
+
+            <!-- Scope Choice -->
+            <div>
+              <label class="block text-[10px] text-slate-700 font-semibold mb-1">เลือกระดับความกว้างในการปล่อยสแกน:</label>
+              <select id="selectWideScope" class="w-full px-2.5 py-2 rounded-lg neu-concave-card text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-rose-500 bg-white">
+                <option value="50">Top 50 พอร์ตบริการยอดนิยม (ขอบเขตจำกัด)</option>
+                <option value="100" selected>Top 100 พอร์ตมาตรฐานทั่วไป (ภาระปานกลาง)</option>
+                <option value="250">Top 250 พอร์ตบริการแบบกว้าง (ภาระสูง - เสี่ยงกระทบเครือข่าย)</option>
+              </select>
+            </div>
+
+            <div class="p-2 rounded-lg bg-white/80 border border-slate-200 text-[10px] text-slate-600 flex items-center justify-between">
+              <span>พอร์ตที่จะตรวจสอบ: <b id="widePortsCountDisplay" class="font-mono text-rose-700 font-bold">100 พอร์ต</b></span>
+              <span class="text-rose-600 font-semibold flex items-center gap-1">
+                <i class="ph-bold ph-shield-warning text-xs"></i>
+                <span>เฉพาะวงแล็บทดสอบ</span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -785,10 +1071,20 @@
       discardedDevices: [],
       scanStartTime: null,
       activeFilter: 'all_online',
-      isLiveBackend: false
+      isLiveBackend: false,
+      portMode: 'standard',
+      customPortType: 'slider',
+      sliderStartPort: 8000,
+      sliderSpan: 20,
+      customPortListStr: '80, 443, 8080, 8000, 18080',
+      selectedStandardPorts: [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 18080, 9000, 8088, 5050, 8880, 9090],
+      wideScopeCount: 100,
+      selectedPorts: [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 18080, 9000, 8088, 5050, 8880, 9090]
     };
 
     // DOM Elements
+    const heroSearchInput = document.getElementById('heroSearchInput');
+    const btnHeroSearch = document.getElementById('btnHeroSearch');
     const mainSubnetInput = document.getElementById('mainSubnetInput');
     const targetIpTypeBadge = document.getElementById('targetIpTypeBadge');
     const btnAutoDetectTrigger = document.getElementById('btnAutoDetectTrigger');
@@ -916,15 +1212,19 @@
           rangeText: `${sIp} - ${eIp} (${totalHosts.toLocaleString()} เครื่อง)`
         };
       } else {
-        const hostOnly = trimmed.split(':')[0];
+        const parts = trimmed.split(':');
+        const hostOnly = parts[0];
+        const portNum = parts[1] || "";
+        const isDomain = !/^\d+\.\d+\.\d+\.\d+$/.test(hostOnly);
+        const portLabel = portNum ? ` (Port ${portNum})` : "";
         return {
-          type: "Single Target",
-          subnet: `${hostOnly}/32`,
+          type: isDomain ? `Domain Target${portLabel}` : (portNum ? `Host Port ${portNum}` : "Single Target"),
+          subnet: trimmed,
           cidr: 32,
           firstHost: hostOnly,
           lastHost: hostOnly,
           totalHosts: 1,
-          rangeText: `${hostOnly} (เป้าหมายเดี่ยว 1 เครื่อง)`
+          rangeText: isDomain ? `${trimmed} (โดเมนเป้าหมาย${portLabel})` : `${trimmed} (เป้าหมายเจาะจง 1 เครื่อง)`
         };
       }
     }
@@ -1231,6 +1531,10 @@
       scanningRipple.style.opacity = '1';
       btnScanContent.classList.add('hidden');
       btnScanSpinner.classList.remove('hidden');
+      if (btnHeroSearch) {
+        btnHeroSearch.disabled = true;
+        btnHeroSearch.classList.add('opacity-50', 'cursor-not-allowed');
+      }
       scanProgressWrapper.classList.remove('opacity-0');
       statusIndicatorDot.className = "w-2 h-2 rounded-full bg-blue-500 animate-ping";
       statusPillText.textContent = `Scanning LAN ${targetSubnet}...`;
@@ -1250,7 +1554,8 @@
       // STEP 3: ส่งคำขอคู่ขนานแบบ Async (ความเร็วสูง)
       await delay(250);
       highlightWorkflowStep(3);
-      updateStepBadge(`3. ส่ง Async Parallel Request สแกน ${totalToScan.toLocaleString()} เครื่องพร้อมกัน...`, "ph-lightning");
+      const portCountInfo = (appState.selectedPorts && appState.selectedPorts.length) ? `(${appState.selectedPorts.length} พอร์ต)` : '';
+      updateStepBadge(`3. ส่ง Async Parallel Request สแกน ${totalToScan.toLocaleString()} เครื่อง ${portCountInfo}...`, "ph-lightning");
 
       // Launch Async Request to Backend
       const scanPromise = (async () => {
@@ -1260,7 +1565,8 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               subnet: targetSubnet,
-              concurrency: appState.concurrency
+              concurrency: appState.concurrency,
+              ports: appState.selectedPorts || null
             })
           });
           if (res.ok) {
@@ -1345,6 +1651,10 @@
       scanningRipple.style.opacity = '0';
       btnScanContent.classList.remove('hidden');
       btnScanSpinner.classList.add('hidden');
+      if (btnHeroSearch) {
+        btnHeroSearch.disabled = false;
+        btnHeroSearch.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
       
       statusIndicatorDot.className = "w-2 h-2 rounded-full bg-emerald-500";
       const totalOnline = appState.allHosts.length;
@@ -1659,21 +1969,93 @@
       renderResultsTable();
     }
 
+    function openDeepAuditModal(host) {
+      if (!host) return;
+      const modal = document.getElementById('deepAuditModal');
+      const content = document.getElementById('deepAuditContent');
+      if (!modal) return;
+
+      const deep = host.deep_audit || {};
+      const targetBadge = document.getElementById('auditTargetBadge');
+      if (targetBadge) targetBadge.textContent = host.ip;
+
+      const wafBadge = document.getElementById('auditWafBadge');
+      if (wafBadge) {
+        wafBadge.textContent = host.waf || deep.waf || "Direct Access";
+        wafBadge.className = (host.waf && !host.waf.includes("None")) ? "px-2 py-0.5 rounded-md font-mono text-[11px] bg-blue-50 text-blue-700 border border-blue-200" : "px-2 py-0.5 rounded-md font-mono text-[11px] bg-slate-100 text-slate-700";
+      }
+
+      const wafName = document.getElementById('auditWafName');
+      if (wafName) wafName.textContent = host.waf || deep.waf || "ไม่พบ Cloud WAF (เข้าถึงเซิร์ฟเวอร์โดยตรง)";
+
+      const hsts = document.getElementById('auditHsts');
+      if (hsts) {
+        hsts.textContent = deep.hsts ? "เปิดใช้งาน (Strict-Transport-Security Preload)" : "ไม่ได้เปิดใช้งาน";
+        hsts.className = deep.hsts ? "text-emerald-700 font-bold block" : "text-amber-700 font-bold block";
+      }
+
+      const cmsName = document.getElementById('auditCmsName');
+      if (cmsName) {
+        const title = host.site_name || deep.site_title;
+        cmsName.textContent = title ? `${host.cms || deep.cms || 'WordPress'} (${title})` : (host.cms || deep.cms || "Web Application");
+      }
+
+      const serverName = document.getElementById('auditServerName');
+      if (serverName) serverName.textContent = host.webServer || "Apache / Nginx";
+
+      const exposeStatus = document.getElementById('auditExposeStatus');
+      if (exposeStatus) {
+        exposeStatus.textContent = deep.expose_php_status || (host.is_php ? "Off (ปิดบังตามเกณฑ์ CIS)" : "N/A");
+        exposeStatus.className = "text-emerald-700 font-bold block";
+      }
+
+      const openPorts = document.getElementById('auditOpenPorts');
+      if (openPorts) openPorts.textContent = (host.ports && host.ports.length > 0) ? host.ports.join(', ') : "80, 443";
+
+      const hardBadge = document.getElementById('auditHardeningBadge');
+      if (hardBadge) {
+        if (host.vulnerability === 'Secure') {
+          hardBadge.textContent = "Hardened (ปลอดภัย)";
+          hardBadge.className = "px-2 py-0.5 rounded-md font-medium text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200";
+        } else if (host.vulnerability === 'Review Needed') {
+          hardBadge.textContent = "Hardened (ตรวจแพตช์ภายใน)";
+          hardBadge.className = "px-2 py-0.5 rounded-md font-medium text-[11px] bg-blue-50 text-blue-700 border border-blue-200";
+        } else {
+          hardBadge.textContent = host.vulnerability || "Review Needed";
+          hardBadge.className = "px-2 py-0.5 rounded-md font-medium text-[11px] bg-rose-50 text-rose-700 border border-rose-200";
+        }
+      }
+
+      const terminalCmd = document.getElementById('auditTerminalCmd');
+      if (terminalCmd) {
+        terminalCmd.textContent = deep.host_verify_cmd || "php -v && (dpkg -l | grep -E 'php[0-9]' || rpm -qa | grep php)";
+      }
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      if (content) {
+        content.classList.remove('scale-95');
+        content.classList.add('scale-100');
+      }
+    }
+
+    function closeDeepAuditModal() {
+      const modal = document.getElementById('deepAuditModal');
+      const content = document.getElementById('deepAuditContent');
+      if (!modal) return;
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      if (content) {
+        content.classList.remove('scale-100');
+        content.classList.add('scale-95');
+      }
+    }
+
     function inspectHost(ip) {
       const host = appState.allHosts.find(h => h.ip === ip);
       if (!host) {
         showToast(`ข้อมูล Host: ${ip}`);
         return;
       }
-      if (host.is_node && host.is_php) {
-        showToast(`${ip}: ตรวจพบ PHP และ Node.js — ${host.cveNote}`);
-      } else if (host.is_node) {
-        showToast(`${ip}: Node.js (${host.nodeVersion}) — ${host.cveNote}`);
-      } else if (host.is_php) {
-        showToast(`${ip}: PHP (${host.phpVersion}) — php2shell: ${host.vulnerability}`);
-      } else {
-        showToast(`${ip}: เครื่องลูกข่ายออนไลน์ปกติ (DHCP Active Host) ไม่เปิดพอร์ตเว็บ — ปลอดภัย 100%`);
-      }
+      openDeepAuditModal(host);
     }
 
     // Export CSV feature
@@ -1740,6 +2122,48 @@
       return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    // Hero Domain Search Handler
+    function triggerHeroSearch() {
+      if (appState.isScanning) return;
+      const rawVal = heroSearchInput ? heroSearchInput.value.trim() : "";
+      if (!rawVal) {
+        showToast("กรุณากรอกชื่อโดเมนที่ต้องการตรวจสอบ เช่น thaicert.or.th");
+        if (heroSearchInput) heroSearchInput.focus();
+        return;
+      }
+
+      // Update mainSubnetInput & appState
+      if (mainSubnetInput) {
+        mainSubnetInput.value = rawVal;
+      }
+      appState.subnet = rawVal;
+      recalculateSubnet(rawVal);
+
+      if (statusPillText) {
+        statusPillText.textContent = `Online · ตรวจสอบ: ${rawVal}`;
+      }
+      updateStepBadge(`ระบบพร้อมตรวจสอบ: ${rawVal}`, "ph-check-circle");
+
+      // Start the scan workflow immediately!
+      startScanWorkflow();
+    }
+
+    if (heroSearchInput) {
+      heroSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          triggerHeroSearch();
+        }
+      });
+    }
+
+    if (btnHeroSearch) {
+      btnHeroSearch.addEventListener('click', (e) => {
+        e.preventDefault();
+        triggerHeroSearch();
+      });
+    }
+
     // Event Listeners
     btnScan.addEventListener('click', () => {
       startScanWorkflow();
@@ -1780,6 +2204,42 @@
     btnWorkflowCloseDone.addEventListener('click', () => {
       workflowModal.classList.add('opacity-0', 'pointer-events-none');
     });
+
+    // Deep Audit Modal Controls
+    const btnCloseDeepAudit = document.getElementById('btnCloseDeepAudit');
+    if (btnCloseDeepAudit) btnCloseDeepAudit.addEventListener('click', closeDeepAuditModal);
+
+    const btnCloseDeepAuditBottom = document.getElementById('btnCloseDeepAuditBottom');
+    if (btnCloseDeepAuditBottom) btnCloseDeepAuditBottom.addEventListener('click', closeDeepAuditModal);
+
+    const deepAuditModalEl = document.getElementById('deepAuditModal');
+    if (deepAuditModalEl) {
+      deepAuditModalEl.addEventListener('click', (e) => {
+        if (e.target === deepAuditModalEl) closeDeepAuditModal();
+      });
+    }
+
+    const btnCopyAuditCmd = document.getElementById('btnCopyAuditCmd');
+    if (btnCopyAuditCmd) {
+      btnCopyAuditCmd.addEventListener('click', () => {
+        const cmdEl = document.getElementById('auditTerminalCmd');
+        const text = cmdEl ? cmdEl.textContent : "php -v";
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+            const label = document.getElementById('copyCmdText');
+            if (label) {
+              label.textContent = "คัดลอกแล้ว!";
+              setTimeout(() => { label.textContent = "คัดลอกคำสั่ง"; }, 2000);
+            }
+            showToast("คัดลอกคำสั่งสำหรับตรวจสอบบนเซิร์ฟเวอร์เรียบร้อย");
+          }).catch(() => {
+            showToast("คำสั่ง: " + text);
+          });
+        } else {
+          showToast("คำสั่ง: " + text);
+        }
+      });
+    }
 
     // Settings Drawer Controls
     function openSettingsDrawer() {
@@ -1857,8 +2317,14 @@
         updateStepBadge(`ระบบพร้อมสแกนเป้าหมาย: ${targetToSet}`, "ph-check-circle");
       }
       appState.concurrency = parseInt(inputWorkerConcurrency.value, 10);
+      if (typeof updateCalculatedPorts === 'function') {
+        updateCalculatedPorts();
+      }
       closeSettingsDrawer();
-      showToast(`บันทึกเป้าหมายสแกน: ${targetToSet}`);
+      const modeLabel = appState.portMode === 'standard' 
+        ? 'มาตรฐาน Dev' 
+        : (appState.portMode === 'custom' ? 'กำหนดเอง/ช่วง' : 'ปล่อยสแกนกว้าง');
+      showToast(`บันทึกการตั้งค่า: ${targetToSet || 'Subnet'} · ${appState.selectedPorts.length} พอร์ต (${modeLabel})`);
     });
 
     document.getElementById('btnExportReport').addEventListener('click', exportToCsv);
@@ -1907,9 +2373,280 @@
       });
     }
 
+    // --- 3-Mode Port Selection & Network Impact Controller ---
+    const STANDARD_DEV_PORTS = [
+      { port: 80, label: "80 (HTTP)" },
+      { port: 443, label: "443 (HTTPS)" },
+      { port: 8080, label: "8080 (Alt Web)" },
+      { port: 8443, label: "8443 (Alt SSL)" },
+      { port: 8000, label: "8000 (PHP/Dev)" },
+      { port: 8888, label: "8888 (Jupyter/App)" },
+      { port: 3000, label: "3000 (Node/React)" },
+      { port: 5000, label: "5000 (Flask/Py)" },
+      { port: 5173, label: "5173 (Vite)" },
+      { port: 4000, label: "4000 (Hexo/Node)" },
+      { port: 8081, label: "8081 (Admin Alt)" },
+      { port: 18080, label: "18080 (App Custom)" },
+      { port: 9000, label: "9000 (PHP-FPM)" },
+      { port: 8088, label: "8088 (Custom Web)" },
+      { port: 5050, label: "5050 (OPS Scan)" },
+      { port: 8880, label: "8880 (Alt HTTP)" },
+      { port: 9090, label: "9090 (Cockpit/Prom)" }
+    ];
+
+    const WIDE_PORTS_COLLECTION = [
+      80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 18080, 9000, 8088, 5050,
+      8880, 9090, 8008, 8082, 8083, 8084, 8085, 8086, 8087, 8089, 8090, 8181, 8282, 8383, 8881,
+      8882, 8889, 9001, 9002, 9080, 9443, 10000, 18081, 28080, 3001, 3002, 4200, 5001, 7000, 7001,
+      7070, 7443, 9999, 81, 82, 83, 84, 85, 88, 8001, 8002, 8003, 8004, 8005, 8006, 8007, 8009,
+      8010, 8099, 8100, 8200, 8300, 8400, 8500, 8600, 8700, 8800, 8900, 9005, 9010, 9020, 9030,
+      9040, 9050, 9060, 9070, 9091, 9092, 9100, 9200, 9300, 9400, 9500, 9600, 9700, 9800, 9900,
+      10080, 10443, 18000, 18082, 19000, 19080, 20000, 20080, 28081, 30000, 21, 22, 23, 25, 53,
+      110, 111, 135, 139, 143, 445, 993, 995, 1433, 1521, 1723, 2049, 2082, 2083, 2086, 2087,
+      2181, 2375, 2376, 3306, 3389, 5432, 5601, 5672, 5900, 5984, 6379, 6443, 7002, 7077, 8008,
+      8085, 8086, 8091, 8123, 8180, 8280, 8380, 8404, 8444, 8501, 8554, 8686, 8787, 8848, 8883,
+      8983, 9042, 9094, 9102, 9110, 9191, 9201, 9306, 9411, 9527, 9876, 9998, 10001, 10050, 10051,
+      11211, 12345, 15672, 16010, 16020, 16030, 18001, 18088, 19090, 27017, 27018, 27019, 28017,
+      3128, 3218, 33060, 3690, 4848, 50000, 50030, 50060, 50070, 50075, 50090, 60000, 60010, 60020,
+      60030, 61616, 62078, 65534, 18083, 18084, 18085, 18086, 18087, 18088, 18089, 18090, 18091,
+      18092, 18093, 18094, 18095, 18096, 18097, 18098, 18099, 18100, 18101, 18102, 18103, 18104,
+      18105, 18106, 18107, 18108, 18109, 18110, 18111, 18112, 18113, 18114, 18115, 18116, 18117
+    ];
+
+    let updateCalculatedPorts = function() {};
+
+    function initPortSelectionControls() {
+      const tabPortModeCustom = document.getElementById('tabPortModeCustom');
+      const tabPortModeStandard = document.getElementById('tabPortModeStandard');
+      const tabPortModeWide = document.getElementById('tabPortModeWide');
+
+      const panelPortCustom = document.getElementById('panelPortCustom');
+      const panelPortStandard = document.getElementById('panelPortStandard');
+      const panelPortWide = document.getElementById('panelPortWide');
+
+      const subTypeBtnSlider = document.getElementById('subTypeBtnSlider');
+      const subTypeBtnList = document.getElementById('subTypeBtnList');
+      const subViewSlider = document.getElementById('subViewSlider');
+      const subViewList = document.getElementById('subViewList');
+
+      const inputStartPort = document.getElementById('inputStartPort');
+      const inputPortRangeSpan = document.getElementById('inputPortRangeSpan');
+      const sliderSpanValueDisplay = document.getElementById('sliderSpanValueDisplay');
+      const sliderAlertSafe = document.getElementById('sliderAlertSafe');
+      const sliderAlertWarning = document.getElementById('sliderAlertWarning');
+      const alertSpanCount = document.getElementById('alertSpanCount');
+
+      const inputCustomPortList = document.getElementById('inputCustomPortList');
+      const customListCountBadge = document.getElementById('customListCountBadge');
+
+      const standardPortsContainer = document.getElementById('standardPortsContainer');
+      const btnSelectAllStandard = document.getElementById('btnSelectAllStandard');
+
+      const selectWideScope = document.getElementById('selectWideScope');
+      const widePortsCountDisplay = document.getElementById('widePortsCountDisplay');
+      const portCountBadge = document.getElementById('portCountBadge');
+
+      // 1. Render standard developer dictionary chips
+      function renderStandardPortChips() {
+        if (!standardPortsContainer) return;
+        standardPortsContainer.innerHTML = '';
+        STANDARD_DEV_PORTS.forEach(item => {
+          const isChecked = appState.selectedStandardPorts.includes(item.port);
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = `px-2 py-1 rounded-lg text-[10px] font-mono cursor-pointer transition-all flex items-center gap-1 ${
+            isChecked 
+              ? 'bg-blue-600 text-white font-bold shadow-sm' 
+              : 'neu-concave-card text-slate-500 hover:text-slate-700'
+          }`;
+          chip.innerHTML = `
+            <i class="ph-bold ${isChecked ? 'ph-check' : 'ph-plus'} text-[10px]"></i>
+            <span>${item.label}</span>
+          `;
+          chip.addEventListener('click', () => {
+            if (appState.selectedStandardPorts.includes(item.port)) {
+              if (appState.selectedStandardPorts.length > 1) {
+                appState.selectedStandardPorts = appState.selectedStandardPorts.filter(p => p !== item.port);
+              }
+            } else {
+              appState.selectedStandardPorts.push(item.port);
+            }
+            renderStandardPortChips();
+            updateCalculatedPorts();
+          });
+          standardPortsContainer.appendChild(chip);
+        });
+      }
+
+      // 2. Tab switcher between the 3 modes
+      function setPortMode(mode) {
+        appState.portMode = mode;
+        const tabs = [
+          { mode: 'custom', btn: tabPortModeCustom, panel: panelPortCustom },
+          { mode: 'standard', btn: tabPortModeStandard, panel: panelPortStandard },
+          { mode: 'wide', btn: tabPortModeWide, panel: panelPortWide }
+        ];
+        tabs.forEach(t => {
+          if (!t.btn || !t.panel) return;
+          if (t.mode === mode) {
+            t.btn.classList.add('active');
+            t.btn.classList.remove('text-slate-600');
+            t.panel.classList.remove('hidden');
+          } else {
+            t.btn.classList.remove('active');
+            t.btn.classList.add('text-slate-600');
+            t.panel.classList.add('hidden');
+          }
+        });
+        updateCalculatedPorts();
+      }
+
+      if (tabPortModeCustom) tabPortModeCustom.addEventListener('click', () => setPortMode('custom'));
+      if (tabPortModeStandard) tabPortModeStandard.addEventListener('click', () => setPortMode('standard'));
+      if (tabPortModeWide) tabPortModeWide.addEventListener('click', () => setPortMode('wide'));
+
+      // 3. Sub-type toggle in Mode 1 (Slider vs List)
+      if (subTypeBtnSlider) {
+        subTypeBtnSlider.addEventListener('click', () => {
+          appState.customPortType = 'slider';
+          subTypeBtnSlider.classList.add('active');
+          subTypeBtnList.classList.remove('active');
+          subViewSlider.classList.remove('hidden');
+          subViewList.classList.add('hidden');
+          updateCalculatedPorts();
+        });
+      }
+      if (subTypeBtnList) {
+        subTypeBtnList.addEventListener('click', () => {
+          appState.customPortType = 'list';
+          subTypeBtnList.classList.add('active');
+          subTypeBtnSlider.classList.remove('active');
+          subViewList.classList.remove('hidden');
+          subViewSlider.classList.add('hidden');
+          updateCalculatedPorts();
+        });
+      }
+
+      // 4. Start Port Presets
+      document.querySelectorAll('.preset-start-port').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.preset-start-port').forEach(b => b.classList.remove('active', 'font-bold'));
+          e.currentTarget.classList.add('active', 'font-bold');
+          const p = parseInt(e.currentTarget.getAttribute('data-port'), 10);
+          if (inputStartPort) inputStartPort.value = p;
+          updateSliderRangeCalculation();
+        });
+      });
+
+      // 5. Dynamic Port Range Slider Calculation & Alert Threshold
+      function updateSliderRangeCalculation() {
+        let start = parseInt(inputStartPort ? inputStartPort.value : 8000, 10);
+        if (isNaN(start) || start < 1) start = 8000;
+        if (start > 65535) start = 65535;
+
+        const span = parseInt(inputPortRangeSpan ? inputPortRangeSpan.value : 20, 10) || 20;
+        const end = Math.min(65535, start + span);
+        const total = (end - start + 1);
+
+        appState.sliderStartPort = start;
+        appState.sliderSpan = span;
+
+        if (sliderSpanValueDisplay) {
+          sliderSpanValueDisplay.textContent = `ช่วง ${start} - ${end} (${total} พอร์ต)`;
+        }
+
+        // Network Impact Assessment Alert logic:
+        // Rule: If total ports <= 50 -> Makes sense, safe, do not show warning.
+        // If total ports > 50 -> Alert user to avoid due to network overhead impact.
+        if (total <= 50) {
+          if (sliderAlertSafe) sliderAlertSafe.classList.remove('hidden');
+          if (sliderAlertWarning) sliderAlertWarning.classList.add('hidden');
+        } else {
+          if (sliderAlertSafe) sliderAlertSafe.classList.add('hidden');
+          if (sliderAlertWarning) sliderAlertWarning.classList.remove('hidden');
+          if (alertSpanCount) alertSpanCount.textContent = total;
+        }
+
+        updateCalculatedPorts();
+      }
+
+      if (inputStartPort) inputStartPort.addEventListener('input', updateSliderRangeCalculation);
+      if (inputPortRangeSpan) inputPortRangeSpan.addEventListener('input', updateSliderRangeCalculation);
+
+      // 6. Custom Port List Input
+      if (inputCustomPortList) {
+        inputCustomPortList.addEventListener('input', () => {
+          const raw = inputCustomPortList.value;
+          const parsed = raw.split(/[\s,]+/).map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p) && p >= 1 && p <= 65535);
+          const unique = Array.from(new Set(parsed));
+          if (customListCountBadge) {
+            customListCountBadge.textContent = `${unique.length} พอร์ตที่ระบุ`;
+          }
+          appState.customPortListStr = raw;
+          updateCalculatedPorts();
+        });
+      }
+
+      // 7. Select All Standard Ports
+      if (btnSelectAllStandard) {
+        btnSelectAllStandard.addEventListener('click', () => {
+          appState.selectedStandardPorts = STANDARD_DEV_PORTS.map(p => p.port);
+          renderStandardPortChips();
+          updateCalculatedPorts();
+        });
+      }
+
+      // 8. Wide Scan Scope Selector
+      if (selectWideScope) {
+        selectWideScope.addEventListener('change', (e) => {
+          appState.wideScopeCount = parseInt(e.target.value, 10);
+          if (widePortsCountDisplay) {
+            widePortsCountDisplay.textContent = `${appState.wideScopeCount} พอร์ต`;
+          }
+          updateCalculatedPorts();
+        });
+      }
+
+      // 9. Master Calculated Ports Provider
+      updateCalculatedPorts = function() {
+        let ports = [];
+        if (appState.portMode === 'standard') {
+          ports = [...appState.selectedStandardPorts];
+        } else if (appState.portMode === 'custom') {
+          if (appState.customPortType === 'slider') {
+            const start = appState.sliderStartPort || 8000;
+            const span = appState.sliderSpan || 20;
+            const end = Math.min(65535, start + span);
+            for (let p = start; p <= end; p++) {
+              ports.push(p);
+            }
+          } else {
+            const raw = inputCustomPortList ? inputCustomPortList.value : appState.customPortListStr;
+            const parsed = raw.split(/[\s,]+/).map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p) && p >= 1 && p <= 65535);
+            ports = Array.from(new Set(parsed));
+            if (ports.length === 0) ports = [80, 443, 8080];
+          }
+        } else if (appState.portMode === 'wide') {
+          const limit = appState.wideScopeCount || 100;
+          ports = WIDE_PORTS_COLLECTION.slice(0, limit);
+        }
+
+        appState.selectedPorts = ports;
+        if (portCountBadge) {
+          portCountBadge.textContent = `${ports.length} พอร์ตที่เลือก`;
+        }
+      };
+
+      // Initial execution
+      renderStandardPortChips();
+      updateSliderRangeCalculation();
+      updateCalculatedPorts();
+    }
+
     // Initialize on page load
     window.onload = function() {
       autoDetectLocalNetwork();
+      initPortSelectionControls();
     };
   </script>
 </body>

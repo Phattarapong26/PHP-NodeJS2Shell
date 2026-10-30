@@ -218,7 +218,7 @@ def get_live_lan_hosts(target_net=None):
 
     # 3. Only if running inside Docker container where ARP namespace might be isolated
     is_container = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true" or os.environ.get("IS_DOCKER") == "true"
-    if is_container and not hosts and os.path.exists("active_hosts.txt"):
+    if is_container and os.path.exists("active_hosts.txt"):
         try:
             with open("active_hosts.txt") as f:
                 content = f.read().strip()
@@ -228,12 +228,13 @@ def get_live_lan_hosts(target_net=None):
                         if is_valid_unicast_host(ip_str):
                             if target_net:
                                 try:
-                                    if ipaddress.ip_address(ip_str) in target_net:
+                                    if ipaddress.ip_address(ip_str) in target_net and ip_str not in hosts:
                                         hosts[ip_str] = "LAN Device"
                                 except Exception:
                                     pass
                             else:
-                                hosts[ip_str] = "LAN Device"
+                                if ip_str not in hosts:
+                                    hosts[ip_str] = "LAN Device"
         except Exception:
             pass
 
@@ -359,34 +360,25 @@ def detect_host_network():
 
 def get_host_network_info():
     """Detect real host network info dynamically with zero hardcoded values."""
-    # 1. Direct OS probe (highest accuracy when running natively)
-    direct = detect_host_network()
-    if direct and direct.get("ip"):
-        direct["is_docker"] = False
-        parts = direct["ip"].split('.')
-        direct["prefix"] = f"{parts[0]}.{parts[1]}.{parts[2]}." if len(parts) == 4 else ""
-        direct["source"] = "os_direct"
-        return direct
-
-    # Check if running inside container
     is_container = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true" or os.environ.get("IS_DOCKER") == "true"
 
-    # 2. If running inside Docker, check host_network.json mounted from physical host
-    if is_container and os.path.exists("host_network.json"):
-        try:
-            with open("host_network.json", "r") as f:
-                data = json.load(f)
-                if data.get("ip") and data.get("subnet"):
-                    data["is_docker"] = True
-                    data["source"] = "host_network_json"
-                    parts = data["ip"].split('.')
-                    data["prefix"] = f"{parts[0]}.{parts[1]}.{parts[2]}." if len(parts) == 4 else ""
-                    return data
-        except Exception:
-            pass
-
-    # 3. Read environment variables passed into container
+    # If running inside Docker, prioritize mounted host network info or environment variables
     if is_container:
+        # 1. Check host_network.json mounted from physical host
+        if os.path.exists("host_network.json"):
+            try:
+                with open("host_network.json", "r") as f:
+                    data = json.load(f)
+                    if data.get("ip") and data.get("subnet"):
+                        data["is_docker"] = True
+                        data["source"] = "host_network_json"
+                        parts = data["ip"].split('.')
+                        data["prefix"] = f"{parts[0]}.{parts[1]}.{parts[2]}." if len(parts) == 4 else ""
+                        return data
+            except Exception:
+                pass
+
+        # 2. Read environment variables passed into container
         env_ip = os.environ.get("HOST_IP")
         env_subnet = os.environ.get("HOST_SUBNET")
         if env_ip and env_subnet:
@@ -411,7 +403,16 @@ def get_host_network_info():
             except Exception:
                 pass
 
-    # 4. If completely offline or undetected, return empty state (NO HARDCODED FAKE IPS!)
+    # Direct OS probe (highest accuracy when running natively, or fallback)
+    direct = detect_host_network()
+    if direct and direct.get("ip"):
+        direct["is_docker"] = is_container
+        parts = direct["ip"].split('.')
+        direct["prefix"] = f"{parts[0]}.{parts[1]}.{parts[2]}." if len(parts) == 4 else ""
+        direct["source"] = "os_direct"
+        return direct
+
+    # If completely offline or undetected, return empty state (NO HARDCODED FAKE IPS!)
     return {
         "ip": "",
         "subnet": "",
@@ -423,39 +424,67 @@ def get_host_network_info():
         "last_host": "",
         "total_hosts": 0,
         "prefix": "",
-        "is_docker": False,
+        "is_docker": is_container,
         "source": "offline"
     }
 
 def parse_target_hosts(target_str, max_scan=2048, host_ip=""):
-    """Parse any CIDR, IP range, or single IP into target host list without arbitrary /24 cap."""
+    """Parse any CIDR, IP range, single IP, or Domain with optional port into target host list."""
     target_str = target_str.strip()
-    if "/" in target_str:
-        net = ipaddress.ip_network(target_str, strict=False)
-        total = net.num_addresses - 2 if net.prefixlen < 31 else (1 if net.prefixlen == 32 else 2)
-        if total <= max_scan:
-            return list(net.hosts()), net, net.prefixlen, total
-        else:
-            # Massive network (/16, /8): scan the slice around host_ip if valid
-            if host_ip:
-                try:
-                    curr_ip = ipaddress.ip_address(host_ip)
-                    if curr_ip in net:
-                        slice_net = ipaddress.ip_network(f"{curr_ip}/24", strict=False)
-                        return list(slice_net.hosts()), net, net.prefixlen, total
-                except Exception:
-                    pass
-            return list(net.hosts())[:max_scan], net, net.prefixlen, total
-    elif "-" in target_str:
-        s, e = target_str.split("-")
+    clean_target = re.sub(r'^https?://', '', target_str).rstrip('/')
+
+    # Extract port if present (e.g. 10.255.254.68:18080 or domain.com:8080)
+    target_port = None
+    if ":" in clean_target:
+        parts = clean_target.split(":")
+        if len(parts) == 2 and parts[1].isdigit():
+            port_num = int(parts[1])
+            if 1 <= port_num <= 65535:
+                target_port = port_num
+                clean_target = parts[0]
+
+    # Check for domain with /32 suffix (e.g. from frontend single target)
+    if clean_target.endswith("/32") and not re.match(r'^\d+\.\d+\.\d+\.\d+/32$', clean_target):
+        clean_target = clean_target[:-3]
+
+    if "/" in clean_target:
+        try:
+            net = ipaddress.ip_network(clean_target, strict=False)
+            total = net.num_addresses - 2 if net.prefixlen < 31 else (1 if net.prefixlen == 32 else 2)
+            if total <= max_scan:
+                return list(net.hosts()), net, net.prefixlen, total, None, target_port
+            else:
+                # Massive network (/16, /8): scan the slice around host_ip if valid
+                if host_ip:
+                    try:
+                        curr_ip = ipaddress.ip_address(host_ip)
+                        if curr_ip in net:
+                            slice_net = ipaddress.ip_network(f"{curr_ip}/24", strict=False)
+                            return list(slice_net.hosts()), net, net.prefixlen, total, None, target_port
+                    except Exception:
+                        pass
+                return list(net.hosts())[:max_scan], net, net.prefixlen, total, None, target_port
+        except ValueError:
+            clean_target = clean_target.split('/')[0]
+
+    if "-" in clean_target and not any(c.isalpha() for c in clean_target):
+        s, e = clean_target.split("-")
         s_ip = int(ipaddress.ip_address(s.strip()))
         e_ip = int(ipaddress.ip_address(e.strip()))
         hosts = [ipaddress.ip_address(i) for i in range(s_ip, min(e_ip + 1, s_ip + max_scan))]
-        return hosts, None, 32, len(hosts)
+        return hosts, None, 32, len(hosts), None, target_port
     else:
-        clean = target_str.split(":")[0]
-        ip = ipaddress.ip_address(clean)
-        return [ip], None, 32, 1
+        clean = clean_target.split(":")[0].strip()
+        try:
+            ip = ipaddress.ip_address(clean)
+            return [ip], None, 32, 1, None, target_port
+        except ValueError:
+            try:
+                resolved = socket.gethostbyname(clean)
+                ip = ipaddress.ip_address(resolved)
+                return [ip], None, 32, 1, clean, target_port
+            except Exception as e:
+                raise ValueError(f"ไม่สามารถค้นหา IP หรือโดเมน '{clean}' ได้: {e}")
 
 @app.route("/")
 def index():
@@ -505,26 +534,45 @@ def calculate_subnet_api():
     if not target_str:
         return jsonify({"error": "Empty input"}), 400
 
+    clean_target = re.sub(r'^https?://', '', target_str).rstrip('/')
+
+    if clean_target.endswith("/32") and not re.match(r'^\d+\.\d+\.\d+\.\d+/32$', clean_target):
+        clean_target = clean_target[:-3]
+
     try:
-        if "/" in target_str:
-            net = ipaddress.IPv4Network(target_str, strict=False)
-            total = net.num_addresses - 2 if net.prefixlen < 31 else (1 if net.prefixlen == 32 else 2)
-            first_host = str(net.network_address + 1) if net.prefixlen < 31 else str(net.network_address)
-            last_host = str(net.broadcast_address - 1) if net.prefixlen < 31 else str(net.broadcast_address)
-            return jsonify({
-                "valid": True,
-                "type": "CIDR Subnet",
-                "subnet": str(net),
-                "cidr": net.prefixlen,
-                "netmask": str(net.netmask),
-                "network_address": str(net.network_address),
-                "broadcast_address": str(net.broadcast_address),
-                "first_host": first_host,
-                "last_host": last_host,
-                "total_hosts": total
-            })
-        elif "-" in target_str:
-            s, e = target_str.split("-")
+        # Extract port if present (e.g. 10.255.254.68:18080)
+        target_port = None
+        if ":" in clean_target:
+            parts = clean_target.split(":")
+            if len(parts) == 2 and parts[1].isdigit():
+                port_num = int(parts[1])
+                if 1 <= port_num <= 65535:
+                    target_port = port_num
+                    clean_target = parts[0]
+
+        if "/" in clean_target:
+            try:
+                net = ipaddress.IPv4Network(clean_target, strict=False)
+                total = net.num_addresses - 2 if net.prefixlen < 31 else (1 if net.prefixlen == 32 else 2)
+                first_host = str(net.network_address + 1) if net.prefixlen < 31 else str(net.network_address)
+                last_host = str(net.broadcast_address - 1) if net.prefixlen < 31 else str(net.broadcast_address)
+                return jsonify({
+                    "valid": True,
+                    "type": "CIDR Subnet",
+                    "subnet": str(net),
+                    "cidr": net.prefixlen,
+                    "netmask": str(net.netmask),
+                    "network_address": str(net.network_address),
+                    "broadcast_address": str(net.broadcast_address),
+                    "first_host": first_host,
+                    "last_host": last_host,
+                    "total_hosts": total
+                })
+            except ValueError:
+                clean_target = clean_target.split('/')[0]
+
+        if "-" in clean_target and not any(c.isalpha() for c in clean_target):
+            s, e = clean_target.split("-")
             s_ip = ipaddress.IPv4Address(s.strip())
             e_ip = ipaddress.IPv4Address(e.strip())
             total = max(0, int(e_ip) - int(s_ip) + 1)
@@ -538,16 +586,38 @@ def calculate_subnet_api():
                 "total_hosts": total
             })
         else:
-            ip = ipaddress.IPv4Address(target_str.split(":")[0])
-            return jsonify({
-                "valid": True,
-                "type": "Single Target",
-                "subnet": f"{ip}/32",
-                "cidr": 32,
-                "first_host": str(ip),
-                "last_host": str(ip),
-                "total_hosts": 1
-            })
+            try:
+                ip = ipaddress.IPv4Address(clean_target)
+                display_sub = f"{ip}:{target_port}" if target_port else f"{ip}/32"
+                return jsonify({
+                    "valid": True,
+                    "type": f"Target Host (Port {target_port})" if target_port else "Single Target",
+                    "subnet": display_sub,
+                    "port": target_port,
+                    "cidr": 32,
+                    "first_host": str(ip),
+                    "last_host": str(ip),
+                    "total_hosts": 1
+                })
+            except ValueError:
+                try:
+                    resolved = socket.gethostbyname(clean_target)
+                    ip = ipaddress.IPv4Address(resolved)
+                    display_sub = f"{clean_target}:{target_port}" if target_port else f"{clean_target} ({ip}/32)"
+                    return jsonify({
+                        "valid": True,
+                        "type": f"Domain (Port {target_port})" if target_port else f"Domain Name ({clean_target})",
+                        "subnet": display_sub,
+                        "domain": clean_target,
+                        "resolved_ip": str(ip),
+                        "port": target_port,
+                        "cidr": 32,
+                        "first_host": str(ip),
+                        "last_host": str(ip),
+                        "total_hosts": 1
+                    })
+                except Exception as e:
+                    return jsonify({"valid": False, "error": f"ไม่พบ IP ของโดเมน '{clean_target}': {e}"}), 400
     except Exception as e:
         return jsonify({"valid": False, "error": str(e)}), 400
 
@@ -698,13 +768,16 @@ async def check_tcp_port(ip: str, port: int, timeout: float = 0.22) -> bool:
     except Exception:
         return False
 
-async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int):
+async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, hostname: str = None):
     """Deep inspection of a target IP and port for PHP and Node.js signatures and vulnerabilities."""
     scheme = "https" if port in (443, 8443) else "http"
-    base_url = f"{scheme}://{ip_str}:{port}"
+    target_host = hostname if hostname else ip_str
+    base_url = f"{scheme}://{target_host}:{port}"
+    check_host = hostname if hostname else ip_str
+    display_ip = f"{ip_str} ({hostname})" if (hostname and hostname != ip_str) else ip_str
 
     # Pre-flight TCP check
-    if not await check_tcp_port(ip_str, port, timeout=0.35):
+    if not await check_tcp_port(check_host, port, timeout=0.8 if hostname else 0.35):
         return None
 
     try:
@@ -794,6 +867,61 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int):
             except Exception:
                 pass
 
+        # Step 4.5: Deep Non-Destructive Security & Hardening Audit (CMS, WAF, Security Headers)
+        waf_name = "None detected (Direct Access)"
+        if "x-cdn" in headers:
+            waf_name = f"{headers.get('x-cdn')} Cloud WAF"
+        elif "cf-ray" in headers or "cloudflare" in server.lower():
+            waf_name = "Cloudflare Edge WAF"
+        elif "incap_ses" in cookies_str.lower() or "visid_incap" in cookies_str.lower():
+            waf_name = "Imperva Incapsula WAF"
+        elif "aws" in server.lower() or "cloudfront" in headers.get("via", "").lower():
+            waf_name = "AWS CloudFront WAF"
+        elif "akamai" in server.lower():
+            waf_name = "Akamai Edge WAF"
+
+        cms_name = "Web Application"
+        site_name = ""
+        security_plugins = []
+        
+        # Check WordPress via WP REST API or structural markers
+        if "wp-json" in body_text or "wp-content" in body_text or "wp-json" in str(headers):
+            cms_name = "WordPress"
+            try:
+                wp_url = f"{base_url}/wp-json/"
+                r_wp = await client.get(wp_url, headers=req_headers, timeout=1.8)
+                if r_wp.status_code == 200:
+                    wp_data = r_wp.json()
+                    site_name = wp_data.get("name", "")
+                    ns = wp_data.get("namespaces", [])
+                    if any("wordfence" in n for n in ns):
+                        security_plugins.append("Wordfence Security Suite")
+                    if any("sucuri" in n for n in ns):
+                        security_plugins.append("Sucuri Security")
+                    if any("itsec" in n or "better-wp-security" in n for n in ns):
+                        security_plugins.append("iThemes Security")
+            except Exception:
+                pass
+        elif "laravel" in cookies_str.lower() or "x-csrf-token" in str(headers).lower():
+            cms_name = "Laravel Framework"
+        elif is_node:
+            cms_name = node_version_str or "Node.js Web App"
+
+        has_hsts = "strict-transport-security" in headers
+        has_csp = "content-security-policy" in headers
+        
+        deep_audit = {
+            "waf": waf_name,
+            "cms": cms_name,
+            "site_title": site_name,
+            "security_plugins": security_plugins,
+            "hsts": has_hsts,
+            "csp": has_csp,
+            "expose_php_status": "Off (ปิดบังเวอร์ชันตามมาตรฐาน CIS)" if is_php and not powered else ("On (เปิดเผยเวอร์ชันสู่สาธารณะ)" if is_php else "N/A"),
+            "host_verify_cmd": "php -v && (dpkg -l | grep -E 'php[0-9]' || rpm -qa | grep php)",
+            "safe_criteria": "PHP 8.2.20+ หรือ PHP 8.3.8+ (ป้องกัน CVE-2024-4577 ตามเกณฑ์ ThaiCERT)"
+        }
+
         # Step 5: Evaluate & Return Classification
         if is_node and is_php:
             v_php, note_php = evaluate_php_security(php_version_str or "PHP")
@@ -811,8 +939,12 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int):
                 "nodeVersion": node_version_str,
                 "has_brotli": has_brotli,
                 "is_online": True,
-                "ip": ip_str,
+                "ip": display_ip,
                 "webServer": server or powered or "Dual Web Service",
+                "cms": cms_name,
+                "site_name": site_name,
+                "waf": waf_name,
+                "deep_audit": deep_audit,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -832,8 +964,12 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int):
                 "nodeVersion": display_ver,
                 "has_brotli": has_brotli,
                 "is_online": True,
-                "ip": ip_str,
+                "ip": display_ip,
                 "webServer": server or (powered or "Node.js Web App"),
+                "cms": cms_name,
+                "site_name": site_name,
+                "waf": waf_name,
+                "deep_audit": deep_audit,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -852,8 +988,12 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int):
                 "nodeVersion": "None",
                 "has_brotli": False,
                 "is_online": True,
-                "ip": ip_str,
+                "ip": display_ip,
                 "webServer": server or "Apache / Nginx",
+                "cms": cms_name,
+                "site_name": site_name,
+                "waf": waf_name,
+                "deep_audit": deep_audit,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -874,8 +1014,12 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int):
                 "nodeVersion": "None",
                 "has_brotli": has_brotli,
                 "is_online": True,
-                "ip": ip_str,
+                "ip": display_ip,
                 "webServer": device_desc,
+                "cms": cms_name,
+                "site_name": site_name,
+                "waf": waf_name,
+                "deep_audit": deep_audit,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": "Secure",
@@ -899,14 +1043,27 @@ def scan():
         return jsonify({"error": "No subnet or IP address provided to scan"}), 400
 
     try:
-        hosts, target_net, cidr, total_possible = parse_target_hosts(subnet_str, max_scan=2048, host_ip=net_info.get("ip", ""))
+        hosts, target_net, cidr, total_possible, target_domain, target_port = parse_target_hosts(subnet_str, max_scan=2048, host_ip=net_info.get("ip", ""))
     except Exception as e:
         return jsonify({"error": f"Invalid subnet or IP format: {e}"}), 400
 
     if not hosts:
         return jsonify({"error": "No valid host addresses found to scan"}), 400
 
-    ports = custom_ports if custom_ports else [80, 443, 8080, 8000, 8888, 8081, 8443, 3000, 5000, 5050, 4000, 5173]
+    if target_port:
+        ports = [target_port]
+    elif custom_ports and isinstance(custom_ports, list):
+        valid_ports = []
+        for p in custom_ports:
+            try:
+                p_int = int(p)
+                if 1 <= p_int <= 65535 and p_int not in valid_ports:
+                    valid_ports.append(p_int)
+            except (ValueError, TypeError):
+                continue
+        ports = valid_ports if valid_ports else [80, 443, 8080, 8000, 8888, 8081, 8443, 3000, 5000, 5050, 4000, 5173]
+    else:
+        ports = [80, 443, 8080, 8000, 8888, 8081, 8443, 3000, 5000, 5050, 4000, 5173]
     host_strings = set(str(h) for h in hosts)
 
     async def run_probes():
@@ -915,7 +1072,7 @@ def scan():
             sem = asyncio.Semaphore(concurrency)
             async def bound_probe(ip_str, p):
                 async with sem:
-                    return await probe_endpoint(client, ip_str, p)
+                    return await probe_endpoint(client, ip_str, p, hostname=target_domain)
 
             tasks = []
             for h in hosts:

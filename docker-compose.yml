@@ -12,6 +12,9 @@ services:
       - HOST_NETMASK=${HOST_NETMASK:-}
       - HOST_CIDR=${HOST_CIDR:-}
       - HOST_GATEWAY=${HOST_GATEWAY:-}
+      - HOST_INTERFACE=${HOST_INTERFACE:-}
+      - IS_DOCKER=true
+      - DOCKER_CONTAINER=true
     volumes:
       - ./host_network.json:/app/host_network.json:ro
       - ./active_hosts.txt:/app/active_hosts.txt:ro
