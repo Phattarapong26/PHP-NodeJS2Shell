@@ -294,6 +294,10 @@
 
       <!-- Right Window Actions -->
       <div class="flex items-center gap-3 text-slate-400 text-sm">
+        <button id="btnExportAmberPdf" class="hover:opacity-90 transition flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-400 text-amber-950 border border-amber-500 shadow-sm cursor-pointer" title="ดาวน์โหลดรายงานความมั่นคงปลอดภัยมาตรฐาน สกมช. (TLP:AMBER PDF)">
+          <i class="ph-bold ph-file-pdf text-sm text-amber-950"></i>
+          <span>รายงาน TLP:AMBER (PDF)</span>
+        </button>
         <button id="btnOpenCveCatalog" class="hover:text-blue-700 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50/90 text-blue-700 border border-blue-200/70 shadow-sm cursor-pointer" title="เปิดฐานข้อมูลช่องโหว่ CVE Multi-Stack (PHP, NGINX, Node.js)">
           <i class="ph-bold ph-database text-sm"></i>
           <span>ฐานข้อมูล CVE (16 รายการ)</span>
@@ -1043,6 +1047,10 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <button id="btnExportHostPdf" class="neu-pill-btn px-3 py-1.5 rounded-xl text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-500 border border-amber-500 shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="ออกรายงาน PDF เฉพาะเครื่องนี้ตามมาตรฐาน สกมช. (TLP:AMBER)">
+              <i class="ph-bold ph-file-pdf text-sm text-amber-950"></i>
+              <span>ออกรายงาน TLP:AMBER (PDF)</span>
+            </button>
             <a id="auditTargetOpenWebBtn" href="#" target="_blank" class="neu-pill-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1.5 border border-emerald-300 bg-emerald-50/70 shadow-sm transition">
               <i class="ph-bold ph-arrow-square-out text-sm text-emerald-600"></i>
               <span>เปิดดูหน้าเว็บจริง</span>
@@ -4551,6 +4559,54 @@ ${data.c_patch_directive}
       renderStandardPortChips();
       updateSliderRangeCalculation();
       updateCalculatedPorts();
+    }
+
+    // TLP:AMBER PDF Export Handlers
+    const btnExportAmberPdf = document.getElementById('btnExportAmberPdf');
+    if (btnExportAmberPdf) {
+      btnExportAmberPdf.addEventListener('click', () => {
+        window.open('/api/report/pdf', '_blank');
+      });
+    }
+
+    const btnExportHostPdf = document.getElementById('btnExportHostPdf');
+    if (btnExportHostPdf) {
+      btnExportHostPdf.addEventListener('click', async () => {
+        const host = appState.selectedAuditHost;
+        if (!host) {
+          window.open('/api/report/pdf', '_blank');
+          return;
+        }
+        const origHtml = btnExportHostPdf.innerHTML;
+        btnExportHostPdf.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> <span>กำลังสร้าง PDF...</span>';
+        try {
+          const resp = await fetch('/api/report/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              target: host.ip || host.target_id,
+              hosts: [host]
+            })
+          });
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `NCSA_Advisory_TLPAMBER_${(host.ip || 'target').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+          } else {
+            window.open('/api/report/preview', '_blank');
+          }
+        } catch (e) {
+          window.open('/api/report/preview', '_blank');
+        } finally {
+          btnExportHostPdf.innerHTML = origHtml;
+        }
+      });
     }
 
     // Initialize on page load

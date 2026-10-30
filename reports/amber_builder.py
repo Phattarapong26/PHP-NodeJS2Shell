@@ -1,0 +1,1010 @@
+"""
+TLP:AMBER Security Advisory Builder - ThaiCERT & NCSA Standards
+Produces official government-standard A4 security advisories in HTML,
+complying with FIRST TLP v2.0, NCSA letterhead, 18pt/16pt typography,
+strict page-break controls, table repeating headers, and code hardening blueprints.
+NO LLM DEPENDENCY - 100% Deterministic Technical Narrative Generator.
+"""
+
+import html
+import io
+import re
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from .assets import NCSA_LOGO_B64, SURVEY_QR_PNG_B64
+
+
+def get_ncsa_logo_png_data_uri() -> str:
+    """Convert WebP Logo to PNG Data URI for 100% compatibility in Chromium and WebViews."""
+    if not NCSA_LOGO_B64:
+        return ""
+    try:
+        from PIL import Image
+        import base64
+        raw = NCSA_LOGO_B64
+        if "," in raw:
+            raw = raw.split(",", 1)[1]
+        img_bytes = base64.b64decode(raw)
+        im = Image.open(io.BytesIO(img_bytes))
+        out = io.BytesIO()
+        im.save(out, format="PNG")
+        png_b64 = base64.b64encode(out.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{png_b64}"
+    except Exception:
+        return NCSA_LOGO_B64
+
+
+def get_tlp_amber_traffic_light_html() -> str:
+    """Generate official FIRST TLP v2.0 TLP:AMBER traffic light widget."""
+    return """
+    <div class="ncsa-tlp-container">
+      <div class="ncsa-tlp-pill" style="background: #f59e0b; color: #0f172a; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 2px; text-align: center; min-width: 82px; margin-bottom: 3px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        TLP:AMBER
+      </div>
+      <div class="ncsa-tlp-lights-box" style="background: #a3a3a3; border: 2px solid #000000; border-radius: 6px; padding: 3px 8px; display: flex; gap: 5px; align-items: center; justify-content: center;">
+        <span class="ncsa-tlp-circle" style="background: #ffffff; width: 13px; height: 13px; border-radius: 50%; border: 2px solid #000000; display: inline-block; box-sizing: border-box;"></span>
+        <span class="ncsa-tlp-circle" style="background: #f59e0b; width: 13px; height: 13px; border-radius: 50%; border: 2px solid #000000; display: inline-block; box-sizing: border-box;"></span>
+        <span class="ncsa-tlp-circle" style="background: #ffffff; width: 13px; height: 13px; border-radius: 50%; border: 2px solid #000000; display: inline-block; box-sizing: border-box;"></span>
+      </div>
+    </div>
+    """
+
+
+def get_ncsa_header_banner_html() -> str:
+    """Generate official NCSA Thailand Letterhead Banner."""
+    logo_src = get_ncsa_logo_png_data_uri()
+    tlp_widget = get_tlp_amber_traffic_light_html()
+    return f"""
+    <div class="ncsa-header-banner">
+      <div class="ncsa-header-left">
+        <img class="ncsa-logo-img" src="{logo_src}" alt="NCSA Thailand" />
+        <div class="ncsa-header-divider"></div>
+        <div class="ncsa-header-text">
+          <div class="ncsa-agency-name">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
+          <div class="ncsa-agency-addr">National Cyber Security Agency (NCSA) | อาคารรัฐประศาสนภักดี ศูนย์ราชการเฉลิมพระเกียรติฯ ๑๒๐ หมู่ ๓ ถนนแจ้งวัฒนะ แขวงทุ่งสองห้อง เขตหลักสี่ กรุงเทพมหานคร ๑๐๒๑๐</div>
+          <div class="ncsa-agency-contact">โทรศัพท์ ๐ ๒๑๔๑ ๖๘๘๕-๙ | อีเมล: saraban@ncsa.or.th | เว็บไซต์: https://www.ncsa.or.th</div>
+        </div>
+      </div>
+      <div class="ncsa-header-right">
+        {tlp_widget}
+      </div>
+    </div>
+    """
+
+
+def get_css_styles() -> str:
+    """Official Thai Government & NCSA Typography CSS."""
+    return """
+    @font-face {
+      font-family: 'TH SarabunPSK';
+      src: local('TH SarabunPSK'), local('THSarabunPSK'), local('TH Sarabun PSK'), local('TH Sarabun New'),
+           url('/fonts/THSarabunNew.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'TH SarabunPSK';
+      src: local('TH SarabunPSK Bold'), local('THSarabunPSK-Bold'), local('TH Sarabun PSK Bold'), local('TH Sarabun New Bold'),
+           url('/fonts/THSarabunNew Bold.ttf') format('truetype');
+      font-weight: bold;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'TH Sarabun PSK';
+      src: local('TH SarabunPSK'), local('THSarabunPSK'), local('TH Sarabun PSK'), local('TH Sarabun New'),
+           url('/fonts/THSarabunNew.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'TH Sarabun PSK';
+      src: local('TH SarabunPSK Bold'), local('THSarabunPSK-Bold'), local('TH Sarabun PSK Bold'), local('TH Sarabun New Bold'),
+           url('/fonts/THSarabunNew Bold.ttf') format('truetype');
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      background: #0b101b;
+      margin: 0;
+      padding: 0;
+      font-family: 'TH SarabunPSK', 'TH Sarabun PSK', sans-serif !important;
+      color: #000;
+    }
+
+    /* Print / Preview Toolbar */
+    .adv-toolbar {
+      background: #080d1a;
+      border-bottom: 1px solid #1a2744;
+      color: #f8fafc;
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13.5px;
+    }
+
+    .adv-toolbar-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      color: #eaf6ff;
+    }
+
+    .adv-toolbar-badge {
+      background: #f59e0b;
+      color: #0f172a;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      font-family: 'SF Mono', Consolas, monospace;
+    }
+
+    .adv-toolbar-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .adv-btn {
+      padding: 6px 14px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      transition: all 0.18s ease-in-out;
+    }
+
+    .adv-btn-primary {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      border-color: #fbbf24;
+      color: #0f172a;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    }
+    .adv-btn-primary:hover {
+      background: linear-gradient(135deg, #b45309, #d97706);
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.45);
+      transform: translateY(-1px);
+    }
+
+    .adv-btn-outline {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fde68a;
+    }
+    .adv-btn-outline:hover {
+      background: rgba(245, 158, 11, 0.22);
+      border-color: #fbbf24;
+      color: #fff;
+    }
+
+    /* A4 Paper Sheets Screen Simulation */
+    .a4-paper-sheet {
+      font-family: 'TH SarabunPSK', 'TH Sarabun PSK', sans-serif !important;
+      font-size: 16pt;
+      line-height: 1.4;
+      color: #000000;
+      background: #ffffff;
+      box-sizing: border-box;
+    }
+
+    @media screen {
+      .sheets-container {
+        padding: 32px 0 60px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .a4-paper-sheet {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto 30px auto;
+        padding: 18mm 20mm 24mm 20mm;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+        border-radius: 2px;
+        position: relative;
+      }
+    }
+
+    /* NCSA Official Letterhead Banner */
+    .ncsa-header-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+      border-bottom: 1.5px solid #000000;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .ncsa-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ncsa-logo-img {
+      height: 44px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .ncsa-header-divider {
+      width: 1px;
+      height: 42px;
+      background: #94a3b8;
+      flex-shrink: 0;
+      margin: 0 4px;
+    }
+
+    .ncsa-header-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ncsa-agency-name {
+      font-size: 12pt;
+      font-weight: bold;
+      color: #000000;
+      line-height: 1.25;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      letter-spacing: -0.2px;
+    }
+
+    .ncsa-agency-addr,
+    .ncsa-agency-contact {
+      font-size: 8.8pt;
+      color: #000000;
+      line-height: 1.25;
+      white-space: nowrap;
+      letter-spacing: -0.1px;
+    }
+
+    .ncsa-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      margin-left: 12px;
+      flex-shrink: 0;
+    }
+
+    /* Document Title */
+    .adv-doc-title {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #0f172a;
+      text-align: center;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      line-height: 1.3;
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+    }
+
+    .adv-doc-meta {
+      font-size: 13.5pt;
+      color: #64748b;
+      text-align: center;
+      margin-bottom: 14px;
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+    }
+
+    /* TLP Notice Banner */
+    .adv-tlp-rule-box {
+      background: rgba(245, 158, 11, 0.08);
+      border-left: 4px solid #f59e0b;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      font-size: 14pt;
+      line-height: 1.35;
+      color: #78350f;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    /* Typography Standards: Headings = 18pt, Body/Content = 16pt */
+    .adv-heading {
+      font-size: 18pt !important;
+      font-weight: bold !important;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      color: #0f172a;
+      line-height: 1.35;
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .adv-subhead {
+      font-size: 17pt !important;
+      font-weight: bold !important;
+      color: #0f172a;
+      margin: 14px 0 6px 0;
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    /* Narrative Paragraphs: 16pt Thai 1.25cm indent */
+    .adv-para {
+      font-size: 16pt !important;
+      font-weight: normal;
+      text-align: justify;
+      text-justify: inter-cluster;
+      text-indent: 1.25cm;
+      line-height: 1.4;
+      margin: 0 0 8px 0;
+      color: #1e293b;
+      word-break: break-word;
+      orphans: 4 !important;
+      widows: 4 !important;
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+
+    /* Lists */
+    .adv-list {
+      margin: 6px 0 12px 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .adv-list li {
+      font-size: 16pt !important;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      padding-left: 1.85cm;
+      text-indent: -0.6cm;
+      text-align: justify;
+      text-justify: inter-cluster;
+      orphans: 4 !important;
+      widows: 4 !important;
+    }
+
+    .adv-list li::before {
+      content: "• ";
+      font-weight: bold;
+      color: #d97706;
+    }
+
+    /* Tables */
+    .adv-table-wrap {
+      overflow-x: auto;
+      margin: 10px 0 16px 0;
+    }
+
+    .adv-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px 0;
+      border: 1px solid #cbd5e1;
+      font-size: 14pt;
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+
+    .adv-cell-inner {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .adv-table thead {
+      display: table-header-group !important;
+    }
+
+    .adv-table thead tr {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .adv-table th {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+      font-weight: bold;
+      text-align: center;
+      background: #fef3c7;
+      color: #78350f;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .adv-table tbody {
+      display: table-row-group !important;
+    }
+
+    .adv-table tr {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .adv-table td {
+      border: 1px solid #cbd5e1;
+      padding: 5px 8px;
+      color: #334155;
+      vertical-align: top;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    /* Finding Items */
+    .adv-finding-item {
+      margin-top: 14px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed #cbd5e1;
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+
+    .adv-finding-item:last-child {
+      border-bottom: none;
+    }
+
+    .adv-finding-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 4px;
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .adv-item-title {
+      font-size: 17pt !important;
+      font-weight: bold !important;
+      color: #0f172a;
+      line-height: 1.35;
+    }
+
+    .adv-item-badge-crit {
+      background: #dc2626;
+      color: #fff;
+      font-size: 11pt;
+      font-weight: bold;
+      padding: 2px 7px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .adv-item-badge-high {
+      background: #ea580c;
+      color: #fff;
+      font-size: 11pt;
+      font-weight: bold;
+      padding: 2px 7px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .adv-item-badge-med {
+      background: #f59e0b;
+      color: #0f172a;
+      font-size: 11pt;
+      font-weight: bold;
+      padding: 2px 7px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .adv-item-badge-sec {
+      background: #16a34a;
+      color: #fff;
+      font-size: 11pt;
+      font-weight: bold;
+      padding: 2px 7px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .adv-code-box {
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      padding: 8px 12px !important;
+      border-radius: 6px !important;
+      border: 1px solid #334155 !important;
+      margin: 8px 0 12px 0 !important;
+      overflow-x: auto !important;
+      text-indent: 0 !important;
+      font-family: 'JetBrains Mono', Menlo, Consolas, Monaco, monospace !important;
+      font-size: 10pt !important;
+      line-height: 1.4 !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    .adv-code-box pre {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      font-family: inherit !important;
+      font-size: inherit !important;
+      color: inherit !important;
+      text-indent: 0 !important;
+      white-space: pre-wrap !important;
+      word-break: break-all !important;
+    }
+
+    /* Screen simulation footer */
+    .sheet-footer {
+      position: absolute;
+      bottom: 10mm;
+      left: 20mm;
+      right: 20mm;
+      font-size: 11pt;
+      color: #707070;
+      font-family: 'TH SarabunPSK', 'TH Sarabun PSK', sans-serif !important;
+    }
+    .sheet-footer-line {
+      border-top: 1px solid #d0d0d0;
+      margin-bottom: 5px;
+      width: 100%;
+    }
+    .sheet-footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      line-height: 1.2;
+    }
+    .sheet-footer-left {
+      flex: 1;
+      text-align: left;
+      font-size: 9.5pt;
+      color: #707070;
+    }
+    .sheet-footer-center {
+      flex: 1;
+      text-align: center;
+      font-size: 11pt;
+      letter-spacing: 0.5px;
+    }
+    .sheet-footer-right {
+      flex: 1;
+      text-align: right;
+      font-size: 10.5pt;
+      color: #707070;
+      letter-spacing: 0.5px;
+    }
+
+    /* Print & PDF Layout Rules */
+    @page {
+      size: A4 portrait;
+      margin: 18mm 20mm 22mm 20mm;
+    }
+
+    @media print {
+      html, body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        display: block !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .no-print, .adv-toolbar {
+        display: none !important;
+      }
+
+      .sheets-container {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        overflow: visible !important;
+      }
+
+      .a4-paper-sheet {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: auto !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        position: static !important;
+        overflow: visible !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+
+      .page-break-section {
+        break-before: page !important;
+        page-break-before: always !important;
+      }
+
+      .adv-heading, .adv-subhead {
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      .adv-para {
+        orphans: 4 !important;
+        widows: 4 !important;
+      }
+
+      .adv-table tr {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+
+      .adv-code-box {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+    }
+    """
+
+
+def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
+    """
+    Builds a complete, professional TLP:AMBER A4 Security Advisory HTML.
+    Handles both full network scan outputs and individual target audit records.
+    """
+    now = datetime.now()
+    date_str = f"{now.day} {['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][now.month-1]} พ.ศ. {now.year + 543}"
+    ref_id = f"NCSA-AMBER-{now.year}-{int(now.timestamp()) % 10000:04d}"
+
+    target_scope = scan_report_data.get("target") or scan_report_data.get("target_id") or scan_report_data.get("subnet") or "ระบบสารสนเทศเป้าหมาย"
+    hosts_list = scan_report_data.get("hosts", [])
+    if not hosts_list and "deep_audit" in scan_report_data:
+        hosts_list = [scan_report_data]
+
+    total_scanned = len(hosts_list)
+    crit_count = 0
+    high_count = 0
+    med_count = 0
+    safe_count = 0
+
+    all_matched_cves = []
+    for h in hosts_list:
+        v_php = h.get("vulnerability")
+        v_node = h.get("vulnerabilityNode")
+        nginx_audit = (h.get("deep_audit") or {}).get("nginx_audit", {})
+        v_nginx = nginx_audit.get("severity", "Secure")
+        
+        cves = h.get("matched_cves") or []
+        for c in cves:
+            if c not in all_matched_cves:
+                all_matched_cves.append(c)
+
+        if "Critical" in [v_php, v_node, v_nginx]:
+            crit_count += 1
+        elif "High" in [v_php, v_node, v_nginx]:
+            high_count += 1
+        elif "Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]:
+            med_count += 1
+        else:
+            safe_count += 1
+
+    header_banner = get_ncsa_header_banner_html()
+    css_styles = get_css_styles()
+
+    # Table rows for Attack Surface Ledger
+    table_rows_html = ""
+    for idx, h in enumerate(hosts_list, 1):
+        h_ip = h.get("ip") or h.get("target_id") or "-"
+        h_ports = ", ".join(str(p) for p in (h.get("ports") or [80]))
+        h_tech = []
+        if h.get("php"): h_tech.append(f"PHP {h.get('php')}")
+        if h.get("node"): h_tech.append(f"Node.js {h.get('node')}")
+        if h.get("server"): h_tech.append(str(h.get("server")))
+        tech_str = ", ".join(h_tech) if h_tech else "HTTP Web Service"
+        
+        da = h.get("deep_audit") or {}
+        grp = da.get("primary_group") or "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร"
+        
+        # Determine highest severity
+        sev = "ปลอดภัย (Secure)"
+        badge_cls = "adv-item-badge-sec"
+        v_php = h.get("vulnerability")
+        v_node = h.get("vulnerabilityNode")
+        v_nginx = (da.get("nginx_audit") or {}).get("severity")
+        if "Critical" in [v_php, v_node, v_nginx]:
+            sev = "วิกฤต (Critical)"
+            badge_cls = "adv-item-badge-crit"
+        elif "High" in [v_php, v_node, v_nginx]:
+            sev = "สูง (High)"
+            badge_cls = "adv-item-badge-high"
+        elif "Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]:
+            sev = "ปานกลาง (Medium)"
+            badge_cls = "adv-item-badge-med"
+
+        table_rows_html += f"""
+        <tr>
+          <td style="text-align: center;">{idx}</td>
+          <td><strong>{html.escape(h_ip)}</strong></td>
+          <td style="text-align: center;"><code>{html.escape(h_ports)}</code></td>
+          <td>{html.escape(tech_str)}</td>
+          <td>{html.escape(grp)}</td>
+          <td style="text-align: center;"><span class="{badge_cls}">{sev}</span></td>
+        </tr>
+        """
+
+    # In-Depth Findings Sections
+    findings_html = ""
+    finding_idx = 1
+    for h in hosts_list:
+        h_ip = h.get("ip") or h.get("target_id") or "-"
+        da = h.get("deep_audit") or {}
+        matched_cves = h.get("matched_cves") or []
+        chains = da.get("security_chains", {}).get("chains", {})
+        
+        # 1. Matched CVEs for this host
+        for c in matched_cves:
+            cve_id = c.get("id") or c.get("cve") or "CVE-VULN"
+            cve_name = c.get("name") or "ช่องโหว่ความมั่นคงปลอดภัย"
+            cve_sev = c.get("severity") or "High"
+            cvss = c.get("cvss") or 7.5
+            cat = c.get("category") or "Web Stack"
+            reason = c.get("reason") or c.get("desc") or "ตรวจพบเวอร์ชันซอฟต์แวร์ที่ตรงกับเงื่อนไขความเสี่ยง"
+            host_check = c.get("host_check") or "php -v || node -v || nginx -v"
+            confirm_vuln = c.get("confirm_vuln") or "พบเวอร์ชันอยู่ในช่วงที่ได้รับผลกระทบ"
+            confirm_safe = c.get("confirm_safe") or "อัปเดตเป็นเวอร์ชันที่ได้รับแพตช์ความปลอดภัยล่าสุด"
+
+            badge_cls = "adv-item-badge-crit" if cve_sev == "Critical" else ("adv-item-badge-high" if cve_sev == "High" else "adv-item-badge-med")
+
+            findings_html += f"""
+            <div class="adv-finding-item">
+              <div class="adv-finding-head">
+                <span class="{badge_cls}">{cve_sev.upper()} (CVSS {cvss})</span>
+                <span class="adv-item-title">ข้อค้นพบที่ ๒.{finding_idx}: {html.escape(cve_id)} — {html.escape(cve_name)}</span>
+              </div>
+              <p class="adv-para">
+                <strong>ระบบเป้าหมายที่ได้รับผลกระทบ:</strong> <code>{html.escape(h_ip)}</code> (หมวดหมู่: {html.escape(cat)})
+              </p>
+              <p class="adv-para">
+                <strong>ลักษณะของข้อค้นพบ (What it is):</strong> จากการตรวจประเมินระบบ พบว่า{html.escape(reason)} ซึ่งจัดเป็นช่องโหว่ระดับ {cve_sev} ตามเกณฑ์ความมั่นคงปลอดภัยของ สกมช. และ ThaiCERT หากระบบเป้าหมายมีการเปิดรับการเชื่อมต่อจากภายนอก ผู้ไม่ประสงค์ดีอาจสามารถใช้ประโยชน์จากข้อบกพร่องดังกล่าวในการข้ามผ่านการควบคุม หรือรันคำสั่งโดยไม่ได้รับอนุญาตได้
+              </p>
+              <p class="adv-para">
+                <strong>เกณฑ์การยืนยันสถานะความเสี่ยง (Verification Criteria):</strong>
+                <br>• เงื่อนไขที่มีความเสี่ยง: {html.escape(confirm_vuln)}
+                <br>• เงื่อนไขที่ปลอดภัย: {html.escape(confirm_safe)}
+              </p>
+              <p class="adv-para" style="margin-bottom: 4px;">
+                <strong>คำสั่งตรวจสอบเพื่อยืนยันบนเครื่องเซิร์ฟเวอร์ (Host Verification CLI):</strong>
+              </p>
+              <div class="adv-code-box">
+                <pre><code># รันคำสั่งนี้บนเครื่องเซิร์ฟเวอร์ {html.escape(h_ip)} เพื่อยืนยันสถานะความปลอดภัย:\n{html.escape(host_check)}</code></pre>
+              </div>
+              <p class="adv-para" style="margin-bottom: 4px;">
+                <strong>แนวทางการแก้ไขและปรับแต่งคอนฟิก (Hardening Blueprint):</strong>
+              </p>
+              <div class="adv-code-box">
+                <pre><code># แนวทางแก้ไข: ทำการอัปเกรดแพ็กเกจซอฟต์แวร์ {html.escape(cat)} บนโฮสต์ {html.escape(h_ip)}\n# ตามคำแนะนำ: {html.escape(confirm_safe)}\nsudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum update {cat.lower()}</code></pre>
+              </div>
+            </div>
+            """
+            finding_idx += 1
+
+        # 2. PHP Session Chains (if applicable and has details)
+        if chains:
+            for c_key, c_val in chains.items():
+                c_verdict_code = c_val.get("verdict_code")
+                if c_verdict_code in ("VULN", "REVIEW", "AUDIT"):
+                    c_title = c_val.get("title") or "PHP Session Security Chain"
+                    c_verdict = c_val.get("verdict") or "ตรวจพบข้อควรระวังในการตั้งค่า"
+                    c_remedy = c_val.get("remediation") or "ปรับปรุงค่า php.ini ตามแนวทาง CIS Benchmark"
+                    c_ini = c_val.get("hardening_ini") or "; ปรับแต่ง php.ini เพื่อความมั่นคงปลอดภัย"
+                    
+                    findings_html += f"""
+                    <div class="adv-finding-item">
+                      <div class="adv-finding-head">
+                        <span class="adv-item-badge-med">REVIEW / HARDENING</span>
+                        <span class="adv-item-title">ข้อค้นพบที่ ๒.{finding_idx}: ห่วงโซ่ความเสี่ยงเซสชัน {html.escape(c_title)}</span>
+                      </div>
+                      <p class="adv-para">
+                        <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code>
+                      </p>
+                      <p class="adv-para">
+                        <strong>ผลการประเมินเชิงลึก:</strong> {html.escape(c_verdict)}
+                      </p>
+                      <p class="adv-para">
+                        <strong>คำแนะนำในการแก้ไข:</strong> {html.escape(c_remedy)}
+                      </p>
+                      <div class="adv-code-box">
+                        <pre><code>; ค่าปรับแต่ง php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:\n{html.escape(c_ini)}</code></pre>
+                      </div>
+                    </div>
+                    """
+                    finding_idx += 1
+
+    if not findings_html:
+        findings_html = """
+        <div class="adv-finding-item">
+          <p class="adv-para" style="text-align: center; color: #16a34a; font-weight: bold; margin: 24px 0;">
+            ✓ จากการประเมินเบื้องต้น ไม่พบข้อค้นพบช่องโหว่ระดับวิกฤต (Critical) หรือระดับสูง (High) ในขอบเขตที่กำหนด
+            <br><span style="font-size: 14pt; color: #475569; font-weight: normal;">(แนะนำให้คงมาตรการเฝ้าระวังและอัปเดตแพตช์ความปลอดภัยตามรอบระยะเวลาอย่างสม่ำเสมอ)</span>
+          </p>
+        </div>
+        """
+
+    survey_qr_img = f"data:image/png;base64,{SURVEY_QR_PNG_B64}" if SURVEY_QR_PNG_B64 else ""
+
+    return f"""<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เอกสารแจ้งเตือนความมั่นคงปลอดภัยไซเบอร์ (TLP:AMBER) - {ref_id}</title>
+  <link rel="stylesheet" href="/fonts/fonts.css">
+  <style>
+{css_styles}
+  </style>
+</head>
+<body>
+
+  <!-- Print & Preview Toolbar -->
+  <div class="adv-toolbar no-print">
+    <div class="adv-toolbar-title">
+      <span class="adv-toolbar-badge">TLP:AMBER</span>
+      <span>เอกสารแจ้งเตือนความมั่นคงปลอดภัยไซเบอร์ สกมช. / ThaiCERT</span>
+    </div>
+    <div class="adv-toolbar-actions">
+      <button class="adv-btn adv-btn-primary" onclick="window.print()">
+        🖨️ พิมพ์ / บันทึกเป็น PDF
+      </button>
+      <a href="/api/report/pdf" target="_blank" class="adv-btn adv-btn-outline">
+        ⬇️ ดาวน์โหลด PDF ตรงจากเซิร์ฟเวอร์
+      </a>
+    </div>
+  </div>
+
+  <div class="sheets-container">
+
+    <!-- PAGE 1: Letterhead, Title, Executive Summary, Attack Surface -->
+    <div class="a4-paper-sheet" id="sheet-page-1">
+      {header_banner}
+
+      <div class="adv-doc-title">เอกสารแจ้งเตือนความมั่นคงปลอดภัยไซเบอร์</div>
+      <div class="adv-doc-meta">
+        รหัสอ้างอิง: {ref_id} &nbsp;|&nbsp; วันที่: {date_str} &nbsp;|&nbsp; ขอบเขต: {html.escape(target_scope)}
+      </div>
+
+      <div class="adv-tlp-rule-box">
+        <strong>ข้อกำหนดการรักษาความลับ (TLP:AMBER):</strong> ข้อมูลในเอกสารนี้เป็นความลับเฉพาะกลุ่มผู้มีส่วนได้ส่วนเสียและผู้ดูแลระบบที่จำเป็นต้องทราบเพื่อการแก้ไขเท่านั้น (Need-to-know) รวมถึงผู้ดูแลระบบเครือข่ายและระบบสารสนเทศที่ได้รับผลกระทบ เพื่อการป้องกันและแก้ไขความเสี่ยงทางไซเบอร์ ห้ามเปิดเผยต่อสาธารณะหรือส่งต่อแก่บุคคลภายนอกที่ไม่เกี่ยวข้อง
+      </div>
+
+      <div class="adv-heading">ส่วนที่ ๑: สรุปผลการประเมินและภาพรวมความเสี่ยง (Executive Summary & Attack Surface)</div>
+      <p class="adv-para">
+        เอกสารแจ้งเตือนความมั่นคงปลอดภัยไซเบอร์ฉบับนี้ จัดทำขึ้นเพื่อรายงานข้อค้นพบความเสี่ยงและแนวทางแก้ไขเชิงเทคนิค สำหรับผู้ดูแลระบบและผู้เกี่ยวข้องโดยตรง จากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในขอบเขต <code>{html.escape(target_scope)}</code> รวมทั้งสิ้น <strong>{total_scanned}</strong> ระบบ ได้ดำเนินการตรวจสอบและประเมินความมั่นคงปลอดภัยตามมาตรฐานของ สกมช. และเกณฑ์ทางเทคนิคของศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT)
+      </p>
+      <p class="adv-para">
+        ผลการประเมินพบข้อค้นพบที่มีความเสี่ยงรวมกัน โดยจำแนกตามระดับความรุนแรงได้แก่: ระดับวิกฤต (Critical) จำนวน <strong>{crit_count}</strong> รายการ, ระดับสูง (High) จำนวน <strong>{high_count}</strong> รายการ, ระดับปานกลาง (Medium) จำนวน <strong>{med_count}</strong> รายการ และระบบที่มีการตั้งค่าปลอดภัยหรืออยู่นอกช่วงความเสี่ยง จำนวน <strong>{safe_count}</strong> รายการ ทั้งนี้ เพื่อป้องกันไม่ให้ผู้ไม่ประสงค์ดีอาศัยช่องทางดังกล่าวในการเข้าถึงหรือแทรกแซงระบบ ขอให้ผู้ดูแลระบบโปรดพิจารณาดำเนินการปรับปรุงและอัปเดตการตั้งค่าความมั่นคงปลอดภัยตามแนวทางที่ระบุไว้ในเอกสารฉบับนี้โดยเร็ว
+      </p>
+
+      <div class="adv-subhead">ตารางสรุปรายการระบบที่ตรวจพบและระดับความเสี่ยง (Attack Surface Ledger)</div>
+      <div class="adv-table-wrap">
+        <table class="adv-table">
+          <thead>
+            <tr>
+              <th style="width: 35px;">#</th>
+              <th>เป้าหมาย (Host / IP)</th>
+              <th style="width: 65px;">พอร์ต</th>
+              <th>เทคโนโลยี / สแต็ก</th>
+              <th>กลุ่มระบบ (สกมช.)</th>
+              <th style="width: 130px;">สถานะความเสี่ยง</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table_rows_html}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sheet-footer no-print">
+        <div class="sheet-footer-line"></div>
+        <div class="sheet-footer-row">
+          <div class="sheet-footer-left">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
+          <div class="sheet-footer-center">TLP:AMBER ●</div>
+          <div class="sheet-footer-right">1 | P a g e</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 2+: Technical Findings & Hardening Blueprints -->
+    <div class="a4-paper-sheet page-break-section" id="sheet-page-2">
+      <div class="adv-heading">ส่วนที่ ๒: การวิเคราะห์ข้อค้นพบเชิงลึกและพิมพ์เขียวการแก้ไข (In-Depth Technical Findings & Hardening Blueprints)</div>
+      <p class="adv-para">
+        ในส่วนนี้เป็นการวิเคราะห์เชิงลึกเกี่ยวกับข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยที่ตรวจพบ พร้อมทั้งระบุมาตรฐานอ้างอิงระดับสากล กลไกความเสี่ยง และชุดคำสั่งสำหรับให้ผู้ดูแลระบบนำไปรันตรวจสอบบนเครื่องเซิร์ฟเวอร์จริง (Host Verification CLI) เพื่อยืนยันสถานะความปลอดภัย ตลอดจนตัวอย่างไฟล์คอนฟิกสำหรับการแก้ไขปรับปรุงระบบให้มีความมั่นคงปลอดภัยสอดคล้องกับมาตรฐาน
+      </p>
+
+      {findings_html}
+
+      <div class="sheet-footer no-print">
+        <div class="sheet-footer-line"></div>
+        <div class="sheet-footer-row">
+          <div class="sheet-footer-left">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
+          <div class="sheet-footer-center">TLP:AMBER ●</div>
+          <div class="sheet-footer-right">2 | P a g e</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 3: References & Sign-off -->
+    <div class="a4-paper-sheet page-break-section" id="sheet-references">
+      <div class="adv-heading">ส่วนที่ ๓: เอกสารอ้างอิงและช่องทางประสานงาน (References & Incident Coordination)</div>
+      
+      <p class="adv-para">
+        การประเมินและการจัดทำเอกสารแจ้งเตือนฉบับนี้ อ้างอิงตามกรอบมาตรฐานความมั่นคงปลอดภัยสารสนเทศและแนวปฏิบัติสากล ได้แก่:
+      </p>
+      <ul class="adv-list">
+        <li>สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.) — แนวปฏิบัติการบริหารจัดการช่องโหว่ความมั่นคงปลอดภัยไซเบอร์</li>
+        <li>ThaiCERT Cybersecurity Advisory & Guidance — มาตรการรับมือช่องโหว่ความปลอดภัยบนเว็บแอปพลิเคชัน</li>
+        <li>CIS Benchmarks — Center for Internet Security (Nginx, PHP, and Node.js Hardening Benchmarks)</li>
+        <li>National Vulnerability Database (NVD / NIST) — Common Vulnerabilities and Exposures (CVE Catalog)</li>
+        <li>FIRST Standards — Traffic Light Protocol (TLP) Version 2.0 User Guidance</li>
+      </ul>
+
+      <div style="margin: 28px 0; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 24px;">
+        <div style="font-size: 16pt; font-weight: bold; margin-bottom: 6px;">แบบประเมินความพึงพอใจการให้บริการและการรับแจ้งเหตุภัยคุกคามทางไซเบอร์</div>
+        <div style="font-size: 13.5pt; color: #475569; margin-bottom: 14px;">ผู้รับเอกสารสามารถสแกนคิวอาร์โค้ดด้านล่างเพื่อประเมินความพึงพอใจหรือประสานงานด้านความมั่นคงปลอดภัย</div>
+        {"<img src='" + survey_qr_img + "' style='width: 120px; height: 120px; border: 1px solid #cbd5e1; padding: 4px; border-radius: 4px; display: inline-block;' alt='Survey QR' />" if survey_qr_img else ""}
+        <div style="font-size: 12pt; color: #64748b; margin-top: 6px;">
+          ลิงก์ระบบรับแจ้งเหตุ: <a href="https://www.ncsa.or.th" target="_blank" style="color: #d97706; text-decoration: underline;">https://www.ncsa.or.th</a> | อีเมล: saraban@ncsa.or.th
+        </div>
+      </div>
+
+      <div style="margin-top: 36px; font-size: 13pt; line-height: 1.5; color: #475569; text-align: justify;">
+        <strong>คำสงวนสิทธิ์ (Disclaimer):</strong> เอกสารนี้จัดทำขึ้นโดยอิงจากข้อมูลเชิงเทคนิคที่ได้จากการตรวจประเมินระบบสารสนเทศตามขอบเขตและช่วงเวลาที่ระบุไว้เท่านั้น ข้อแนะนำและมาตรการแก้ไขที่ระบุไว้มีจุดมุ่งหมายเพื่อยกระดับความมั่นคงปลอดภัยของระบบ ทั้งนี้ ก่อนดำเนินการปรับปรุงคอนฟิกบนระบบงานจริง ผู้ดูแลระบบควรดำเนินการทดสอบในสภาพแวดล้อมจำลอง (Staging Environment) และจัดทำสำเนาสำรองข้อมูล (Backup) ให้เรียบร้อย
+      </div>
+
+      <div class="sheet-footer no-print">
+        <div class="sheet-footer-line"></div>
+        <div class="sheet-footer-row">
+          <div class="sheet-footer-left">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
+          <div class="sheet-footer-center">TLP:AMBER ●</div>
+          <div class="sheet-footer-right">3 | P a g e</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
+"""
