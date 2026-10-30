@@ -9,7 +9,7 @@ session_start();
 header_remove("X-Powered-By");
 header("Server: Enterprise-Edge-Secure/1.0");
 header("Strict-Transport-Security: max-age=31536000; includeSubDomains; preload");
-header("Content-Security-Policy: default-src 'self'");
+header("Content-Security-Policy: default-src 'self' https://cdn.tailwindcss.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; font-src 'self' https://unpkg.com;");
 header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: SAMEORIGIN");
 header("Content-Type: text/html; charset=UTF-8");
@@ -43,34 +43,138 @@ if (isset($_GET['action']) && $_GET['action'] === 'asan_check') {
 
 // Safe whitelisted parameter handling (No dynamic file inclusion, no unserialize)
 $allowed_pages = ['home', 'about', 'contact'];
-$page = isset($_GET['page']) && in_array($_GET['page'], $allowed_pages, true) ? $_GET['page'] : 'home';
+$page_status = "Default Homepage";
+if (isset($_GET['page'])) {
+    if (in_array($_GET['page'], $allowed_pages, true)) {
+        $page_status = "Whitelisted Page: " . htmlspecialchars($_GET['page']);
+    } else {
+        $page_status = "Rejected Parameter: Invalid page '" . htmlspecialchars($_GET['page']) . "' (Blocked by Security Whitelist)";
+    }
+}
+
+$current_host = $_SERVER['HTTP_HOST'] ?? 'localhost:8088';
+$host_parts = explode(':', $current_host);
+$host_only = $host_parts[0];
+$vuln_url = "http://{$host_only}:8080/";
 ?>
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>Secure Production System - Defensively Hardened (Chains A to E Mitigated)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise QA Target - Defensively Hardened (Port 8088)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 </head>
-<body style="font-family: sans-serif; padding: 2rem; background: #f0fdf4; color: #14532d;">
-    <div style="max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-        <h2 style="color: #16a34a;">ระบบทดสอบสภาพแวดล้อมความปลอดภัยสูง (Enterprise Hardened Target)</h2>
-        <p><b>พอร์ตบริการ:</b> 8088 (จำลองระบบที่ผ่านการปรับปรุงการตั้งค่าความปลอดภัยครบทุก Chain A ถึง E ตามมาตรฐาน ThaiCERT / CIS)</p>
-        
-        <div style="margin: 1.5rem 0; padding: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.5rem; color: #166534;">
-            <b>มาตรการควบคุมความปลอดภัยที่บังคับใช้ (Active Hardening Controls):</b>
-            <ul style="margin: 0.5rem 0 0 1.25rem; font-size: 0.875rem; line-height: 1.6;">
-                <li><b>Chain A (Upload Progress & Strict Mode):</b> บังคับใช้ <code>session.use_strict_mode = 1</code> และ <code>session.upload_progress.enabled = Off</code> พร้อม Whitelist พารามิเตอร์เรียกไฟล์</li>
-                <li><b>Chain B (INI & Exposure Lockdown):</b> ปิด <code>expose_php = Off</code>, <code>display_errors = Off</code> และเปิด <code>log_errors = On</code> พร้อมปกปิด Server Banner</li>
-                <li><b>Chain C (Serializer Standardization):</b> กำหนด <code>session.serialize_handler = php</code> สม่ำเสมอทั่วทั้งแอปพลิเคชัน และไม่ใช้งานฟังก์ชัน <code>unserialize()</code></li>
-                <li><b>Chain D (Memory Isolation & /tmp Defense):</b> แยกพื้นที่จัดเก็บเซสชันใน <code>/var/lib/php/sessions</code> สิทธิ์ 0700 และกำหนด <code>memory_limit = 256M</code></li>
-                <li><b>Chain E (Worker Process Lifecycle):</b> ควบคุมขนาดบัฟเฟอร์ระดับ Reverse Proxy และจำกัดขอบเขต FastCGI ป้องกัน Stale Buffer Globals</li>
-            </ul>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans min-h-screen flex flex-col">
+    <!-- Top Alert Bar -->
+    <div class="bg-emerald-600 text-white text-xs py-2 px-4 text-center font-semibold shadow-sm flex items-center justify-center gap-2">
+        <i class="ph-bold ph-shield-check text-base"></i>
+        <span>ระบบจำลองสภาพแวดล้อมหลังปรับปรุงความมั่นคงปลอดภัย (Defensively Hardened Target — พอร์ต 8088)</span>
+    </div>
+
+    <!-- Main Container -->
+    <div class="max-w-5xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col gap-6">
+        <!-- Header Card -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        ENTERPRISE HARDENED
+                    </span>
+                    <span class="text-xs text-slate-400 font-mono">ThaiCERT / CIS Benchmark Compliant</span>
+                </div>
+                <h1 class="text-2xl font-black text-slate-900 tracking-tight">
+                    Secure Web Service
+                </h1>
+                <p class="text-xs text-slate-500 mt-1">
+                    ผ่านการเสริมความมั่นคงปลอดภัยและควบคุมปัจจัยเสี่ยง Chains A ถึง E และปิดกั้นข้อผิดพลาดระดับ C Memory เรียบร้อยแล้ว
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 self-stretch md:self-auto">
+                <a href="<?php echo htmlspecialchars($vuln_url); ?>" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition inline-flex items-center gap-1.5">
+                    <i class="ph-bold ph-shield-warning"></i>
+                    <span>สลับไปดูระบบก่อน Hardening (พอร์ต 8080)</span>
+                </a>
+                <a href="/?action=asan_check" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm transition inline-flex items-center gap-1.5">
+                    <i class="ph-bold ph-cpu"></i>
+                    <span>ตรวจ JSON Memory Probe</span>
+                </a>
+            </div>
         </div>
 
-        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 1.5rem 0;">
-        <p style="font-size: 0.875rem; color: #15803d;">
-            สถานะการประเมิน: ระบบนี้ผ่านเกณฑ์การทดสอบความปลอดภัยครบถ้วนทุกข้อ (All Chains Defensively Hardened)
-        </p>
+        <!-- Live Server Diagnostic Badges -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span class="text-slate-400 text-[10px] font-mono block">HTTP Host & Port</span>
+                <span class="font-bold text-slate-800 font-mono text-sm">http://<?php echo htmlspecialchars($current_host); ?>/</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span class="text-slate-400 text-[10px] font-mono block">expose_php & Banner</span>
+                <span class="font-bold text-emerald-700 font-mono text-sm">Off (Hidden / Masked)</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span class="text-slate-400 text-[10px] font-mono block">Session Serializer</span>
+                <span class="font-bold text-emerald-700 font-mono text-sm">php (Standardized)</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span class="text-slate-400 text-[10px] font-mono block">Parameter Handling</span>
+                <span class="font-bold text-emerald-700 font-mono text-sm">Strict Whitelist</span>
+            </div>
+        </div>
+
+        <!-- Interactive Hardening Controls Display -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                    <i class="ph-bold ph-check-circle text-emerald-600 text-base"></i>
+                    <span>มาตรการป้องกันความปลอดภัยที่บังคับใช้ (Active Defensive Controls):</span>
+                </h3>
+                <span class="text-[11px] font-mono text-slate-400">All Chains Defensively Hardened</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                <!-- Chain A Defense -->
+                <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80 space-y-1.5">
+                    <b class="text-emerald-950 font-bold">Chain A Defense: Whitelist & Upload Progress Off</b>
+                    <p class="text-slate-600 text-[11px]">
+                        ปิด <code>session.upload_progress.enabled = Off</code> บังคับใช้ <code>use_strict_mode = 1</code> และใช้ Whitelist ตรวจสอบพารามิเตอร์เรียกไฟล์
+                    </p>
+                    <div class="pt-1 text-[10px] font-mono text-emerald-800">
+                        Status: <?php echo $page_status; ?>
+                    </div>
+                </div>
+
+                <!-- Chain B Defense -->
+                <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80 space-y-1.5">
+                    <b class="text-emerald-950 font-bold">Chain B Defense: INI Lockdown & Error Suppression</b>
+                    <p class="text-slate-600 text-[11px]">
+                        ปิด <code>expose_php = Off</code>, <code>display_errors = Off</code> และเปิด <code>log_errors = On</code> บันทึกลงไฟล์ภายใน ไม่แสดงผลหน้าเว็บ
+                    </p>
+                </div>
+
+                <!-- Chain C Defense -->
+                <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80 space-y-1.5">
+                    <b class="text-emerald-950 font-bold">Chain C Defense: Serializer Standardization</b>
+                    <p class="text-slate-600 text-[11px]">
+                        กำหนด <code>session.serialize_handler = php</code> สม่ำเสมอทั่วทั้งระบบ และไม่ใช้งานฟังก์ชัน <code>unserialize()</code> บนข้อมูลภายนอก
+                    </p>
+                </div>
+
+                <!-- Chain D & E Defense -->
+                <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80 space-y-1.5">
+                    <b class="text-emerald-950 font-bold">Chain D & E Defense: Memory & Worker Isolation</b>
+                    <p class="text-slate-600 text-[11px]">
+                        แยกไดเรกทอรีเซสชันไว้ที่ <code>/var/lib/php/sessions</code> สิทธิ์ 0700 นอก <code>/tmp</code> และควบคุมวงจรชีวิตเวิร์กเกอร์สม่ำเสมอ
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-xs text-slate-400 pb-4">
+            <span>ThaiCERT Defensive Security Testing Target • OPScaner Framework</span>
+        </div>
     </div>
 </body>
 </html>

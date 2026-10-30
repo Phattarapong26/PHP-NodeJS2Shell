@@ -825,6 +825,36 @@
 
         <!-- Results Table Scrollable Area -->
         <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/40 min-h-[300px]">
+          <!-- Enterprise QA Testbed Quick Access Banner -->
+          <div class="mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-md border border-indigo-800/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
+                <i class="ph-bold ph-flask text-xl"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <b class="text-sm text-white">สภาพแวดล้อมจำลองเพื่อการตรวจสอบเชิงลึก (Enterprise QA Testbed)</b>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">Docker Live Targets</span>
+                </div>
+                <p class="text-[11px] text-slate-300 mt-0.5">
+                  เปิดดูหน้าเว็บและทดสอบการประเมินความเสี่ยง Chains A–E และ Low-level C / ASan บนเซิร์ฟเวอร์จำลองจริงผ่านเบราว์เซอร์ (IP + Port):
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
+              <a id="qaTargetVulnBtn" href="http://127.0.0.1:8080/" target="_blank" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5 transition">
+                <i class="ph-bold ph-shield-warning text-sm"></i>
+                <span>เว็บเสี่ยง (Port 8080)</span>
+                <i class="ph-bold ph-arrow-square-out text-xs"></i>
+              </a>
+              <a id="qaTargetHardenedBtn" href="http://127.0.0.1:8088/" target="_blank" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5 transition">
+                <i class="ph-bold ph-shield-check text-sm"></i>
+                <span>เว็บปลอดภัย (Port 8088)</span>
+                <i class="ph-bold ph-arrow-square-out text-xs"></i>
+              </a>
+            </div>
+          </div>
+
           <div id="resultsTableContainer" class="rounded-2xl border border-white/80 bg-white/70 shadow-sm p-1 overflow-hidden">
             <table class="w-full text-left border-collapse">
               <thead>
@@ -972,9 +1002,15 @@
               <p class="text-[11px] text-slate-500">Defensive Security Posture & Patch Verification Guidance</p>
             </div>
           </div>
-          <button id="btnCloseDeepAudit" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer">
-            <i class="ph-bold ph-x text-base"></i>
-          </button>
+          <div class="flex items-center gap-2">
+            <a id="auditTargetOpenWebBtn" href="#" target="_blank" class="neu-pill-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1.5 border border-emerald-300 bg-emerald-50/70 shadow-sm transition">
+              <i class="ph-bold ph-arrow-square-out text-sm text-emerald-600"></i>
+              <span>เปิดดูหน้าเว็บจริง</span>
+            </a>
+            <button id="btnCloseDeepAudit" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer">
+              <i class="ph-bold ph-x text-base"></i>
+            </button>
+          </div>
         </div>
 
         <!-- Body -->
@@ -1761,6 +1797,42 @@ Content-Type: text/html; charset=UTF-8</div>
     const hintNetmask = document.getElementById('hintNetmask');
     const cidrPreviewRange = document.getElementById('cidrPreviewRange');
 
+    // --- Dynamic Web Target URL Helper (IP + Port) ---
+    function getWebTargetUrl(host, port) {
+      if (!host) return '#';
+      let ip = (typeof host === 'string' ? host : (host.ip || '')).trim();
+      const parenMatch = ip.match(/\(([^)]+)\)/);
+      if (parenMatch) {
+        ip = parenMatch[1].trim();
+      } else {
+        ip = ip.split(/\s+/)[0];
+      }
+
+      const currentHost = window.location.hostname || '127.0.0.1';
+      if (ip.startsWith('192.168.65.') || ip === '127.0.0.1' || ip === 'localhost' || ip === 'host.docker.internal' || ip === '0.0.0.0' || ip === 'opscaner-test-target' || ip === 'test-target') {
+        ip = (currentHost === 'localhost' || currentHost === '0.0.0.0') ? '127.0.0.1' : currentHost;
+      }
+
+      let p = port;
+      if (!p && typeof host === 'object' && host.ports && Array.isArray(host.ports) && host.ports.length > 0) {
+        const webPorts = [8080, 8088, 80, 443, 3000, 8000, 8443, 8888, 5050];
+        const foundWebPort = host.ports.find(pt => webPorts.includes(pt));
+        p = foundWebPort || host.ports[0];
+      }
+      if (!p) p = 80;
+
+      const scheme = (p === 443 || p === 8443) ? 'https' : 'http';
+      return `${scheme}://${ip}:${p}/`;
+    }
+
+    function updateQaTargetLinks() {
+      const currentHost = (window.location.hostname === 'localhost' || window.location.hostname === '0.0.0.0') ? '127.0.0.1' : (window.location.hostname || '127.0.0.1');
+      const vulnBtn = document.getElementById('qaTargetVulnBtn');
+      const hardenedBtn = document.getElementById('qaTargetHardenedBtn');
+      if (vulnBtn) vulnBtn.href = `http://${currentHost}:8080/`;
+      if (hardenedBtn) hardenedBtn.href = `http://${currentHost}:8088/`;
+    }
+
     // --- IPv4 Bitwise Math & Dynamic Subnet Calculator ---
     function ipToInt(ip) {
       return ip.split('.').reduce((acc, octet) => ((acc << 8) + parseInt(octet, 10)) >>> 0, 0) >>> 0;
@@ -2080,6 +2152,7 @@ Content-Type: text/html; charset=UTF-8</div>
       } else {
         showToast(`ตรวจพบเครือข่ายอัตโนมัติ: ${data.subnet} (${data.active_devices_count ?? 0} อุปกรณ์ออนไลน์)`);
       }
+      updateQaTargetLinks();
     }
 
     let autoDetectTimer = null;
@@ -2560,12 +2633,19 @@ Content-Type: text/html; charset=UTF-8</div>
         }
 
         const isActionInspect = isPhp || isNode;
+        const webUrl = getWebTargetUrl(item);
+        const hasWebOrPorts = ports.length > 0 || isPhp || isNode;
 
         row.innerHTML = `
           <td class="py-3 px-3 font-mono font-semibold text-slate-800">
             <div class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full ${dotColor}"></span>
-              <span>${item.ip}</span>
+              ${hasWebOrPorts ? `
+                <a href="${webUrl}" target="_blank" title="เปิดหน้าเว็บ ${webUrl}" class="hover:underline hover:text-blue-600 inline-flex items-center gap-1 text-slate-800">
+                  <span>${item.ip}</span>
+                  <i class="ph-bold ph-arrow-square-out text-[11px] text-slate-400"></i>
+                </a>
+              ` : `<span>${item.ip}</span>`}
             </div>
           </td>
           <td class="py-3 px-3 text-slate-700">
@@ -2615,9 +2695,17 @@ Content-Type: text/html; charset=UTF-8</div>
             </div>
           </td>
           <td class="py-3 px-3 text-right">
-            <button onclick="inspectHost('${item.ip}')" class="px-2.5 py-1 rounded-lg ${isActionInspect ? 'bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'} transition text-[11px] font-semibold">
-              ${isActionInspect ? 'ตรวจเจาะลึก' : 'ข้อมูล Host'}
-            </button>
+            <div class="inline-flex items-center justify-end gap-1.5">
+              ${hasWebOrPorts ? `
+                <a href="${webUrl}" target="_blank" title="เปิดดูหน้าเว็บจริง (${webUrl})" class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-200 transition text-[11px] font-semibold inline-flex items-center gap-1">
+                  <i class="ph-bold ph-arrow-square-out"></i>
+                  <span>เปิดเว็บ</span>
+                </a>
+              ` : ''}
+              <button onclick="inspectHost('${item.ip}')" class="px-2.5 py-1 rounded-lg ${isActionInspect ? 'bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'} transition text-[11px] font-semibold">
+                ${isActionInspect ? 'ตรวจเจาะลึก' : 'ข้อมูล Host'}
+              </button>
+            </div>
           </td>
         `;
         resultsTableBody.appendChild(row);
@@ -2717,6 +2805,13 @@ Content-Type: text/html; charset=UTF-8</div>
       const deep = host.deep_audit || {};
       const targetBadge = document.getElementById('auditTargetBadge');
       if (targetBadge) targetBadge.textContent = host.ip;
+
+      const openWebBtn = document.getElementById('auditTargetOpenWebBtn');
+      if (openWebBtn) {
+        const webUrl = getWebTargetUrl(host);
+        openWebBtn.href = webUrl;
+        openWebBtn.title = `เปิดดูหน้าเว็บจริง (${webUrl})`;
+      }
 
       // ThaiCERT 8 Groups Classification
       const primaryBadge = document.getElementById('auditGroupPrimaryBadge');
@@ -4030,6 +4125,7 @@ ${data.c_patch_directive}
 
     // Initialize on page load
     window.onload = function() {
+      updateQaTargetLinks();
       autoDetectLocalNetwork();
       initPortSelectionControls();
     };
