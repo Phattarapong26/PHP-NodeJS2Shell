@@ -947,12 +947,66 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
 
     # --- Chain A: session.upload_progress filename injection + LFI ---
     chain_a_stages = [
-        {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "พอร์ตตอบสนองการเชื่อมต่อปกติ", "badge": "PASS"},
-        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS" if has_session_cookie else "AUDIT_NEEDED", "detail": "ควรบังคับใช้ session.use_strict_mode = 1 เพื่อป้องกันการกำหนด Session ID จากภายนอก", "badge": "AUDIT" if not has_session_cookie else "PASS"},
-        {"stage": "3/6", "name": "stalled writer / cleanup", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "ควรปิด session.upload_progress.enabled = Off และกำหนด session.upload_progress.cleanup = On เพื่อล้างข้อมูลทันทีหลังคำขอสิ้นสุด", "badge": "PROTECTED" if is_patched else "REVIEW"},
-        {"stage": "4/6", "name": "concurrent worker", "status": "PASS", "detail": "ระบบรองรับการประมวลผลคู่ขนานของเวิร์กเกอร์", "badge": "PASS"},
-        {"stage": "5/6", "name": "pre-existing LFI prerequisite", "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE", "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในแอปพลิเคชันอยู่ก่อนแล้ว เพื่อใช้ Include ไฟล์เซสชัน (sess_ID หรือ phpXXXXXX) ที่มีข้อมูลทดสอบตกค้าง", "badge": "PROTECTED" if is_patched else "REVIEW"},
-        {"stage": "6/6", "name": "payload execution defense", "status": "BLOCKED" if is_patched else "DEFENSIVE_RULE", "detail": "กลไก Argument Injection ถูกบล็อกด้วยแพตช์ความปลอดภัย / การปิดกั้นคำสั่งอันตราย", "badge": "SECURE" if is_patched else "REVIEW"}
+        {
+            "stage": "1/6",
+            "name": "TCP Reachability & Port Inspection",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "พอร์ตเป้าหมายตอบสนองการเชื่อมต่อปกติ บริการพร้อมรับคำขอ HTTP/HTTPS",
+            "mechanism": "ขั้นตอนแรกของการประเมินความพร้อมของพอร์ตเป้าหมาย โดยส่งสัญญาณ TCP Handshake เพื่อยืนยันว่าพอร์ตเปิดและสามารถรับส่งข้อมูล HTTP ได้",
+            "check_item": "ตรวจสอบสถานะ TCP Handshake และความเร็วในการตอบสนอง (Latency) ของบริการเว็บ",
+            "defense_tip": "กำหนด Firewall คัดกรองเฉพาะพอร์ตและไอพีที่จำเป็นต่อการให้บริการในระดับเครือข่าย"
+        },
+        {
+            "stage": "2/6",
+            "name": "Session Strict Mode Verification (session.use_strict_mode)",
+            "status": "PASS" if has_session_cookie else "AUDIT_NEEDED",
+            "badge": "PASS" if has_session_cookie else "AUDIT",
+            "detail": "ควรบังคับใช้ session.use_strict_mode = 1 เพื่อป้องกันการกำหนด Session ID ล่วงหน้าจากภายนอก",
+            "mechanism": "หากปิด use_strict_mode = 0 เอนจิน PHP จะยอมรับค่า Session ID ที่ผู้ใช้งานส่งมาใน Cookie ทำให้ผู้ประเมินภายนอกสามารถคาดเดาหรือกำหนดชื่อไฟล์เซสชันบนดิสก์ล่วงหน้าได้",
+            "check_item": "ตรวจสอบพฤติกรรม Session Cookie และการตอบสนองเมื่อมีการระบุ Session ID ที่ไม่ได้สร้างโดยระบบ",
+            "defense_tip": "กำหนด session.use_strict_mode = 1 ใน php.ini เพื่อบังคับให้ PHP รับเฉพาะ Session ID ที่เซิร์ฟเวอร์เป็นผู้สร้างเท่านั้น"
+        },
+        {
+            "stage": "3/6",
+            "name": "Upload Progress & Cleanup Handling",
+            "status": "PROTECTED" if is_patched else "REVIEW_NEEDED",
+            "badge": "PROTECTED" if is_patched else "REVIEW",
+            "detail": "ควรปิด session.upload_progress.enabled = Off และกำหนด session.upload_progress.cleanup = On เพื่อล้างข้อมูลทันทีหลังคำขอสิ้นสุด",
+            "mechanism": "คุณสมบัติ Upload Progress จะเขียนข้อมูลความคืบหน้าการอัปโหลดลงในไฟล์เซสชันอัตโนมัติเมื่อพบฟิลด์ PHP_SESSION_UPLOAD_PROGRESS หากไม่ได้ปิดไว้ ข้อมูลชื่อไฟล์ที่ส่งเข้ามาอาจถูกบันทึกลงในไฟล์เซสชันชั่วคราว",
+            "check_item": "ตรวจสอบสถานะการเปิดใช้งาน session.upload_progress.enabled และการล้างข้อมูลทันทีเมื่อสิ้นสุดคำขอ (cleanup)",
+            "defense_tip": "กำหนด session.upload_progress.enabled = Off และ session.upload_progress.cleanup = On ใน php.ini"
+        },
+        {
+            "stage": "4/6",
+            "name": "Concurrent Worker & Race Handling",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "ระบบรองรับการประมวลผลคู่ขนานของเวิร์กเกอร์ (Multi-worker Concurrency)",
+            "mechanism": "การทดสอบว่าเซิร์ฟเวอร์สามารถประมวลผลหลายคำขอในเวลาเดียวกันได้หรือไม่ ซึ่งเป็นปัจจัยที่มีผลต่อช่วงเวลาว่าง (Race Window) ของไฟล์ชั่วคราวในระบบ",
+            "check_item": "ประเมินความเร็วในการตอบสนองและขีดจำกัดเวิร์กเกอร์ของเว็บเซิร์ฟเวอร์",
+            "defense_tip": "จำกัดอัตราการส่งคำขอ (Rate Limiting) และใช้ระบบ Session Handler แบบ In-Memory (เช่น Redis) ที่มีการจัดการ Concurrency ปลอดภัย"
+        },
+        {
+            "stage": "5/6",
+            "name": "Pre-existing LFI Prerequisite Check",
+            "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE",
+            "badge": "PROTECTED" if is_patched else "REVIEW",
+            "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในแอปพลิเคชันอยู่ก่อนแล้ว เพื่อใช้ Include ไฟล์เซสชัน (sess_ID หรือ phpXXXXXX) ที่มีข้อมูลทดสอบตกค้าง",
+            "mechanism": "แม้ว่าไฟล์เซสชันจะมีข้อมูลตกค้างอยู่บนดิสก์ แต่หากตัวแอปพลิเคชันไม่มีฟังก์ชันที่นำพารามิเตอร์ของผู้ใช้ไปใช้ใน include, require หรือ file_get_contents โดยตรง ก็จะไม่สามารถนำไฟล์เซสชันมารันคำสั่งได้",
+            "check_item": "ตรวจสอบการคัดกรองพารามิเตอร์ชื่อไฟล์ และการป้องกัน Directory Traversal (../) ในแอปพลิเคชัน",
+            "defense_tip": "หลีกเลี่ยงการใช้พารามิเตอร์จากผู้ใช้ในการโหลดไฟล์ ใช้ Whitelist ของชื่อไฟล์ที่อนุญาตเท่านั้น และบังคับใช้ open_basedir"
+        },
+        {
+            "stage": "6/6",
+            "name": "Argument Injection & Execution Defense",
+            "status": "BLOCKED" if is_patched else "DEFENSIVE_RULE",
+            "badge": "SECURE" if is_patched else "REVIEW",
+            "detail": "กลไก Argument Injection (เช่น CVE-2024-4577) ถูกปิดกั้นด้วยแพตช์ความปลอดภัย PHP 8.2.20+ / 8.3.8+ หรือ WAF",
+            "mechanism": "การประเมินว่าเอนจิน PHP หรือโมดูล CGI อนุญาตให้ส่งอาร์กิวเมนต์คำสั่งผ่าน Query String หรือไม่ ซึ่งใน PHP เวอร์ชันที่ปลอดภัยจะมีการตรวจสอบและบล็อกอักขระพิเศษอย่างรัดกุม",
+            "check_item": "ตรวจสอบเลขเวอร์ชันแพตช์ของ PHP และการมีอยู่ของ Web Application Firewall (WAF)",
+            "defense_tip": "อัปเกรด PHP เป็นเวอร์ชัน 8.2.20+ หรือ 8.3.8+ ทันที และติดตั้ง WAF กรองคำสั่งอาร์กิวเมนต์ที่ผิดปกติ"
+        }
     ]
     chain_a_verdict = "SECURE (ได้รับการแพตช์ / ป้องกันแล้ว)" if is_patched else "REVIEW_NEEDED (แนะนำตรวจสอบคำสั่งใน php.ini)"
     chain_a_remedy = "session.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1"
@@ -960,36 +1014,198 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
     # --- Chain B: INI Leak via Session Engine (SAPI & Save Path Exposure) ---
     sapi_desc = "FastCGI / PHP-FPM" if "nginx" in server.lower() else ("Apache mod_php / FPM" if "apache" in server.lower() else "Standard SAPI")
     chain_b_stages = [
-        {"stage": "1/6", "name": "SAPI Configuration Check", "status": "PASS", "detail": f"ตรวจสอบสถาปัตยกรรม Server API ({sapi_desc}) ซึ่งมีผลต่อการอ่านค่าคอนฟิกและขอบเขตสิทธิ์", "badge": "PASS"},
-        {"stage": "2/6", "name": "Session Configuration Exposure", "status": "PASS" if not expose_php else "AUDIT_NEEDED", "detail": "ตรวจสอบการเปิดเผยข้อมูลระบบ เช่น การเรียก phpinfo() หรือ Diagnostic Error Message ที่แสดงค่า session.save_path", "badge": "PASS" if not expose_php else "AUDIT"},
-        {"stage": "3/6", "name": "Information Disclosure Risk", "status": "PROTECTED" if not expose_php else "REVIEW_NEEDED", "detail": "การประเมินความเสี่ยงจากการที่บุคคลภายนอกล่วงรู้ค่าเซสชันหรือเส้นทางโฟลเดอร์จัดเก็บไฟล์ชั่วคราวในระบบปฏิบัติการ", "badge": "PROTECTED" if not expose_php else "REVIEW"},
-        {"stage": "4/6", "name": "Error Display Suppression", "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE", "detail": "ตรวจสอบการปิดการแสดงข้อผิดพลาดบนหน้าเว็บภายนอก โดยกำหนด display_errors = Off", "badge": "PROTECTED" if is_patched else "REVIEW"},
-        {"stage": "5/6", "name": "Local Audit Logging", "status": "PASS", "detail": "ตรวจสอบการเปิดบันทึกข้อผิดพลาดอย่างปลอดภัยลงในไฟล์ภายในเครื่อง log_errors = On", "badge": "PASS"},
-        {"stage": "6/6", "name": "Version Masking Hardening", "status": "PROTECTED" if not expose_php else "REVIEW_NEEDED", "detail": "ตรวจสอบการปิดบังข้อมูลเวอร์ชัน expose_php = Off ตามเกณฑ์มาตรฐานความมั่นคงปลอดภัย CIS Benchmark", "badge": "SECURE" if not expose_php else "REVIEW"}
+        {
+            "stage": "1/6",
+            "name": "SAPI Configuration Check",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": f"ตรวจสอบสถาปัตยกรรม Server API ({sapi_desc}) ซึ่งมีผลต่อการอ่านค่าคอนฟิกและขอบเขตสิทธิ์",
+            "mechanism": "ตรวจสอบสถาปัตยกรรม Server API ของ PHP (เช่น PHP-FPM, Apache mod_php, FastCGI หรือ CLI) ซึ่งส่งผลต่อสิทธิ์การทำงานและขอบเขตการเข้าถึงไฟล์คอนฟิก",
+            "check_item": "ตรวจสอบ Server Banner และส่วนหัว HTTP ที่บ่งชี้รูปแบบ SAPI",
+            "defense_tip": "ใช้สถาปัตยกรรม PHP-FPM พร้อมแยก User/Group ของ Pool ให้มีสิทธิ์ต่ำสุด (Least Privilege)"
+        },
+        {
+            "stage": "2/6",
+            "name": "Session Configuration Exposure",
+            "status": "PASS" if not expose_php else "AUDIT_NEEDED",
+            "badge": "PASS" if not expose_php else "AUDIT",
+            "detail": "ตรวจสอบการเปิดเผยข้อมูลระบบ เช่น การเรียก phpinfo() หรือ Diagnostic Error Message ที่แสดงค่า session.save_path",
+            "mechanism": "การปล่อยให้ฟังก์ชันทดสอบเช่น phpinfo() หรือข้อความ Error แสดงผลตัวแปรระบบออกมา ทำให้ผู้ประเมินภายนอกทราบค่า session.save_path, session.name และพารามิเตอร์สำคัญ",
+            "check_item": "ตรวจสอบการมีอยู่ของหน้า Diagnostic (phpinfo.php, test.php) และการรั่วไหลของข้อมูลระบบ",
+            "defense_tip": "ลบไฟล์ทดสอบที่เรียก phpinfo() ออกจาก Production ทั้งหมด"
+        },
+        {
+            "stage": "3/6",
+            "name": "Information Disclosure Risk",
+            "status": "PROTECTED" if not expose_php else "REVIEW_NEEDED",
+            "badge": "PROTECTED" if not expose_php else "REVIEW",
+            "detail": "การประเมินความเสี่ยงจากการที่บุคคลภายนอกล่วงรู้ค่าเซสชันหรือเส้นทางโฟลเดอร์จัดเก็บไฟล์ชั่วคราวในระบบปฏิบัติการ",
+            "mechanism": "การประเมินความเสี่ยงเมื่อบุคคลภายนอกล่วงรู้ตำแหน่งโฟลเดอร์เซสชัน (เช่น /tmp หรือ /var/lib/php/sessions) ซึ่งทำให้ทราบจุดที่ต้องเฝ้าระวังของไฟล์ชั่วคราว",
+            "check_item": "ตรวจสอบว่ามีข้อความ Error หรือ Header ใดที่เปิดเผยเส้นทาง Path บนเซิร์ฟเวอร์หรือไม่",
+            "defense_tip": "แยกพื้นที่จัดเก็บเซสชันไว้ในโฟลเดอร์เฉพาะนอก Web Root และจำกัดสิทธิ์โฟลเดอร์เป็น chmod 0700"
+        },
+        {
+            "stage": "4/6",
+            "name": "Error Display Suppression",
+            "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE",
+            "badge": "PROTECTED" if is_patched else "REVIEW",
+            "detail": "ตรวจสอบการปิดการแสดงข้อผิดพลาดบนหน้าเว็บภายนอก โดยกำหนด display_errors = Off",
+            "mechanism": "ตรวจสอบว่าระบบปิดการแสดงผลข้อผิดพลาดสู่หน้าเว็บหรือไม่ เพื่อป้องกันไม่ให้ข้อมูลโครงสร้างโค้ดหรือฐานข้อมูลรั่วไหล",
+            "check_item": "ตรวจสอบค่าคอนฟิก display_errors และ display_startup_errors",
+            "defense_tip": "กำหนด display_errors = Off และ display_startup_errors = Off ใน php.ini"
+        },
+        {
+            "stage": "5/6",
+            "name": "Local Audit Logging",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "ตรวจสอบการเปิดบันทึกข้อผิดพลาดอย่างปลอดภัยลงในไฟล์ภายในเครื่อง log_errors = On",
+            "mechanism": "การบันทึกข้อผิดพลาดลงในไฟล์บันทึกภายในเครื่องอย่างปลอดภัย เพื่อให้ทีมวิศวกรตรวจสอบได้โดยไม่ต้องแสดงผลบนหน้าจอผู้ใช้",
+            "check_item": "ตรวจสอบการเปิดใช้งาน log_errors = On และการกำหนดเส้นทาง error_log",
+            "defense_tip": "กำหนด log_errors = On และกำหนดสิทธิ์ไฟล์ล็อกให้เฉพาะผู้ดูแลระบบอ่านได้"
+        },
+        {
+            "stage": "6/6",
+            "name": "Version Masking Hardening",
+            "status": "PROTECTED" if not expose_php else "REVIEW_NEEDED",
+            "badge": "SECURE" if not expose_php else "REVIEW",
+            "detail": "ตรวจสอบการปิดบังข้อมูลเวอร์ชัน expose_php = Off ตามเกณฑ์มาตรฐานความมั่นคงปลอดภัย CIS Benchmark",
+            "mechanism": "ตรวจสอบการปิดบังข้อมูลเวอร์ชันในส่วนหัว X-Powered-By ตามคำแนะนำของ CIS Benchmark เพื่อไม่ให้ผู้ไม่ประสงค์ดีระบุช่องโหว่ประจำเวอร์ชันได้ง่าย",
+            "check_item": "ตรวจสอบการมีอยู่ของ Header X-Powered-By: PHP/...",
+            "defense_tip": "กำหนด expose_php = Off ใน php.ini"
+        }
     ]
     chain_b_verdict = "SECURE (ปิดบังข้อมูลระบบเรียบร้อย)" if (not expose_php and is_patched) else "REVIEW_NEEDED (แนะนำปิดการแสดงผล Error และซ่อนเวอร์ชัน)"
     chain_b_remedy = "expose_php = Off\ndisplay_errors = Off\nlog_errors = On"
 
     # --- Chain C: serializer-handler mismatch -> Object Deserialization Risk ---
     chain_c_stages = [
-        {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "บริการเชื่อมต่อได้ปกติ", "badge": "PASS"},
-        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS", "detail": "ตรวจสอบการกำหนดค่า Session Strict เพื่อความรัดกุม", "badge": "PASS"},
-        {"stage": "3/6", "name": "serializer mismatch inspection", "status": "SAFE", "detail": "ตรวจสอบความสม่ำเสมอของ Serializer Handler (เช่น php กับ php_serialize)", "badge": "SAFE"},
-        {"stage": "4/6", "name": "object injection risk", "status": "SAFE", "detail": "ตรวจสอบความเสี่ยงจากการใช้ unserialize() บนข้อมูลที่ผู้ใช้งานภายนอกควบคุมได้", "badge": "SAFE"},
-        {"stage": "5/6", "name": "gadget chain defense", "status": "PROTECTED", "detail": "ตรวจสอบและป้องกัน Gadget Chain ในคลาสระบบที่มี Magic Methods เช่น __destruct หรือ __wakeup ที่อาจส่งผลกระทบต่อคำสั่งระบบ", "badge": "PROTECTED"},
-        {"stage": "6/6", "name": "deserialization defense", "status": "SECURE", "detail": "กำหนด session.serialize_handler = php สม่ำเสมอ และหลีกเลี่ยงการ deserialize ข้อมูลดิบจากภายนอก", "badge": "SECURE"}
+        {
+            "stage": "1/6",
+            "name": "TCP Reachability & Endpoint Health",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "บริการเชื่อมต่อได้ปกติ ตอบสนองคำขอ HTTP สมบูรณ์",
+            "mechanism": "ตรวจสอบความพร้อมในการเชื่อมต่อ HTTP ของระบบเป้าหมาย",
+            "check_item": "ตรวจสอบสถานะการตอบรับของแอปพลิเคชัน",
+            "defense_tip": "รักษาเสถียรภาพและตรวจสอบความพร้อมใช้งานของระบบเครือข่าย"
+        },
+        {
+            "stage": "2/6",
+            "name": "Session Strict Mode Check",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "ตรวจสอบการกำหนดค่า Session Strict เพื่อความรัดกุม",
+            "mechanism": "ตรวจสอบการบังคับใช้ Session Strict Mode เพื่อป้องกันการสลับหรือแทรกแซง Session จากภายนอก",
+            "check_item": "ตรวจสอบการสร้าง Session Token และการควบคุมความถูกต้อง",
+            "defense_tip": "กำหนด session.use_strict_mode = 1 เสมอ"
+        },
+        {
+            "stage": "3/6",
+            "name": "Serializer Mismatch Inspection",
+            "status": "SAFE",
+            "badge": "SAFE",
+            "detail": "ตรวจสอบความสม่ำเสมอของ Serializer Handler (เช่น php กับ php_serialize)",
+            "mechanism": "ตรวจสอบความสอดคล้องของการใช้ Serializer Handler ซึ่งหากมีการใช้ Handler สองประเภทต่างกันในแอปเดียวกัน รูปแบบการ Encode ข้อมูลจะไม่ตรงกัน",
+            "check_item": "ตรวจสอบค่า session.serialize_handler ในทุกโมดูลของแอปพลิเคชัน",
+            "defense_tip": "กำหนด session.serialize_handler = php อย่างสม่ำเสมอทั่วทั้งแอปพลิเคชัน"
+        },
+        {
+            "stage": "4/6",
+            "name": "Object Injection Risk",
+            "status": "SAFE",
+            "badge": "SAFE",
+            "detail": "ตรวจสอบความเสี่ยงจากการใช้ unserialize() บนข้อมูลที่ผู้ใช้งานภายนอกควบคุมได้",
+            "mechanism": "ตรวจสอบความเสี่ยงเมื่อแอปพลิเคชันเรียกใช้ฟังก์ชัน unserialize() บนข้อมูลที่รับมาจากภายนอก ซึ่งอาจส่งผลให้ออบเจกต์ในหน่วยความจำถูกสร้างขึ้นมาผิดปกติ",
+            "check_item": "สแกนหาการเรียกใช้ unserialize() บนข้อมูลที่รับมาจากภายนอกหรือจากเซสชันที่ไม่ได้เข้ารหัส",
+            "defense_tip": "หลีกเลี่ยงการใช้ unserialize() โดยเปลี่ยนไปใช้ json_decode() หรือกำหนด ['allowed_classes' => false]"
+        },
+        {
+            "stage": "5/6",
+            "name": "Gadget Chain & Magic Method Defense",
+            "status": "PROTECTED",
+            "badge": "PROTECTED",
+            "detail": "ตรวจสอบและป้องกัน Gadget Chain ในคลาสระบบที่มี Magic Methods เช่น __destruct หรือ __wakeup",
+            "mechanism": "การตรวจสอบคลาสในระบบที่มี Magic Methods เช่น __destruct(), __wakeup() หรือ __toString() ซึ่งอาจถูกกระตุ้นอัตโนมัติเมื่อออบเจกต์ถูกทำลายหรือสร้างขึ้นมา",
+            "check_item": "ตรวจสอบไลบรารีและคลาสที่ถูกโหลดในโปรเจกต์ว่ามีเมธอดที่มีการประมวลผลคำสั่งระบบหรือไม่",
+            "defense_tip": "อัปเดตแพ็กเกจไลบรารี (Composer Dependencies) ให้เป็นเวอร์ชันล่าสุดเพื่อปิดกั้น Gadget Chain ที่ทราบอยู่แล้ว"
+        },
+        {
+            "stage": "6/6",
+            "name": "Deserialization Defense & Input Validation",
+            "status": "SECURE",
+            "badge": "SECURE",
+            "detail": "กำหนด session.serialize_handler = php สม่ำเสมอ และหลีกเลี่ยงการ deserialize ข้อมูลดิบจากภายนอก",
+            "mechanism": "การวางมาตรการป้องกันความปลอดภัยเชิงลึกในระดับโค้ดและรันไทม์",
+            "check_item": "ตรวจสอบการใช้งาน HMAC หรือ Digital Signature ในการยืนยันความถูกต้องของข้อมูลเซสชันก่อนนำมาประมวลผล",
+            "defense_tip": "นำระบบ Session Signing มาใช้เพื่อป้องกันการแก้ไขข้อมูลเซสชัน"
+        }
     ]
     chain_c_verdict = "SECURE (กำหนด Serializer สม่ำเสมอและป้องกัน Object Injection)"
     chain_c_remedy = "session.serialize_handler = php\n(หลีกเลี่ยงการใช้ serialize handler ต่างประเภทกันในแอปเดียวกัน และหลีกเลี่ยง unserialize ข้อมูลที่ไม่ได้ตรวจสอบ)"
 
     # --- Chain D: OOM skips cleanup -> Poisoned Session -> LFI ---
     chain_d_stages = [
-        {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "เปิดให้บริการ HTTP ปกติ", "badge": "PASS"},
-        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS", "detail": "การจัดการวงรอบเซสชันปกติ", "badge": "PASS"},
-        {"stage": "3/6", "name": "memory exhaustion condition", "status": "PASS", "detail": "ตรวจสอบสถานการณ์ที่มีการส่งข้อมูลขนาดใหญ่เกินขีดจำกัด memory_limit ส่งผลให้เกิด Fatal Error", "badge": "PASS"},
-        {"stage": "4/6", "name": "cleanup bypass risk", "status": "MONITORED", "detail": "เงื่อนไขที่ Fatal Error ขัดขวางขั้นตอนการล้างไฟล์ชั่วคราว (Cleanup Mechanism) ส่งผลให้ไฟล์ที่มีข้อมูลทดสอบตกค้างอยู่ในโฟลเดอร์ชั่วคราว", "badge": "PASS"},
-        {"stage": "5/6", "name": "pre-existing LFI prerequisite", "status": "PROTECTED", "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในโค้ด เพื่อเรียกประมวลผลไฟล์ตกค้างดังกล่าว", "badge": "PROTECTED"},
-        {"stage": "6/6", "name": "memory isolation defense", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "กำหนด memory_limit ให้เหมาะสม และจำกัดสิทธิ์โฟลเดอร์ session.save_path (chmod 0700) พร้อมแยกพื้นที่จัดเก็บ", "badge": "SECURE" if is_patched else "REVIEW"}
+        {
+            "stage": "1/6",
+            "name": "TCP Reachability & Resource Monitoring",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "เปิดให้บริการ HTTP ปกติ ระบบรองรับการตรวจสอบภาระงาน",
+            "mechanism": "ตรวจสอบสถานะการเชื่อมต่อบริการ HTTP ปกติ",
+            "check_item": "ตรวจสอบความพร้อมในการตอบสนองคำขอ",
+            "defense_tip": "ติดตั้งระบบ Monitoring เฝ้าระวังอัตราการใช้ทรัพยากรของเซิร์ฟเวอร์"
+        },
+        {
+            "stage": "2/6",
+            "name": "Session Lifetime & Strict Validation",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "การจัดการวงรอบเซสชันปกติ ตรวจสอบอายุของเซสชันอย่างรัดกุม",
+            "mechanism": "ตรวจสอบการจัดการวงรอบเซสชันและการบังคับใช้รหัสเซสชันที่ถูกต้อง",
+            "check_item": "ตรวจสอบอายุการใช้งานของ Session (session.gc_maxlifetime)",
+            "defense_tip": "กำหนดอายุเซสชันให้สั้นและเหมาะสมต่อความปลอดภัย"
+        },
+        {
+            "stage": "3/6",
+            "name": "Memory Exhaustion Condition",
+            "status": "PASS",
+            "badge": "PASS",
+            "detail": "ตรวจสอบสถานการณ์ที่มีการส่งข้อมูลขนาดใหญ่เกินขีดจำกัด memory_limit ส่งผลให้เกิด Fatal Error",
+            "mechanism": "ตรวจสอบสถานการณ์ที่เซิร์ฟเวอร์ได้รับคำขอประมวลผลหรืออัปโหลดข้อมูลขนาดใหญ่มากจนการใช้งานหน่วยความจำเกินกว่าขีดจำกัด memory_limit ที่กำหนดไว้",
+            "check_item": "ประเมินค่าคอนฟิก memory_limit เทียบกับขนาดไฟล์อัปโหลดสูงสุด (upload_max_filesize, post_max_size)",
+            "defense_tip": "กำหนด memory_limit ให้เหมาะสม (เช่น 256M หรือ 512M) และจำกัดขนาดคำขอ post_max_size ไม่ให้เกินความจำเป็น"
+        },
+        {
+            "stage": "4/6",
+            "name": "Cleanup Mechanism Bypass Risk",
+            "status": "MONITORED",
+            "badge": "PASS",
+            "detail": "เงื่อนไขที่ Fatal Error ขัดขวางขั้นตอนการล้างไฟล์ชั่วคราว (Cleanup Mechanism) ส่งผลให้ไฟล์ที่มีข้อมูลทดสอบตกค้างอยู่ในโฟลเดอร์ชั่วคราว",
+            "mechanism": "เมื่อเกิด Fatal Error เนื่องจาก Out-of-Memory เอนจินของ PHP จะหยุดทำงานทันที (Halt Execution) ส่งผลให้ฟังก์ชันล้างไฟล์ชั่วคราวตามปกติถูกข้ามไป ทำให้ไฟล์ที่ถูกสร้างค้างอยู่ในโฟลเดอร์ชั่วคราว",
+            "check_item": "ตรวจสอบว่าแอปพลิเคชันมีฟังก์ชัน register_shutdown_function() เพื่อจัดการล้างไฟล์ในกรณีฉุกเฉินหรือไม่",
+            "defense_tip": "ตั้ง Cron Job ประจำระบบเพื่อคอยล้างไฟล์เซสชันที่หมดอายุ (find /var/lib/php/sessions -type f -mmin +120 -delete)"
+        },
+        {
+            "stage": "5/6",
+            "name": "Pre-existing LFI Prerequisite Check",
+            "status": "PROTECTED",
+            "badge": "PROTECTED",
+            "detail": "ปัจจัยเสี่ยงจำเป็น: ต้องมีจุดเสี่ยง Local File Inclusion (LFI) ภายในโค้ด เพื่อเรียกประมวลผลไฟล์ตกค้างดังกล่าว",
+            "mechanism": "ปัจจัยเสี่ยงจำเป็น: แม้ว่าไฟล์ชั่วคราวจะตกค้างอยู่บนระบบ แต่ต้องมีจุดเสี่ยง LFI ภายในโค้ดเพื่อเรียกประมวลผลไฟล์ดังกล่าว",
+            "check_item": "ตรวจสอบการกรองพารามิเตอร์การเปิดไฟล์และการเข้าถึงไฟล์ชั่วคราว",
+            "defense_tip": "บังคับใช้ open_basedir เพื่อจำกัดไม่ให้ PHP เข้าถึงไฟล์นอกเหนือจากไดเรกทอรีที่กำหนด"
+        },
+        {
+            "stage": "6/6",
+            "name": "Memory Isolation & Storage Hardening",
+            "status": "PROTECTED" if is_patched else "REVIEW_NEEDED",
+            "badge": "SECURE" if is_patched else "REVIEW",
+            "detail": "กำหนด memory_limit ให้เหมาะสม และจำกัดสิทธิ์โฟลเดอร์ session.save_path (chmod 0700) พร้อมแยกพื้นที่จัดเก็บ",
+            "mechanism": "การแยกพื้นที่จัดเก็บเซสชันและจำกัดสิทธิ์โฟลเดอร์เพื่อป้องกันไม่ให้กระบวนการอื่นเข้าถึงหรืออ่านไฟล์เซสชันได้",
+            "check_item": "ตรวจสอบสิทธิ์ของไดเรกทอรี session.save_path (ควรเป็น 0700)",
+            "defense_tip": "กำหนด session.save_path = \"/var/lib/php/sessions\" และตั้งค่าสิทธิ์โฟลเดอร์เป็น chmod 0700"
+        }
     ]
     chain_d_verdict = "SECURE (แยกพื้นที่จัดเก็บเซสชันและจำกัดสิทธิ์)" if is_patched else "REVIEW_NEEDED"
     chain_d_remedy = "memory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n(พร้อมตั้งค่าสิทธิ์โฟลเดอร์ chmod 0700 เพื่อจำกัดการเข้าถึง)"

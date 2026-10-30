@@ -956,7 +956,7 @@
 
     <!-- MODAL: Deep Security Posture Audit & Credentialed Host Check -->
     <div id="deepAuditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
-      <div class="neu-modal-surface w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/90 transform scale-95 transition-transform duration-200" id="deepAuditContent">
+      <div class="neu-modal-surface w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/90 transform scale-95 transition-transform duration-200" id="deepAuditContent">
         
         <!-- Header -->
         <div class="px-6 py-4 bg-gradient-to-r from-white via-slate-50 to-blue-50/60 border-b border-slate-200/70 flex items-center justify-between">
@@ -1536,6 +1536,7 @@ session.save_path = "/var/lib/php/sessions"</div>
       scopePreset: 'all',
       selectedAuditHost: null,
       activeAuditChain: 'chain_a',
+      chainViewMode: 'detail',
       thaicertSummary: {}
     };
 
@@ -2710,6 +2711,13 @@ session.save_path = "/var/lib/php/sessions"</div>
       }
     }
 
+    function toggleChainViewMode(mode) {
+      appState.chainViewMode = mode;
+      if (appState.selectedAuditHost) {
+        renderAuditChainDetail(appState.selectedAuditHost, appState.activeAuditChain);
+      }
+    }
+
     function renderAuditChainDetail(host, chainKey) {
       const container = document.getElementById('chainDetailContainer');
       if (!container) return;
@@ -2720,10 +2728,10 @@ session.save_path = "/var/lib/php/sessions"</div>
 
       if (!host.is_php || !chain) {
         container.innerHTML = `
-          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-500">
-            <i class="ph-bold ph-shield-check text-2xl text-emerald-500 mb-1 inline-block"></i>
-            <p class="font-semibold text-slate-700 text-xs">อุปกรณ์นี้ไม่ใช่เซิร์ฟเวอร์ PHP</p>
-            <p class="text-[11px] mt-0.5">จึงไม่อยู่ในเงื่อนไขความเสี่ยงของกลไก php2shell (Chains A, C, D)</p>
+          <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-500">
+            <i class="ph-bold ph-shield-check text-3xl text-emerald-500 mb-2 inline-block"></i>
+            <p class="font-bold text-slate-700 text-sm">อุปกรณ์นี้ไม่ใช่เซิร์ฟเวอร์ PHP</p>
+            <p class="text-xs text-slate-500 mt-1">จึงไม่อยู่ในเงื่อนไขความเสี่ยงของกลไก PHP Session & Configuration Chains (Chains A, B, C, D)</p>
           </div>
         `;
         return;
@@ -2731,49 +2739,147 @@ session.save_path = "/var/lib/php/sessions"</div>
 
       const isChainPass = chain.verdict && (chain.verdict.includes('SECURE') || chain.verdict.includes('PASS'));
       const verdictBadgeCls = isChainPass 
-        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-        : 'bg-amber-50 text-amber-700 border-amber-200';
+        ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
+        : 'bg-amber-50 text-amber-700 border-amber-300';
+
+      const viewMode = appState.chainViewMode || 'detail';
 
       let stagesHtml = '';
       if (Array.isArray(chain.stages)) {
-        stagesHtml = `
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-            ${chain.stages.map(st => {
-              const isPass = st.badge === 'PASS' || st.badge === 'PROTECTED' || st.badge === 'SAFE' || st.badge === 'SECURE';
-              const badgeCls = isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
-              const stageNumCls = isPass ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
-              return `
-                <div class="p-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-2">
-                  <span class="w-6 h-6 rounded-md ${stageNumCls} font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">${st.stage}</span>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between">
-                      <span class="font-bold text-slate-800 text-[11px] truncate">${st.name}</span>
-                      <span class="text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold ${badgeCls}">${st.status}</span>
+        if (viewMode === 'detail') {
+          // --- 1. FULL COMPREHENSIVE DETAIL LIST VIEW ---
+          stagesHtml = `
+            <div class="space-y-3 mt-3">
+              ${chain.stages.map((st, idx) => {
+                const isPass = st.badge === 'PASS' || st.badge === 'PROTECTED' || st.badge === 'SAFE' || st.badge === 'SECURE';
+                const badgeCls = isPass ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200';
+                const stageNumCls = isPass ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white';
+                const cardBorder = isPass ? 'border-slate-200/90 hover:border-emerald-300' : 'border-amber-200/90 hover:border-amber-300';
+                
+                return `
+                  <div class="p-4 rounded-2xl bg-white border ${cardBorder} shadow-xs transition space-y-3">
+                    <!-- Stage Title Bar -->
+                    <div class="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+                      <div class="flex items-center gap-3 min-w-0">
+                        <span class="w-8 h-8 rounded-xl ${stageNumCls} font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm">
+                          ${st.stage}
+                        </span>
+                        <div>
+                          <h5 class="font-bold text-slate-800 text-xs sm:text-sm leading-snug">${st.name}</h5>
+                          <span class="text-[10px] text-slate-400 font-mono">ลำดับขั้นที่ ${idx + 1} จากทั้งหมด 6 ขั้นตอนตามเกณฑ์มาตรฐานความปลอดภัย</span>
+                        </div>
+                      </div>
+                      <span class="text-[11px] font-mono px-2.5 py-1 rounded-lg font-bold border ${badgeCls} shadow-xs whitespace-nowrap">
+                        ${st.status}
+                      </span>
                     </div>
-                    <p class="text-[10px] text-slate-500 mt-0.5">${st.detail}</p>
+
+                    <!-- Assessment Result Alert Box -->
+                    <div class="p-3 rounded-xl ${isPass ? 'bg-emerald-50/70 border border-emerald-200/70 text-emerald-950' : 'bg-amber-50/70 border border-amber-200/70 text-amber-950'} text-xs">
+                      <div class="flex items-start gap-2">
+                        <i class="ph-bold ${isPass ? 'ph-check-circle text-emerald-600' : 'ph-warning text-amber-600'} text-base mt-0.5 flex-shrink-0"></i>
+                        <div>
+                          <span class="font-bold block text-[11px] uppercase tracking-wide opacity-80">ผลการประเมินความปลอดภัย:</span>
+                          <span class="text-xs leading-relaxed font-medium">${st.detail || ''}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Technical Breakdown Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                      ${st.mechanism ? `
+                        <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-200/80">
+                          <span class="text-slate-500 font-bold text-[11px] flex items-center gap-1.5 mb-1 text-indigo-900">
+                            <i class="ph-bold ph-gear text-indigo-600"></i> กลไกการทำงานทางเทคนิค (Technical Mechanism):
+                          </span>
+                          <p class="text-slate-700 text-xs leading-relaxed">${st.mechanism}</p>
+                        </div>
+                      ` : ''}
+                      ${st.check_item ? `
+                        <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-200/80">
+                          <span class="text-slate-500 font-bold text-[11px] flex items-center gap-1.5 mb-1 text-blue-900">
+                            <i class="ph-bold ph-magnifying-glass text-blue-600"></i> สิ่งที่ระบบตรวจสอบ / ปัจจัยเสี่ยง (Verification Check):
+                          </span>
+                          <p class="text-slate-700 text-xs leading-relaxed">${st.check_item}</p>
+                        </div>
+                      ` : ''}
+                    </div>
+
+                    <!-- Stage Specific Mitigation Tip -->
+                    ${st.defense_tip ? `
+                      <div class="p-2.5 rounded-xl bg-gradient-to-r from-indigo-50/80 to-blue-50/60 border border-indigo-200/70 text-xs text-indigo-950 flex items-start gap-2">
+                        <i class="ph-bold ph-shield-check text-indigo-600 text-base mt-0.5 flex-shrink-0"></i>
+                        <div>
+                          <b class="text-indigo-950 text-[11px]">แนวทางป้องกันเฉพาะขั้นตอน (Defensive Mitigation):</b>
+                          <p class="text-indigo-900 text-xs mt-0.5 leading-relaxed font-medium">${st.defense_tip}</p>
+                        </div>
+                      </div>
+                    ` : ''}
                   </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `;
+                `;
+              }).join('')}
+            </div>
+          `;
+        } else {
+          // --- 2. COMPACT SUMMARY CARDS VIEW ---
+          stagesHtml = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
+              ${chain.stages.map(st => {
+                const isPass = st.badge === 'PASS' || st.badge === 'PROTECTED' || st.badge === 'SAFE' || st.badge === 'SECURE';
+                const badgeCls = isPass ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200';
+                const stageNumCls = isPass ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
+                return `
+                  <div class="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-2.5 hover:border-blue-300 transition">
+                    <span class="w-6 h-6 rounded-md ${stageNumCls} font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">${st.stage}</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-start justify-between gap-1">
+                        <span class="font-bold text-slate-800 text-xs leading-snug">${st.name}</span>
+                        <span class="text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold border ${badgeCls} flex-shrink-0">${st.status}</span>
+                      </div>
+                      <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">${st.detail}</p>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }
       }
 
       container.innerHTML = `
-        <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
-          <div class="flex items-start justify-between gap-2">
+        <div class="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-3">
+          <!-- Chain Title & Header Bar -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
             <div>
-              <h4 class="font-bold text-slate-800 text-xs">${chain.title}</h4>
-              <p class="text-[10px] text-slate-400 mt-0.5">การตรวจสอบขั้นตอน 6 ลำดับขั้นตามมาตรฐาน php2shell explain</p>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h4 class="font-bold text-slate-800 text-sm sm:text-base">${chain.title}</h4>
+                <span class="px-2.5 py-0.5 rounded-md font-bold text-[11px] border ${verdictBadgeCls} flex-shrink-0 shadow-xs">
+                  ${chain.verdict}
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">รายงานการตรวจสอบ 6 ลำดับขั้นแบบละเอียดตามมาตรฐาน php2shell explain & ThaiCERT Security Guidance</p>
             </div>
-            <span class="px-2 py-0.5 rounded-md font-semibold text-[10px] border ${verdictBadgeCls} flex-shrink-0">
-              ${chain.verdict}
-            </span>
+
+            <!-- View Mode Switcher -->
+            <div class="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 self-start sm:self-auto flex-shrink-0 shadow-xs">
+              <button onclick="toggleChainViewMode('detail')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1.5 ${viewMode === 'detail' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600'}">
+                <i class="ph-bold ph-list-dashes text-xs"></i>
+                <span>รายการวิเคราะห์แบบละเอียด (Detail List)</span>
+              </button>
+              <button onclick="toggleChainViewMode('compact')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1.5 ${viewMode === 'compact' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600'}">
+                <i class="ph-bold ph-squares-four text-xs"></i>
+                <span>การ์ดสรุปย่อ</span>
+              </button>
+            </div>
           </div>
+
+          <!-- Stages Breakdown List -->
           ${stagesHtml}
-          <div class="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 text-[11px] text-indigo-900 mt-2">
-            <b class="text-indigo-950 flex items-center gap-1"><i class="ph-bold ph-lightbulb"></i> ข้อแนะนำการป้องกันเฉพาะสายนี้:</b>
-            <div class="font-mono text-[10px] text-indigo-800 mt-1 whitespace-pre-wrap">${chain.remediation}</div>
+
+          <!-- Chain Remediation Advice -->
+          <div class="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 text-xs text-indigo-900 mt-3">
+            <b class="text-indigo-950 flex items-center gap-1.5 text-xs"><i class="ph-bold ph-lightbulb text-indigo-600 text-sm"></i> ข้อแนะนำการปรับปรุงความปลอดภัยเฉพาะสายนี้ (Hardening Remediation):</b>
+            <div class="font-mono text-[11px] text-indigo-950 mt-1.5 p-2.5 rounded-xl bg-white/90 border border-indigo-100 whitespace-pre-wrap leading-relaxed select-all">${chain.remediation}</div>
           </div>
         </div>
       `;
