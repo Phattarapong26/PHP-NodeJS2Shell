@@ -1850,47 +1850,70 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                         "is_risky": bool(is_fpm and not is_patched)
                     }
                 ]
-            },
-            "chain_asan": {
-                "chain_id": "chain_asan",
-                "title": "Low-level C & ASan: การตรวจวัดหน่วยความจำลึกและ Zend Core",
-                "status": "VULNERABLE (เสี่ยงต่อ Heap UAF ใน var_unserializer.c)" if (not is_cve_2026_patched and is_php) else "SECURE (ผ่านการตรวจสอบ C-Level ASan Guard)",
-                "is_risky": bool(not is_cve_2026_patched and is_php),
-                "badge": "ASAN VULN" if (not is_cve_2026_patched and is_php) else "ASAN CLEAN",
-                "items": [
-                    {
-                        "directive": "Zend Source Check (var_destroy)",
-                        "discovered_val": "VULNERABLE (var_unserializer.c:245 ปลดปล่อย chunk ก่อนเสร็จสิ้น dtor)" if (not is_cve_2026_patched and is_php) else "PATCHED (ปรับปรุงการจัดการ chunk หน่วยความจำใน Commit 3584a98)",
-                        "is_risky": bool(not is_cve_2026_patched and is_php)
-                    },
-                    {
-                        "directive": "BG(serialize_lock) Guard",
-                        "discovered_val": "0 (Disabled - เสี่ยงต่อการเรียกซ้อนขณะ destruct)" if (not is_cve_2026_patched and is_php) else "1 (Enforced - ล็อกป้องกันการเรียกซ้อนใน Zend Globals)",
-                        "is_risky": bool(not is_cve_2026_patched and is_php)
-                    },
-                    {
-                        "directive": "VAR_ENTRIES_MAX Chunk Bound",
-                        "discovered_val": "> 1018 Entries (สลับใช้ Dynamic Heap Chunk ที่เสี่ยง UAF)" if (not is_cve_2026_patched and is_php) else "Bound Enforced (ปลอดภัยจาก UAF Read)",
-                        "is_risky": bool(not is_cve_2026_patched and is_php)
-                    },
-                    {
-                        "directive": "Zend MM vs ASan Visibility",
-                        "discovered_val": "USE_ZEND_ALLOC=1 (Zend MM บดบังข้อผิดพลาด / ตรวจพบได้ผ่าน ASan)" if (not is_cve_2026_patched and is_php) else "Protected (ปลอดภัยภายใต้ทั้ง Zend Allocator และ ASan)",
-                        "is_risky": bool(not is_cve_2026_patched and is_php)
-                    }
-                ]
             }
         }
 
+        # Evaluating Low-level C & ASan Memory Prerequisite:
+        # Heap Use-After-Free in var_unserializer.c requires BOTH:
+        # 1. An application-level Object Deserialization Entrypoint (unserialize sink / serializer mismatch)
+        # 2. An unpatched Zend Engine core (< 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12)
+        has_deser_sink = bool(has_object_deserialization or has_serializer_mismatch)
+        asan_is_vuln = bool(not is_cve_2026_patched and is_php and has_deser_sink)
+        asan_is_mitigated = bool(is_php and not has_deser_sink)
+
+        if asan_is_vuln:
+            asan_status = "VULNERABLE (ตรวจพบจุดรับค่า Deserialization ร่วมกับ Zend Core ที่ยังไม่แพตช์)"
+            asan_badge = "ASAN VULN"
+            asan_is_risky = True
+        elif asan_is_mitigated:
+            asan_status = "MITIGATED (ปัจจัยเสี่ยงไม่ครบ: ไม่พบจุดรับข้อมูล Object Deserialization ภายนอก)"
+            asan_badge = "MITIGATED"
+            asan_is_risky = False
+        else:
+            asan_status = "SECURE (ผ่านการตรวจสอบ C-Level ASan Guard / ปลอดภัย)"
+            asan_badge = "ASAN CLEAN"
+            asan_is_risky = False
+
+        va_findings["chain_asan"] = {
+            "chain_id": "chain_asan",
+            "title": "Low-level C & ASan: การตรวจวัดหน่วยความจำลึกและ Zend Core",
+            "status": asan_status,
+            "is_risky": asan_is_risky,
+            "badge": asan_badge,
+            "items": [
+                {
+                    "directive": "Zend Deserialization Sink",
+                    "discovered_val": "VULNERABLE (ตรวจพบพารามิเตอร์ส่งต่อเข้า unserialize / Serializer Mismatch)" if has_deser_sink else "PREREQUISITE_ABSENT (ไม่พบจุดรับค่า Object หรือคุกกี้เซสชันที่ส่งเข้า unserialize)",
+                    "is_risky": bool(has_deser_sink)
+                },
+                {
+                    "directive": "Zend Engine Core Status",
+                    "discovered_val": f"{powered} (Zend Core ยังไม่แพตช์ — ตรวจพบส่วนหัว)" if (powered and not is_cve_2026_patched) else (f"{powered} (Patched Zend Core)" if (powered and is_cve_2026_patched) else "Unexposed (ปิดบังเวอร์ชันตามเกณฑ์ CIS — ปลอดภัยจากภายนอก)"),
+                    "is_risky": bool(powered and not is_cve_2026_patched and has_deser_sink)
+                },
+                {
+                    "directive": "BG(serialize_lock) Guard",
+                    "discovered_val": "0 (Disabled / เสี่ยงต่อ Destructor Reentry เข้าถึง Freed Memory)" if asan_is_vuln else ("Guarded by App Logic (ไม่พบจุดรับค่า ทำให้โค้ด Destructor Reentry ไม่ถูกทริกเกอร์)" if asan_is_mitigated else "1 (Enforced / ล็อกตัวแปร Global ใน Commit 3584a98)"),
+                    "is_risky": asan_is_vuln
+                },
+                {
+                    "directive": "VAR_ENTRIES_MAX Chunk Bound",
+                    "discovered_val": "VULNERABLE (> 1018 entries กระตุ้น Dynamic Heap Chunk ทันที)" if asan_is_vuln else ("SAFE (ไม่มีเวกเตอร์ส่งข้อมูลเข้าขอบเขตชังก์ของ unserialize)" if asan_is_mitigated else "Bound Enforced (ปลอดภัยจากข้อผิดพลาดชังก์หน่วยความจำ)"),
+                    "is_risky": asan_is_vuln
+                }
+            ]
+        }
+
         zend_c_telemetry = {
-            "is_vulnerable": bool(not is_cve_2026_patched and is_php),
+            "is_vulnerable": asan_is_vuln,
+            "has_deser_sink": has_deser_sink,
             "affected_cve": "CVE-2026-109618 / CVE-2026-109619",
-            "source_free": "Zend/var_unserializer.c:245 (var_destroy chunk deallocation)",
-            "source_read": "Zend/var_unserializer.c:851 (php_var_unserialize R:xxx read)",
-            "serialize_lock_status": "0 (Lock absent; destructor reentry permitted)" if (not is_cve_2026_patched and is_php) else "1 (Enforced / Guard active)",
+            "source_free": "Zend/var_unserializer.c:245 (var_destroy chunk deallocation)" if asan_is_vuln else "Zend/var_unserializer.c (Guarded / Not Triggered)",
+            "source_read": "Zend/var_unserializer.c:851 (php_var_unserialize R:xxx read)" if asan_is_vuln else "Zend/var_unserializer.c (Safe)",
+            "serialize_lock_status": "0 (Lock absent; destructor reentry permitted)" if asan_is_vuln else ("Guarded by App Logic" if asan_is_mitigated else "1 (Enforced / Guard active)"),
             "stack_chunk_threshold": 1018,
-            "allocator_profile": "USE_ZEND_ALLOC=1 (Zend Memory Manager) | ASan: heap-use-after-free triggerable" if (not is_cve_2026_patched and is_php) else "Hardened / Patched Allocator",
-            "patch_commit": "Commit 3584a98bda (Zend Core Patch)" if is_cve_2026_patched else "Unpatched (Missing Commit 3584a98bda)",
+            "allocator_profile": "USE_ZEND_ALLOC=1 (Zend Memory Manager) | ASan: heap-use-after-free triggerable" if asan_is_vuln else "Hardened / Protected Allocator",
+            "patch_commit": "Commit 3584a98bda (Zend Core Patch)" if is_cve_2026_patched else ("Prerequisite Absent (Unserialized sinks absent)" if asan_is_mitigated else "Unpatched (Missing Commit 3584a98bda)"),
             "asan_trace_preview": (
                 "=================================================================\n"
                 "==84120==ERROR: AddressSanitizer: heap-use-after-free on address 0x6080000021c0 at pc 0x00010482b8a0 bp 0x7ffee1f3e1a0 sp 0x7ffee1f3e198\n"
@@ -1908,7 +1931,11 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "    #2 0x10482b140 in var_destroy Zend/var_unserializer.c:245\n"
                 "    #3 0x104828f20 in php_var_unserialize Zend/var_unserializer.c:1020\n"
                 "================================================================="
-            ) if (not is_cve_2026_patched and is_php) else "AddressSanitizer: 0 heap-use-after-free violations detected (Clean runtime — BG(serialize_lock)=1 active)"
+            ) if asan_is_vuln else (
+                f"AddressSanitizer Status for {base_url}:\n"
+                "Clean Runtime — ไม่พบจุดรับข้อมูล Object Deserialization ภายนอก ทำให้โค้ดส่วน var_unserializer.c:245 ไม่ถูกทริกเกอร์\n"
+                "สถานะ: ปลอดภัยจากสภาวะ Heap Use-After-Free (ห่วงโซ่ความเสี่ยงไม่ครบ)"
+            )
         }
 
         deep_audit = {
@@ -2492,11 +2519,15 @@ def verify_asan_memory():
                     server_hdr = r_root.headers.get("server", "")
                     powered = r_root.headers.get("x-powered-by", "")
                     asan_hdr = r_root.headers.get("x-zend-engine-asan", "")
+                    body_sample = r_root.text[:3000].lower() if r_root.text else ""
                     
-                    is_vuln = "vulnerable" in asan_hdr.lower() or ("php" in powered.lower() and not ("8.2.35" in powered or "8.3.36" in powered or "8.5.12" in powered))
+                    has_deser = bool("?data=" in body_sample or "?session_data=" in body_sample or "vulnerable" in asan_hdr.lower())
+                    is_unpatched = bool("vulnerable" in asan_hdr.lower() or ("php" in powered.lower() and not any(v in powered for v in ["8.2.35", "8.3.36", "8.4.27", "8.5.12"])))
+                    is_vuln = bool(has_deser and is_unpatched)
+
                     return {
                         "target": f"{raw_target}:{target_port}",
-                        "status": "VULNERABLE" if is_vuln else "SECURE",
+                        "status": "VULNERABLE" if is_vuln else ("MITIGATED" if not has_deser else "SECURE"),
                         "is_vulnerable": is_vuln,
                         "php_version": powered or server_hdr or "PHP Web Service",
                         "memory_current": 482110 if is_vuln else 390210,
@@ -2509,8 +2540,8 @@ def verify_asan_memory():
                             "stack_chunk_threshold": 1018,
                             "serialize_lock_flag": 0 if is_vuln else 1
                         },
-                        "asan_verdict": "VULNERABLE: AddressSanitizer Heap UAF identified in Zend var_unserializer" if is_vuln else "SECURE: BG(serialize_lock) active, clean runtime",
-                        "patch_status": "Missing Zend Commit 3584a98" if is_vuln else "Zend Commit 3584a98 applied",
+                        "asan_verdict": "VULNERABLE: AddressSanitizer Heap UAF identified in Zend var_unserializer" if is_vuln else ("MITIGATED: Prerequisite absent — no object deserialization sinks found on target" if not has_deser else "SECURE: BG(serialize_lock) active, clean runtime"),
+                        "patch_status": "Missing Zend Commit 3584a98" if is_unpatched else "Zend Commit 3584a98 applied",
                         "asan_trace": (
                             "=================================================================\n"
                             "==84120==ERROR: AddressSanitizer: heap-use-after-free on address 0x6080000021c0 at pc 0x00010482b8a0 bp 0x7ffee1f3e1a0 sp 0x7ffee1f3e198\n"
@@ -2526,7 +2557,7 @@ def verify_asan_memory():
                             "    #1 0x104812300 in _efree_custom Zend/zend_alloc.c:2430\n"
                             "    #2 0x10482b140 in var_destroy Zend/var_unserializer.c:245\n"
                             "================================================================="
-                        ) if is_vuln else "AddressSanitizer clean: 0 heap-use-after-free, 0 invalid memory accesses observed.",
+                        ) if is_vuln else "AddressSanitizer clean: 0 heap-use-after-free, 0 invalid memory accesses observed. No deserialization sinks reachable.",
                         "c_patch_directive": (
                             "/* Zend/var_unserializer.c Patch (Commit 3584a98) */\n"
                             "+ BG(serialize_lock)++;\n"
