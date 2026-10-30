@@ -2682,17 +2682,81 @@ Content-Type: text/html; charset=UTF-8</div>
         const row = document.createElement('tr');
         row.className = "hover:bg-blue-50/50 transition-colors border-b border-slate-100";
 
-        let badgeColor = "bg-emerald-100 text-emerald-800 border-emerald-200";
-        let iconType = "ph-check-circle";
-        if (item.vulnerability === "Critical") {
-          badgeColor = "bg-rose-100 text-rose-800 border-rose-200";
-          iconType = "ph-shield-warning";
-        } else if (item.vulnerability === "Outdated" || item.vulnerability === "Warning" || item.vulnerability === "Review Needed") {
-          badgeColor = "bg-amber-100 text-amber-800 border-amber-200";
-          iconType = "ph-warning";
-        } else if (item.is_node || item.is_php) {
-          badgeColor = "bg-blue-100 text-blue-800 border-blue-200";
-          iconType = "ph-shield-check";
+        // Determine concise ThaiCERT Security Status label and detailed tooltip
+        let shortStatus = "ปลอดภัย (ทั่วไป)";
+        let shortStatusIcon = "ph-shield";
+        let statusBadgeStyle = "bg-slate-100/90 text-slate-600 border-slate-200/90 hover:bg-slate-200/90";
+        let sevPill = "SECURE";
+        let sevPillClass = "bg-emerald-950 text-emerald-300 border-emerald-800";
+
+        const deep = item.deep_audit || {};
+        const nginxSev = (deep.nginx_audit || {}).severity;
+        const isCrit = item.vulnerability === "Critical" || item.vulnerabilityNode === "Critical" || nginxSev === "Critical";
+        const isHigh = item.vulnerability === "High" || item.vulnerabilityNode === "High" || nginxSev === "High";
+        const isWarn = item.vulnerability === "Warning" || item.vulnerability === "Outdated" || item.vulnerabilityNode === "Warning";
+
+        if (isCrit) {
+          shortStatusIcon = "ph-warning-octagon";
+          statusBadgeStyle = "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 shadow-2xs font-bold";
+          sevPill = "CRITICAL";
+          sevPillClass = "bg-rose-950 text-rose-300 border-rose-800";
+          if (item.matched_cves && item.matched_cves.length > 0) {
+            const topCve = item.matched_cves[0].cve || item.matched_cves[0].id;
+            shortStatus = `เสี่ยง ${topCve}`;
+          } else if (item.is_php) {
+            shortStatus = "เสี่ยง php2shell (RCE)";
+          } else if (item.is_node) {
+            shortStatus = "เสี่ยง Node2Shell (RCE)";
+          } else {
+            shortStatus = "เสี่ยงระดับวิกฤต";
+          }
+        } else if (isHigh) {
+          shortStatusIcon = "ph-shield-warning";
+          statusBadgeStyle = "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 shadow-2xs font-bold";
+          sevPill = "HIGH";
+          sevPillClass = "bg-orange-950 text-orange-300 border-orange-800";
+          if (item.matched_cves && item.matched_cves.length > 0) {
+            const topCve = item.matched_cves[0].cve || item.matched_cves[0].id;
+            shortStatus = `เสี่ยง ${topCve}`;
+          } else {
+            shortStatus = "เสี่ยงระดับสูง (High)";
+          }
+        } else if (item.vulnerability === "Outdated") {
+          shortStatus = "เวอร์ชันเก่า (EOL)";
+          shortStatusIcon = "ph-clock-countdown";
+          statusBadgeStyle = "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-2xs font-semibold";
+          sevPill = "OUTDATED";
+          sevPillClass = "bg-amber-950 text-amber-300 border-amber-800";
+        } else if (isWarn) {
+          shortStatus = "ควรตรวจสอบ (Warning)";
+          shortStatusIcon = "ph-warning";
+          statusBadgeStyle = "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-2xs font-semibold";
+          sevPill = "WARNING";
+          sevPillClass = "bg-amber-950 text-amber-300 border-amber-800";
+        } else if (item.vulnerability === "Review Needed") {
+          shortStatus = "ควรตรวจซ้ำ (Review)";
+          shortStatusIcon = "ph-info";
+          statusBadgeStyle = "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-2xs font-semibold";
+          sevPill = "REVIEW";
+          sevPillClass = "bg-amber-950 text-amber-300 border-amber-800";
+        } else if (item.is_php) {
+          shortStatus = "ปลอดภัย (PHP Patched)";
+          shortStatusIcon = "ph-shield-check";
+          statusBadgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 shadow-2xs font-semibold";
+          sevPill = "SECURE";
+          sevPillClass = "bg-emerald-950 text-emerald-300 border-emerald-800";
+        } else if (item.is_node) {
+          shortStatus = "ปลอดภัย (Node Patched)";
+          shortStatusIcon = "ph-shield-check";
+          statusBadgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 shadow-2xs font-semibold";
+          sevPill = "SECURE";
+          sevPillClass = "bg-emerald-950 text-emerald-300 border-emerald-800";
+        } else if (item.webServer && item.webServer !== "ไม่มี Web Service" && !(item.device_name && item.device_name.includes("LAN Client"))) {
+          shortStatus = "ปลอดภัย (Web Service)";
+          shortStatusIcon = "ph-check-circle";
+          statusBadgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 shadow-2xs font-semibold";
+          sevPill = "SECURE";
+          sevPillClass = "bg-emerald-950 text-emerald-300 border-emerald-800";
         }
 
         const ports = Array.isArray(item.ports) && item.ports.length > 0 ? item.ports : [];
@@ -2833,10 +2897,19 @@ Content-Type: text/html; charset=UTF-8</div>
             ` : `<span class="text-slate-400 font-mono text-[10px]">พอร์ตปิด (Firewall)</span>`}
           </td>
           <td class="py-3 px-3 font-mono text-slate-600 text-[11px]">${item.latency || '< 5 ms'}</td>
-          <td class="py-3 px-3">
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium ${badgeColor}">
-              <i class="ph-bold ${iconType}"></i>
-              <span>${item.cveNote}</span>
+          <td class="py-2.5 px-3">
+            <div class="thaicert-badge-wrap inline-block"
+                 data-target="${item.ip}${targetPort ? ':' + targetPort : ''}"
+                 data-status="${encodeURIComponent(shortStatus)}"
+                 data-sev="${sevPill}"
+                 data-sev-class="${sevPillClass}"
+                 data-note="${encodeURIComponent(item.cveNote || '')}"
+                 data-cves="${encodeURIComponent(JSON.stringify(item.matched_cves || []))}">
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] cursor-pointer transition-all duration-150 hover:scale-[1.02] ${statusBadgeStyle}">
+                <i class="ph-bold ${shortStatusIcon} text-xs flex-shrink-0"></i>
+                <span class="whitespace-nowrap font-medium">${shortStatus}</span>
+                <i class="ph-bold ph-info text-[10px] opacity-60"></i>
+              </div>
             </div>
           </td>
           <td class="py-3 px-3 text-right">
@@ -4609,11 +4682,114 @@ ${data.c_patch_directive}
       });
     }
 
+    // Global Tooltip for ThaiCERT Security Assessment
+    function initThaiCertTooltip() {
+      const tip = document.getElementById('globalThaiCertTooltip');
+      const tipTarget = document.getElementById('tipTarget');
+      const tipNote = document.getElementById('tipNote');
+      const tipSevPill = document.getElementById('tipSevPill');
+      const tipCveSection = document.getElementById('tipCveSection');
+      const tipCveList = document.getElementById('tipCveList');
+
+      if (!tip) return;
+
+      document.addEventListener('mouseover', (e) => {
+        const wrap = e.target.closest('.thaicert-badge-wrap');
+        if (!wrap) return;
+
+        const target = wrap.getAttribute('data-target') || '';
+        const note = decodeURIComponent(wrap.getAttribute('data-note') || '');
+        const sev = wrap.getAttribute('data-sev') || 'SECURE';
+        const sevClass = wrap.getAttribute('data-sev-class') || 'bg-emerald-950 text-emerald-300 border-emerald-800';
+        let cves = [];
+        try {
+          cves = JSON.parse(decodeURIComponent(wrap.getAttribute('data-cves') || '[]'));
+        } catch (_) {}
+
+        tipTarget.textContent = target;
+        tipNote.textContent = note;
+        tipSevPill.textContent = sev;
+        tipSevPill.className = `px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${sevClass}`;
+
+        if (cves && cves.length > 0) {
+          tipCveSection.classList.remove('hidden');
+          tipCveList.innerHTML = cves.map(c => {
+            const id = c.cve || c.id || 'CVE';
+            const s = c.severity || 'Medium';
+            let bg = 'bg-rose-900/70 text-rose-200 border-rose-700';
+            if (s === 'High') bg = 'bg-orange-900/70 text-orange-200 border-orange-700';
+            else if (s === 'Medium') bg = 'bg-amber-900/70 text-amber-200 border-amber-700';
+            return `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono border ${bg}">${id}</span>`;
+          }).join('');
+        } else {
+          tipCveSection.classList.add('hidden');
+          tipCveList.innerHTML = '';
+        }
+
+        tip.classList.remove('hidden');
+        tip.classList.add('flex');
+
+        const rect = wrap.getBoundingClientRect();
+        const tipW = tip.offsetWidth || 340;
+        const tipH = tip.offsetHeight || 130;
+
+        let left = rect.left + (rect.width / 2) - (tipW / 2);
+        if (left < 12) left = 12;
+        if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
+
+        let top = rect.top - tipH - 8;
+        if (top < 10) {
+          // Flip below the badge if near top of window
+          top = rect.bottom + 8;
+        }
+
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+      });
+
+      document.addEventListener('mouseout', (e) => {
+        const wrap = e.target.closest('.thaicert-badge-wrap');
+        if (!wrap) return;
+        const related = e.relatedTarget;
+        if (related && wrap.contains(related)) return;
+        tip.classList.add('hidden');
+        tip.classList.remove('flex');
+      });
+    }
+
     // Initialize on page load
     window.onload = function() {
       autoDetectLocalNetwork();
       initPortSelectionControls();
+      initThaiCertTooltip();
     };
   </script>
+
+  <!-- Floating Tooltip for ThaiCERT Security Assessment -->
+  <div id="globalThaiCertTooltip" class="fixed hidden flex-col w-84 max-w-[90vw] p-3.5 rounded-2xl bg-slate-900/95 text-white text-xs shadow-2xl border border-slate-700/80 backdrop-blur-md z-[99999] pointer-events-none transition-opacity duration-150">
+    <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/60">
+      <span class="font-bold text-amber-400 flex items-center gap-1.5 text-[11px]">
+        <i class="ph-bold ph-shield-check text-sm text-amber-400"></i>
+        <span>การประเมินความปลอดภัย (ThaiCERT)</span>
+      </span>
+      <span id="tipSevPill" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border">SECURE</span>
+    </div>
+    <div class="text-[11px] text-slate-400 font-mono mb-1.5 flex items-center gap-1.5">
+      <i class="ph-bold ph-hard-drives text-xs text-slate-400"></i>
+      <span id="tipTarget">192.168.1.1:80</span>
+    </div>
+    <p class="text-slate-100 text-xs leading-relaxed mb-2 font-normal" id="tipNote">รายละเอียดข้อค้นพบ</p>
+    <div id="tipCveSection" class="hidden pt-2 border-t border-slate-800 text-[11px] text-slate-300">
+      <div class="font-semibold text-slate-400 mb-1 flex items-center gap-1">
+        <i class="ph-bold ph-bug text-xs text-rose-400"></i>
+        <span>ช่องโหว่ CVE ที่ตรวจพบ:</span>
+      </div>
+      <div id="tipCveList" class="flex flex-wrap gap-1 mt-1"></div>
+    </div>
+    <div class="text-[10px] text-slate-400 pt-2 flex items-center gap-1.5 border-t border-slate-800/80 opacity-80 mt-1.5">
+      <i class="ph ph-cursor-click text-amber-400"></i>
+      <span>คลิกปุ่ม "ตรวจเจาะลึก" ด้านขวา เพื่อดูการตั้งค่าและคำสั่ง Host-Check</span>
+    </div>
+  </div>
 </body>
 </html>
