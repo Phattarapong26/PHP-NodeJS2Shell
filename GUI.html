@@ -117,6 +117,30 @@
         inset 0 4px 10px rgba(15, 23, 42, 0.5);
     }
 
+    /* Agent AI Purple/Indigo Glowing Sphere */
+    .btn-agent-sphere {
+      background: radial-gradient(circle at 35% 30%, #8b5cf6 0%, #6366f1 65%, #4338ca 100%);
+      box-shadow: 
+        0 14px 28px -4px rgba(99, 102, 241, 0.55),
+        0 6px 12px -2px rgba(99, 102, 241, 0.3),
+        inset 0 3px 6px rgba(255, 255, 255, 0.6),
+        inset 0 -4px 8px rgba(15, 23, 42, 0.4);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-agent-sphere:hover {
+      transform: scale(1.03);
+      box-shadow: 
+        0 18px 34px -4px rgba(99, 102, 241, 0.65),
+        0 8px 16px -2px rgba(99, 102, 241, 0.4),
+        inset 0 3px 6px rgba(255, 255, 255, 0.8);
+    }
+    .btn-agent-sphere:active {
+      transform: scale(0.97);
+      box-shadow: 
+        0 6px 14px -2px rgba(99, 102, 241, 0.4),
+        inset 0 4px 10px rgba(15, 23, 42, 0.5);
+    }
+
     /* Radar ring rotations */
     @keyframes spin-cw {
       0% { transform: rotate(0deg); }
@@ -240,19 +264,33 @@
     
     <!-- Top System Window Bar -->
     <header class="w-full px-6 py-3.5 flex items-center justify-between z-20 select-none border-b border-slate-200/40 bg-white/30 backdrop-blur-sm">
-      <!-- Traffic lights / Window controls -->
-      <div class="flex items-center gap-2">
-        <span class="w-3.5 h-3.5 rounded-full bg-red-400/90 shadow-sm inline-block hover:opacity-80 transition cursor-pointer" title="ปิด"></span>
-        <span class="w-3.5 h-3.5 rounded-full bg-amber-400/90 shadow-sm inline-block hover:opacity-80 transition cursor-pointer" title="ย่อ"></span>
-        <span id="btnTrafficGreen" class="w-3.5 h-3.5 rounded-full bg-emerald-400/90 shadow-sm inline-block hover:opacity-80 transition cursor-pointer" title="ขยายเต็มหน้าจอ"></span>
+      <!-- Traffic lights / Window controls (Decorative Dummy Buttons) -->
+      <div class="flex items-center gap-2 select-none pointer-events-none">
+        <span class="w-3.5 h-3.5 rounded-full bg-red-400/90 shadow-sm inline-block opacity-85"></span>
+        <span class="w-3.5 h-3.5 rounded-full bg-amber-400/90 shadow-sm inline-block opacity-85"></span>
+        <span class="w-3.5 h-3.5 rounded-full bg-emerald-400/90 shadow-sm inline-block opacity-85"></span>
       </div>
 
-      <!-- Center Status Pill (Clickable Shortcut to Settings) -->
-      <button id="statusPill" class="hidden sm:flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/70 border border-slate-200/80 text-xs font-medium text-slate-600 shadow-sm hover:bg-white hover:text-blue-600 transition cursor-pointer" title="คลิกเพื่อเปิดการตั้งค่า Subnet / CIDR">
-        <span id="statusIndicatorDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span id="statusPillText">System Ready · LAN Discovery Idle</span>
-        <i class="ph ph-sliders text-xs ml-0.5 text-blue-600"></i>
-      </button>
+      <!-- Center Mode Switcher Tabs (Manual Scan vs Agent AI MCP) -->
+      <div class="flex items-center p-1 rounded-full bg-slate-200/70 border border-white/80 shadow-inner select-none">
+        <button 
+          id="tabBtnManual" 
+          type="button" 
+          class="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-blue-700 bg-white shadow-sm transition-all duration-200 cursor-pointer"
+        >
+          <i class="ph-bold ph-sliders text-sm"></i>
+          <span>Manual Scan</span>
+        </button>
+        <button 
+          id="tabBtnAgentAI" 
+          type="button" 
+          class="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-indigo-700 transition-all duration-200 cursor-pointer"
+        >
+          <i class="ph-bold ph-sparkle text-sm text-indigo-500"></i>
+          <span>Agent AI (MCP)</span>
+          <span class="px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700 text-[9px] font-bold">MCP</span>
+        </button>
+      </div>
 
       <!-- Right Window Actions -->
       <div class="flex items-center gap-4 text-slate-400 text-sm">
@@ -280,132 +318,288 @@
         <div class="absolute -bottom-16 -right-16 w-96 h-96 rounded-full bg-indigo-100/50 blur-3xl"></div>
       </div>
 
-      <!-- Title Area matching Image: ThaiCERT SCANER -->
-      <div class="text-center mb-5 select-none w-full max-w-md mx-auto">
-        <h1 class="embossed-title text-4xl sm:text-5xl font-extrabold tracking-tight">
-          ThaiCERT
-        </h1>
-        <p class="embossed-sub text-base sm:text-lg font-bold tracking-[0.35em] mt-1 uppercase">
-          SCANER
-        </p>
-
-        <!-- Search Input Bar under SCANER -->
-        <div class="mt-3 px-2 sm:px-4">
-          <div class="relative flex items-center shadow-sm rounded-full bg-white/80 backdrop-blur-md border border-white/90 p-1 pl-3.5 focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:border-blue-400 focus-within:bg-white transition-all duration-200 hover:shadow-md">
-            <i class="ph-bold ph-magnifying-glass text-slate-400 text-base mr-2 flex-shrink-0"></i>
-            <input 
-              id="heroSearchInput" 
-              type="text" 
-              placeholder="กรอกชื่อ Domain หรือ IP (เช่น thaicert.or.th)..." 
-              class="w-full bg-transparent text-slate-800 placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none select-text"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <button 
-              id="btnHeroSearch" 
-              class="ml-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-xs shadow-sm flex items-center gap-1.5 transition-all active:scale-95 flex-shrink-0 cursor-pointer"
-              title="กด Enter หรือคลิกเพื่อเริ่มสแกน"
-            >
-              <span>สแกน</span>
-              <i class="ph-bold ph-arrow-right text-[11px]"></i>
-            </button>
-          </div>
-          <!-- Faint message: สำหรับตรวจสอบdomain -->
-          <p class="text-[11px] text-slate-400/80 font-normal mt-1.5 tracking-wide text-center">
-            สำหรับตรวจสอบdomain
-          </p>
-        </div>
-
-        <div class="inline-flex items-center gap-2 mt-2 px-3.5 py-1 rounded-full bg-white/40 text-slate-600 text-xs tracking-wider border border-white/60 shadow-sm">
-          <i class="ph-bold ph-shield-check text-blue-600"></i>
-          <span>PHP & NODE.JS LAN DISCOVERY & SECURITY AUDITOR</span>
-        </div>
-      </div>
-
-      <!-- Central Radar / Neumorphic Scanner Disk -->
-      <div class="relative flex items-center justify-center">
+      <!-- VIEW 1: MANUAL SCAN INTERFACE -->
+      <div id="viewManualScan" class="w-full flex-1 flex flex-col items-center justify-center transition-all duration-300">
         
-        <!-- Outermost Neumorphic Plate -->
-        <div class="outer-dish w-[280px] h-[280px] sm:w-[330px] sm:h-[330px] rounded-full flex items-center justify-center p-3 relative">
-          
-          <!-- Outer Rotating SVG Radar Graphics (Arcs & Dots like the image) -->
-          <svg id="radarSvg" class="absolute inset-0 w-full h-full animate-spin-radar transition-all duration-700" viewBox="0 0 400 400" fill="none">
-            <!-- Thick arc top-right -->
-            <path d="M 120 70 A 155 155 0 0 1 290 85" stroke="#3b82f6" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="120 40" opacity="0.95"/>
-            <!-- Medium arc bottom-left -->
-            <path d="M 85 275 A 155 155 0 0 1 180 345" stroke="#2563eb" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
-            <!-- Fine dashed arcs -->
-            <path d="M 290 85 A 155 155 0 0 1 345 230" stroke="#93c5fd" stroke-width="2.5" stroke-dasharray="3 9" stroke-linecap="round"/>
-            <path d="M 60 210 A 155 155 0 0 1 120 70" stroke="#60a5fa" stroke-width="2.5" stroke-dasharray="4 8" stroke-linecap="round"/>
-            
-            <!-- Orbital Accent Dots -->
-            <circle cx="305" cy="115" r="3.5" fill="#3b82f6" />
-            <circle cx="340" cy="180" r="2.5" fill="#60a5fa" />
-            <circle cx="346" cy="225" r="3" fill="#2563eb" />
-            <circle cx="75" cy="265" r="3.5" fill="#3b82f6" />
-            <circle cx="160" cy="342" r="2" fill="#93c5fd" />
-            <circle cx="230" cy="336" r="3" fill="#60a5fa" />
-            <circle cx="250" cy="328" r="2" fill="#93c5fd" />
-          </svg>
+        <!-- Title Area matching Image: ThaiCERT SCANER -->
+        <div class="text-center mb-5 select-none w-full max-w-md mx-auto">
+          <h1 class="embossed-title text-4xl sm:text-5xl font-extrabold tracking-tight">
+            ThaiCERT
+          </h1>
+          <p class="embossed-sub text-base sm:text-lg font-bold tracking-[0.35em] mt-1 uppercase">
+            SCANER
+          </p>
 
-          <!-- Middle Intermediate Dish with Soft Glow -->
-          <div class="w-[225px] h-[225px] sm:w-[265px] sm:h-[265px] rounded-full border border-blue-200/50 flex items-center justify-center relative bg-gradient-to-b from-white/60 to-white/10 shadow-inner">
-            
-            <!-- Secondary Counter-Rotating Fine Ring -->
-            <div id="radarInnerRing" class="absolute inset-2 rounded-full border border-dashed border-blue-300/40 animate-spin-reverse pointer-events-none"></div>
-
-            <!-- Pulsing Wave Ripple (Active while scanning) -->
-            <div id="scanningRipple" class="absolute inset-0 rounded-full border-2 border-blue-400 opacity-0 pointer-events-none"></div>
-
-            <!-- Inner Concave Dish -->
-            <div class="inner-dish w-[165px] h-[165px] sm:w-[195px] sm:h-[195px] rounded-full flex items-center justify-center p-2.5 relative">
-              
-              <!-- Center Round Push Button (Scan / Stop) -->
+          <!-- Search Input Bar under SCANER -->
+          <div class="mt-3 px-2 sm:px-4">
+            <div class="relative flex items-center shadow-sm rounded-full bg-white/80 backdrop-blur-md border border-white/90 p-1 pl-3.5 focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:border-blue-400 focus-within:bg-white transition-all duration-200 hover:shadow-md">
+              <i class="ph-bold ph-magnifying-glass text-slate-400 text-base mr-2 flex-shrink-0"></i>
+              <input 
+                id="heroSearchInput" 
+                type="text" 
+                placeholder="กรอกชื่อ Domain หรือ IP (เช่น thaicert.or.th)..." 
+                class="w-full bg-transparent text-slate-800 placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none select-text"
+                autocomplete="off"
+                spellcheck="false"
+              />
               <button 
-                id="btnScan" 
-                class="btn-scan-sphere w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white font-bold cursor-pointer group focus:outline-none"
+                id="btnHeroSearch" 
+                class="ml-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-xs shadow-sm flex items-center gap-1.5 transition-all active:scale-95 flex-shrink-0 cursor-pointer"
+                title="กด Enter หรือคลิกเพื่อเริ่มสแกน"
               >
-                <div id="btnScanContent" class="flex flex-col items-center">
-                  <i class="ph-bold ph-radar text-xl sm:text-2xl mb-0.5 group-hover:scale-110 transition-transform"></i>
-                  <span class="text-lg sm:text-xl font-bold tracking-wide drop-shadow">Scan</span>
-                </div>
-
-                <!-- Active Spinner (Hidden by default) -->
-                <div id="btnScanSpinner" class="hidden flex-col items-center">
-                  <i class="ph-bold ph-spinner animate-spin text-2xl sm:text-3xl"></i>
-                  <span id="scanPercentText" class="text-xs font-semibold mt-1 tracking-wider text-blue-100">0%</span>
-                </div>
+                <span>สแกน</span>
+                <i class="ph-bold ph-arrow-right text-[11px]"></i>
               </button>
+            </div>
+            <!-- Faint message: สำหรับตรวจสอบdomain -->
+            <p class="text-[11px] text-slate-400/80 font-normal mt-1.5 tracking-wide text-center">
+              สำหรับตรวจสอบdomain
+            </p>
+          </div>
 
+          <div class="inline-flex items-center gap-2 mt-2 px-3.5 py-1 rounded-full bg-white/40 text-slate-600 text-xs tracking-wider border border-white/60 shadow-sm">
+            <i class="ph-bold ph-shield-check text-blue-600"></i>
+            <span>PHP & NODE.JS LAN DISCOVERY & SECURITY AUDITOR</span>
+          </div>
+        </div>
+
+        <!-- Central Radar / Neumorphic Scanner Disk -->
+        <div class="relative flex items-center justify-center">
+          
+          <!-- Outermost Neumorphic Plate -->
+          <div class="outer-dish w-[280px] h-[280px] sm:w-[330px] sm:h-[330px] rounded-full flex items-center justify-center p-3 relative">
+            
+            <!-- Outer Rotating SVG Radar Graphics (Arcs & Dots like the image) -->
+            <svg id="radarSvg" class="absolute inset-0 w-full h-full animate-spin-radar transition-all duration-700" viewBox="0 0 400 400" fill="none">
+              <!-- Thick arc top-right -->
+              <path d="M 120 70 A 155 155 0 0 1 290 85" stroke="#3b82f6" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="120 40" opacity="0.95"/>
+              <!-- Medium arc bottom-left -->
+              <path d="M 85 275 A 155 155 0 0 1 180 345" stroke="#2563eb" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+              <!-- Fine dashed arcs -->
+              <path d="M 290 85 A 155 155 0 0 1 345 230" stroke="#93c5fd" stroke-width="2.5" stroke-dasharray="3 9" stroke-linecap="round"/>
+              <path d="M 60 210 A 155 155 0 0 1 120 70" stroke="#60a5fa" stroke-width="2.5" stroke-dasharray="4 8" stroke-linecap="round"/>
+              
+              <!-- Orbital Accent Dots -->
+              <circle cx="305" cy="115" r="3.5" fill="#3b82f6" />
+              <circle cx="340" cy="180" r="2.5" fill="#60a5fa" />
+              <circle cx="346" cy="225" r="3" fill="#2563eb" />
+              <circle cx="75" cy="265" r="3.5" fill="#3b82f6" />
+              <circle cx="160" cy="342" r="2" fill="#93c5fd" />
+              <circle cx="230" cy="336" r="3" fill="#60a5fa" />
+              <circle cx="250" cy="328" r="2" fill="#93c5fd" />
+            </svg>
+
+            <!-- Middle Intermediate Dish with Soft Glow -->
+            <div class="w-[225px] h-[225px] sm:w-[265px] sm:h-[265px] rounded-full border border-blue-200/50 flex items-center justify-center relative bg-gradient-to-b from-white/60 to-white/10 shadow-inner">
+              
+              <!-- Secondary Counter-Rotating Fine Ring -->
+              <div id="radarInnerRing" class="absolute inset-2 rounded-full border border-dashed border-blue-300/40 animate-spin-reverse pointer-events-none"></div>
+
+              <!-- Pulsing Wave Ripple (Active while scanning) -->
+              <div id="scanningRipple" class="absolute inset-0 rounded-full border-2 border-blue-400 opacity-0 pointer-events-none"></div>
+
+              <!-- Inner Concave Dish -->
+              <div class="inner-dish w-[165px] h-[165px] sm:w-[195px] sm:h-[195px] rounded-full flex items-center justify-center p-2.5 relative">
+                
+                <!-- Center Round Push Button (Scan / Stop) -->
+                <button 
+                  id="btnScan" 
+                  class="btn-scan-sphere w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white font-bold cursor-pointer group focus:outline-none"
+                >
+                  <div id="btnScanContent" class="flex flex-col items-center">
+                    <i class="ph-bold ph-radar text-xl sm:text-2xl mb-0.5 group-hover:scale-110 transition-transform"></i>
+                    <span class="text-lg sm:text-xl font-bold tracking-wide drop-shadow">Scan</span>
+                  </div>
+
+                  <!-- Active Spinner (Hidden by default) -->
+                  <div id="btnScanSpinner" class="hidden flex-col items-center">
+                    <i class="ph-bold ph-spinner animate-spin text-2xl sm:text-3xl"></i>
+                    <span id="scanPercentText" class="text-xs font-semibold mt-1 tracking-wider text-blue-100">0%</span>
+                  </div>
+                </button>
+
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Live Scan Progress Subtitle & Step Tracker -->
-      <div class="mt-8 text-center max-w-md w-full">
-        <div id="currentStepBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-sm transition-all">
-          <i id="stepBadgeIcon" class="ph-bold ph-magnifying-glass text-blue-600"></i>
-          <span id="stepBadgeText">กดปุ่ม Scan เพื่อเริ่มค้นหาเครื่อง PHP ในวง LAN</span>
+        <!-- Live Scan Progress Subtitle & Step Tracker -->
+        <div class="mt-8 text-center max-w-md w-full">
+          <div id="currentStepBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-sm transition-all">
+            <i id="stepBadgeIcon" class="ph-bold ph-magnifying-glass text-blue-600"></i>
+            <span id="stepBadgeText">กดปุ่ม Scan เพื่อเริ่มค้นหาเครื่อง PHP ในวง LAN</span>
+          </div>
+
+          <!-- Mini Progress Bar (Appears during scan) -->
+          <div id="scanProgressWrapper" class="mt-3 opacity-0 transition-opacity duration-300">
+            <div class="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden border border-white/80">
+              <div id="scanProgressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full w-0 transition-all duration-150"></div>
+            </div>
+            <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1 px-1">
+              <span id="scanProgressStats">สแกน 0 / 254 เครื่อง</span>
+              <span id="scanSpeedStat">ความเร็ว: ~65 host/s</span>
+            </div>
+          </div>
+        </div>
+      </div> <!-- /#viewManualScan -->
+
+      <!-- VIEW 2: AGENT AI INTERFACE (MCP PROTOCOL) -->
+      <div id="viewAgentAI" class="w-full flex-1 flex flex-col items-center justify-center transition-all duration-300 hidden">
+        
+        <!-- Title Area: ThaiCERT AGENT AI -->
+        <div class="text-center mb-5 select-none w-full max-w-lg mx-auto">
+          <div class="flex items-center justify-center gap-2 mb-1.5">
+            <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10.5px] font-bold tracking-wider uppercase border border-indigo-200 flex items-center gap-1.5 shadow-xs">
+              <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+              <span>Model Context Protocol (MCP) Autonomous Agent</span>
+            </span>
+          </div>
+
+          <h1 class="embossed-title text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-slate-700 via-indigo-900 to-slate-800 bg-clip-text">
+            ThaiCERT
+          </h1>
+          <p class="embossed-sub text-base sm:text-lg font-bold tracking-[0.35em] mt-1 uppercase text-indigo-700">
+            AGENT AI
+          </p>
+
+          <!-- Search / Goal Instruction Input Bar -->
+          <div class="mt-3 px-2 sm:px-4">
+            <div class="relative flex items-center shadow-sm rounded-full bg-white/80 backdrop-blur-md border border-indigo-200/90 p-1 pl-3.5 focus-within:ring-2 focus-within:ring-indigo-500/40 focus-within:border-indigo-400 focus-within:bg-white transition-all duration-200 hover:shadow-md">
+              <i class="ph-bold ph-sparkle text-indigo-500 text-base mr-2 flex-shrink-0 animate-pulse"></i>
+              <input 
+                id="agentPromptInput" 
+                type="text" 
+                placeholder="สั่งการ Agent AI ตรวจสอบความปลอดภัย หรือระบุเป้าหมาย MCP..." 
+                class="w-full bg-transparent text-slate-800 placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none select-text"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button 
+                id="btnAgentPrompt" 
+                type="button"
+                class="ml-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-medium text-xs shadow-sm flex items-center gap-1.5 transition-all active:scale-95 flex-shrink-0 cursor-pointer"
+                title="สั่งการ Agent AI ให้เริ่มดำเนินการ"
+              >
+                <span>สั่งการ Agent</span>
+                <i class="ph-bold ph-paper-plane-right text-[11px]"></i>
+              </button>
+            </div>
+            <!-- Faint message: ขับเคลื่อนด้วย Model Context Protocol -->
+            <p class="text-[11px] text-slate-400/80 font-normal mt-1.5 tracking-wide text-center">
+              ระบบตรวจสอบอัตโนมัติด้วย Model Context Protocol (MCP) และเครื่องมือวิเคราะห์เชิงรับ
+            </p>
+          </div>
+
+          <!-- Connected MCP Capabilities Tags -->
+          <div class="flex flex-wrap items-center justify-center gap-1.5 mt-2.5">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 text-slate-600 text-[10px] font-mono border border-slate-200 shadow-xs">
+              <i class="ph-bold ph-plug text-emerald-600"></i>
+              <span>MCP: rea (Analysis)</span>
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 text-slate-600 text-[10px] font-mono border border-slate-200 shadow-xs">
+              <i class="ph-bold ph-browsers text-blue-600"></i>
+              <span>MCP: Web & PHP Probe</span>
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 text-slate-600 text-[10px] font-mono border border-slate-200 shadow-xs">
+              <i class="ph-bold ph-shield-check text-purple-600"></i>
+              <span>Defensive Lexicon Rules</span>
+            </span>
+          </div>
         </div>
 
-        <!-- Mini Progress Bar (Appears during scan) -->
-        <div id="scanProgressWrapper" class="mt-3 opacity-0 transition-opacity duration-300">
-          <div class="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden border border-white/80">
-            <div id="scanProgressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full w-0 transition-all duration-150"></div>
-          </div>
-          <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1 px-1">
-            <span id="scanProgressStats">สแกน 0 / 254 เครื่อง</span>
-            <span id="scanSpeedStat">ความเร็ว: ~65 host/s</span>
+        <!-- Central Agent Sphere Neumorphic Disk -->
+        <div class="relative flex items-center justify-center">
+          
+          <!-- Outermost Neumorphic Plate -->
+          <div class="outer-dish w-[280px] h-[280px] sm:w-[330px] sm:h-[330px] rounded-full flex items-center justify-center p-3 relative">
+            
+            <!-- Outer Rotating SVG Radar Graphics (Neural & MCP Paths) -->
+            <svg class="absolute inset-0 w-full h-full animate-spin-radar transition-all duration-700" viewBox="0 0 400 400" fill="none">
+              <path d="M 120 70 A 155 155 0 0 1 290 85" stroke="#6366f1" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="120 40" opacity="0.95"/>
+              <path d="M 85 275 A 155 155 0 0 1 180 345" stroke="#8b5cf6" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+              <path d="M 290 85 A 155 155 0 0 1 345 230" stroke="#c084fc" stroke-width="2.5" stroke-dasharray="3 9" stroke-linecap="round"/>
+              <path d="M 60 210 A 155 155 0 0 1 120 70" stroke="#818cf8" stroke-width="2.5" stroke-dasharray="4 8" stroke-linecap="round"/>
+              
+              <!-- Orbital Accent Neural Dots -->
+              <circle cx="305" cy="115" r="4" fill="#8b5cf6" />
+              <circle cx="340" cy="180" r="3" fill="#6366f1" />
+              <circle cx="346" cy="225" r="3.5" fill="#a855f7" />
+              <circle cx="75" cy="265" r="4" fill="#6366f1" />
+              <circle cx="160" cy="342" r="2.5" fill="#c084fc" />
+              <circle cx="230" cy="336" r="3.5" fill="#818cf8" />
+              <circle cx="250" cy="328" r="3" fill="#a855f7" />
+            </svg>
+
+            <!-- Middle Intermediate Dish with Indigo Ambient Glow -->
+            <div class="w-[225px] h-[225px] sm:w-[265px] sm:h-[265px] rounded-full border border-indigo-200/50 flex items-center justify-center relative bg-gradient-to-b from-indigo-50/50 to-white/20 shadow-inner">
+              
+              <!-- Counter-Rotating Ring -->
+              <div class="absolute inset-2 rounded-full border border-dashed border-indigo-300/40 animate-spin-reverse pointer-events-none"></div>
+
+              <!-- Inner Concave Dish -->
+              <div class="inner-dish w-[165px] h-[165px] sm:w-[195px] sm:h-[195px] rounded-full flex items-center justify-center p-2.5 relative">
+                
+                <!-- Center Round Push Button (Agent Sphere) -->
+                <button 
+                  id="btnAgentAction" 
+                  type="button"
+                  class="btn-agent-sphere w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white font-bold cursor-pointer group focus:outline-none"
+                  title="คลิกเพื่อสั่งการ Agent AI"
+                >
+                  <div class="flex flex-col items-center">
+                    <i class="ph-bold ph-robot text-xl sm:text-2xl mb-0.5 group-hover:scale-110 transition-transform"></i>
+                    <span class="text-base sm:text-lg font-bold tracking-wide drop-shadow">Agent</span>
+                    <span class="text-[9px] font-semibold text-indigo-100 tracking-wider">MCP ACTIVE</span>
+                  </div>
+                </button>
+
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+
+        <!-- Agent AI Status & Execution Console Card (Ready for User Logic) -->
+        <div class="mt-7 text-center max-w-lg w-full">
+          <div id="agentStatusBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 border border-indigo-200/80 text-xs font-semibold text-slate-700 shadow-sm transition-all">
+            <i class="ph-bold ph-sparkle text-indigo-600"></i>
+            <span id="agentStatusBadgeText">Agent AI พร้อมรับคำสั่ง · รอการมอบหมายงานผ่าน MCP</span>
+          </div>
+
+          <!-- Execution Console Feed Container -->
+          <div class="mt-3 p-3.5 rounded-2xl neu-concave-card border border-indigo-200/60 bg-white/60 text-left text-xs space-y-2">
+            <div class="flex items-center justify-between border-b border-slate-200/60 pb-1.5 text-[11px] font-semibold text-slate-700">
+              <span class="flex items-center gap-1.5 text-indigo-900">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Agent Execution Feed (MCP Console)</span>
+              </span>
+              <span class="text-[10px] font-mono text-slate-400">Idle · Ready for Logic</span>
+            </div>
+            <div id="agentTerminalFeed" class="font-mono text-[11px] text-slate-600 bg-slate-900/5 p-2.5 rounded-xl space-y-1 max-h-24 overflow-y-auto">
+              <div class="text-emerald-700 flex items-center gap-1">
+                <i class="ph-bold ph-check text-xs"></i>
+                <span>[MCP Core] Model Context Protocol Environment initialized.</span>
+              </div>
+              <div class="text-indigo-700 flex items-center gap-1">
+                <i class="ph-bold ph-info text-xs"></i>
+                <span>[Agent Subsystem] Defensive Lexicon verified. Ready for user logic.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div> <!-- /#viewAgentAI -->
 
     </main>
 
     <!-- Bottom Footer Quick Network Info -->
-    <footer class="w-full px-6 py-3.5 bg-white/40 border-t border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-600 z-10 backdrop-blur-sm gap-2">
+    <footer class="w-full px-6 py-3 bg-white/40 border-t border-slate-200/60 flex flex-wrap items-center justify-between text-xs text-slate-600 z-10 backdrop-blur-sm gap-2">
       <div class="flex items-center gap-3">
+        <!-- Live System Status (Preserves statusIndicatorDot and statusPillText for JS) -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/70 border border-slate-200/70 shadow-xs">
+          <span id="statusIndicatorDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="statusPillText" class="font-medium text-slate-700">System Ready · LAN Discovery Idle</span>
+        </div>
+        <div class="hidden lg:flex items-center gap-1.5 text-slate-400">|</div>
         <div class="flex items-center gap-1.5">
           <i class="ph-fill ph-wifi-high text-blue-600"></i>
           <span class="font-medium text-slate-800">LAN Host IP:</span>
@@ -420,7 +614,7 @@
 
       <div class="flex items-center gap-2">
         <span class="text-slate-500">ผลการสแกนล่าสุด:</span>
-        <button id="btnOpenResultsQuick" class="font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100/70 border border-blue-200 transition">
+        <button id="btnOpenResultsQuick" class="font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-50 hover:bg-blue-100/70 border border-blue-200 transition cursor-pointer">
           <span id="quickPhpCount">ยังไม่ได้สแกน</span>
           <i class="ph-bold ph-caret-right"></i>
         </button>
@@ -2360,10 +2554,81 @@
         }
       }
     }
-    const btnTrafficGreen = document.getElementById('btnTrafficGreen');
-    if (btnTrafficGreen) btnTrafficGreen.addEventListener('click', toggleFullScreen);
     const btnMaximize = document.getElementById('btnMaximize');
     if (btnMaximize) btnMaximize.addEventListener('click', toggleFullScreen);
+
+    // --- Mode Tabs Switcher (Manual Scan vs Agent AI MCP) ---
+    const tabBtnManual = document.getElementById('tabBtnManual');
+    const tabBtnAgentAI = document.getElementById('tabBtnAgentAI');
+    const viewManualScan = document.getElementById('viewManualScan');
+    const viewAgentAI = document.getElementById('viewAgentAI');
+
+    function switchAppMode(mode) {
+      if (mode === 'agent') {
+        if (tabBtnAgentAI) {
+          tabBtnAgentAI.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-indigo-700 bg-white shadow-sm transition-all duration-200 cursor-pointer";
+        }
+        if (tabBtnManual) {
+          tabBtnManual.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-blue-700 transition-all duration-200 cursor-pointer";
+        }
+        if (viewManualScan) viewManualScan.classList.add('hidden');
+        if (viewAgentAI) viewAgentAI.classList.remove('hidden');
+        showToast("สลับเข้าสู่โหมด Agent AI (MCP)");
+      } else {
+        if (tabBtnManual) {
+          tabBtnManual.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-blue-700 bg-white shadow-sm transition-all duration-200 cursor-pointer";
+        }
+        if (tabBtnAgentAI) {
+          tabBtnAgentAI.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-indigo-700 transition-all duration-200 cursor-pointer";
+        }
+        if (viewAgentAI) viewAgentAI.classList.add('hidden');
+        if (viewManualScan) viewManualScan.classList.remove('hidden');
+        showToast("สลับเข้าสู่โหมด Manual Scan ทั่วไป");
+      }
+    }
+
+    if (tabBtnManual) tabBtnManual.addEventListener('click', () => switchAppMode('manual'));
+    if (tabBtnAgentAI) tabBtnAgentAI.addEventListener('click', () => switchAppMode('agent'));
+
+    // --- Agent AI Interface Interaction (Ready for User Logic) ---
+    const btnAgentAction = document.getElementById('btnAgentAction');
+    const btnAgentPrompt = document.getElementById('btnAgentPrompt');
+    const agentPromptInput = document.getElementById('agentPromptInput');
+    const agentTerminalFeed = document.getElementById('agentTerminalFeed');
+
+    function triggerAgentPlaceholder() {
+      const userPrompt = agentPromptInput ? agentPromptInput.value.trim() : "";
+      const displayTask = userPrompt || "การตรวจสอบความปลอดภัยเครือข่ายอัตโนมัติ (Default Task)";
+      
+      showToast("โหมด Agent AI: พร้อมเชื่อมต่อ Agent Logic & MCP จากท่าน");
+      
+      if (agentTerminalFeed) {
+        const timeStr = new Date().toLocaleTimeString();
+        const logItem = document.createElement('div');
+        logItem.className = "text-indigo-900 flex items-start gap-1.5 pt-1.5 border-t border-slate-200/60";
+        logItem.innerHTML = `
+          <i class="ph-bold ph-caret-right text-xs text-indigo-600 mt-0.5"></i>
+          <div>
+            <span class="text-slate-400 font-mono text-[10px]">[${timeStr}] Task Queued:</span> 
+            <span class="font-semibold text-indigo-950">${displayTask}</span>
+            <div class="text-[10px] text-slate-500 mt-0.5 font-sans">
+              (UI พร้อมรับ Agent & MCP Backend จากท่านเรียบร้อยแล้ว)
+            </div>
+          </div>
+        `;
+        agentTerminalFeed.prepend(logItem);
+      }
+    }
+
+    if (btnAgentAction) btnAgentAction.addEventListener('click', triggerAgentPlaceholder);
+    if (btnAgentPrompt) btnAgentPrompt.addEventListener('click', triggerAgentPlaceholder);
+    if (agentPromptInput) {
+      agentPromptInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          triggerAgentPlaceholder();
+        }
+      });
+    }
 
     // Search Host Filter Input
     const inputSearchHost = document.getElementById('inputSearchHost');
