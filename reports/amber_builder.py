@@ -729,11 +729,46 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
     for idx, h in enumerate(hosts_list, 1):
         h_ip = h.get("ip") or h.get("target_id") or "-"
         h_ports = ", ".join(str(p) for p in (h.get("ports") or [80]))
+        
+        # Determine Device Category / Hardware Vendor & Live Service
+        dev_name = h.get("device_name") or ""
+        web_srv = h.get("webServer") or h.get("server") or ""
+        h_mac = h.get("mac") or ""
+
+        if not dev_name or dev_name in ["LAN Client", "DHCP Host", "General Host"]:
+            if "airtunes" in web_srv.lower() or "apple" in web_srv.lower():
+                dev_name = "Apple Inc. (AirPlay Device)"
+            elif "gsoap" in web_srv.lower():
+                dev_name = "อุปกรณ์สำเร็จรูป / IoT (gSOAP)"
+            elif "mikrotik" in web_srv.lower():
+                dev_name = "MikroTik Router Appliance"
+            elif "express" in web_srv.lower() or h.get("is_node"):
+                dev_name = "Node.js Application Server"
+            elif h.get("is_php"):
+                dev_name = "PHP Web Server"
+            elif web_srv:
+                dev_name = web_srv
+            else:
+                dev_name = "อุปกรณ์เครือข่ายภายใน (LAN Device)"
+
+        # Service / Runtime Details
         h_tech = []
         if h.get("php"): h_tech.append(f"PHP {h.get('php')}")
         if h.get("node"): h_tech.append(f"Node.js {h.get('node')}")
-        if h.get("server"): h_tech.append(str(h.get("server")))
-        tech_str = ", ".join(h_tech) if h_tech else "HTTP Web Service"
+        if web_srv and web_srv != dev_name and not any(k in web_srv.lower() for k in ["ไม่มี web service", "general host"]):
+            h_tech.append(web_srv)
+        tech_str = " · ".join(h_tech) if h_tech else (web_srv if web_srv != dev_name else "")
+
+        mac_badge = f'<div style="font-size: 9.5pt; color: #94a3b8; font-family: monospace;">MAC: {html.escape(h_mac)}</div>' if (h_mac and h_mac != "LAN Device") else ""
+        service_badge = f'<div style="font-size: 10.5pt; color: #475569; margin-top: 1px;">บริการ: <code style="font-size: 9.5pt; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-family: monospace;">{html.escape(tech_str)}</code></div>' if tech_str else ""
+
+        dev_service_cell = f"""
+        <div>
+          <div style="font-weight: bold; color: #0f172a; font-size: 13pt;">{html.escape(dev_name)}</div>
+          {service_badge}
+          {mac_badge}
+        </div>
+        """
         
         da = h.get("deep_audit") or {}
         grp = da.get("primary_group") or "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร"
@@ -759,7 +794,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
           <td style="text-align: center;">{idx}</td>
           <td><strong>{html.escape(h_ip)}</strong></td>
           <td style="text-align: center;"><code>{html.escape(h_ports)}</code></td>
-          <td>{html.escape(tech_str)}</td>
+          <td>{dev_service_cell}</td>
           <td>{html.escape(grp)}</td>
           <td style="text-align: center;"><span class="{badge_cls}">{sev}</span></td>
         </tr>
@@ -917,17 +952,17 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         ผลการประเมินพบข้อค้นพบที่มีความเสี่ยงรวมกัน โดยจำแนกตามระดับความรุนแรงได้แก่: ระดับวิกฤต (Critical) จำนวน <strong>{crit_count}</strong> รายการ, ระดับสูง (High) จำนวน <strong>{high_count}</strong> รายการ, ระดับปานกลาง (Medium) จำนวน <strong>{med_count}</strong> รายการ และระบบที่มีการตั้งค่าปลอดภัยหรืออยู่นอกช่วงความเสี่ยง จำนวน <strong>{safe_count}</strong> รายการ ทั้งนี้ เพื่อป้องกันไม่ให้ผู้ไม่ประสงค์ดีอาศัยช่องทางดังกล่าวในการเข้าถึงหรือแทรกแซงระบบ ขอให้ผู้ดูแลระบบโปรดพิจารณาดำเนินการปรับปรุงและอัปเดตการตั้งค่าความมั่นคงปลอดภัยตามแนวทางที่ระบุไว้ในเอกสารฉบับนี้โดยเร็ว
       </p>
 
-      <div class="adv-subhead">ตารางสรุปรายการระบบที่ตรวจพบและระดับความเสี่ยง (Attack Surface Ledger)</div>
+      <div class="adv-subhead">ตารางสรุปรายการอุปกรณ์และบริการที่ตรวจพบ (Asset & Service Inventory Ledger)</div>
       <div class="adv-table-wrap">
         <table class="adv-table">
           <thead>
             <tr>
               <th style="width: 35px;">#</th>
-              <th>เป้าหมาย (Host / IP)</th>
-              <th style="width: 65px;">พอร์ต</th>
-              <th>เทคโนโลยี / สแต็ก</th>
-              <th>กลุ่มระบบ (สกมช.)</th>
-              <th style="width: 130px;">สถานะความเสี่ยง</th>
+              <th style="width: 120px;">เป้าหมาย (Host / IP)</th>
+              <th style="width: 60px;">พอร์ต</th>
+              <th>ประเภทอุปกรณ์ / บริการ</th>
+              <th style="width: 180px;">กลุ่มระบบ (สกมช.)</th>
+              <th style="width: 120px;">สถานะความเสี่ยง</th>
             </tr>
           </thead>
           <tbody>
