@@ -241,8 +241,19 @@ def get_live_lan_hosts(target_net=None):
 
     return hosts
 
+def is_ignored_interface(iface: str) -> bool:
+    """Filter out virtual bridge, container, VPN, or loopback interfaces."""
+    if not iface:
+        return True
+    iface_low = iface.lower()
+    ignored_prefixes = ('lo', 'docker', 'br-', 'veth', 'virbr', 'tun', 'tap', 'utun', 'vmnet', 'vbox', 'cni', 'flannel', 'dummy', 'kube')
+    return any(iface_low.startswith(p) for p in ignored_prefixes)
+
 def detect_host_network():
     """Direct host network probe (macOS & Linux) with zero hardcoded values."""
+    is_container = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true" or os.environ.get("IS_DOCKER") == "true"
+    gw = ''
+
     # 1. macOS / BSD default route
     try:
         r = subprocess.run(['route', '-n', 'get', 'default'], capture_output=True, text=True, timeout=2)
@@ -251,7 +262,7 @@ def detect_host_network():
         iface = iface_m.group(1) if iface_m else ''
         gw = gw_m.group(1) if gw_m else ''
 
-        if iface:
+        if iface and not is_ignored_interface(iface):
             res_if = subprocess.run(['ifconfig', iface], capture_output=True, text=True, timeout=2)
             m = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+)\s+netmask\s+(0x[0-9a-fA-F]+|\d+\.\d+\.\d+\.\d+)', res_if.stdout)
             if m:
@@ -277,7 +288,7 @@ def detect_host_network():
             m_if = re.match(r'^([a-zA-Z0-9_\-]+):', line)
             if m_if:
                 current_iface = m_if.group(1)
-            if current_iface and 'inet ' in line:
+            if current_iface and not is_ignored_interface(current_iface) and 'inet ' in line:
                 m_inet = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+)\s+netmask\s+(0x[0-9a-fA-F]+|\d+\.\d+\.\d+\.\d+)', line)
                 if m_inet:
                     ip_str = m_inet.group(1)
@@ -301,19 +312,35 @@ def detect_host_network():
         parts = r.stdout.split()
         gw = parts[parts.index('via') + 1] if 'via' in parts else ''
         iface = parts[parts.index('dev') + 1] if 'dev' in parts else ''
-        if iface:
+        if iface and not is_ignored_interface(iface):
             r_addr = subprocess.run(['ip', '-4', '-o', 'addr', 'show', iface], capture_output=True, text=True, timeout=2)
             m = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+/\d+)', r_addr.stdout)
             if m:
                 net = ipaddress.IPv4Network(m.group(1), strict=False)
                 ip_str = m.group(1).split('/')[0]
-                return {
-                    'interface': iface, 'ip': ip_str, 'gateway': gw,
-                    'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
-                    'first_host': str(net.network_address + 1),
-                    'last_host': str(net.broadcast_address - 1),
-                    'total_hosts': net.num_addresses - 2
-                }
+                # If running inside Docker and this is the container's own bridge network, don't report as LAN
+                if is_container:
+                    try:
+                        if ipaddress.IPv4Address(ip_str) in ipaddress.IPv4Network("172.16.0.0/12"):
+                            pass  # Skip returning docker bridge so socket/header fallback can be used
+                        else:
+                            return {
+                                'interface': iface, 'ip': ip_str, 'gateway': gw,
+                                'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
+                                'first_host': str(net.network_address + 1),
+                                'last_host': str(net.broadcast_address - 1),
+                                'total_hosts': net.num_addresses - 2
+                            }
+                    except Exception:
+                        pass
+                else:
+                    return {
+                        'interface': iface, 'ip': ip_str, 'gateway': gw,
+                        'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
+                        'first_host': str(net.network_address + 1),
+                        'last_host': str(net.broadcast_address - 1),
+                        'total_hosts': net.num_addresses - 2
+                    }
     except Exception:
         pass
 
@@ -321,14 +348,20 @@ def detect_host_network():
     try:
         r_addr = subprocess.run(['ip', '-4', '-o', 'addr', 'show'], capture_output=True, text=True, timeout=2)
         for line in r_addr.stdout.splitlines():
-            if 'lo' in line:
-                continue
             m = re.search(r'^\d+:\s+(\S+)\s+inet\s+(\d+\.\d+\.\d+\.\d+/\d+)', line)
             if m:
                 iface = m.group(1)
+                if is_ignored_interface(iface):
+                    continue
                 net = ipaddress.IPv4Network(m.group(2), strict=False)
                 ip_str = str(net.network_address) if net.prefixlen == 32 else m.group(2).split('/')[0]
                 if is_valid_unicast_host(ip_str) and not ip_str.startswith('127.'):
+                    if is_container:
+                        try:
+                            if ipaddress.IPv4Address(ip_str) in ipaddress.IPv4Network("172.16.0.0/12"):
+                                continue
+                        except Exception:
+                            pass
                     return {
                         'interface': iface, 'ip': ip_str, 'gateway': '',
                         'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
@@ -339,55 +372,77 @@ def detect_host_network():
     except Exception:
         pass
 
-    # 5. Dynamic POSIX socket probe (determines outbound IP on any OS without hardcoded values)
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('1.1.1.1', 80))
-        ip_str = s.getsockname()[0]
-        s.close()
-        if is_valid_unicast_host(ip_str):
-            net = ipaddress.IPv4Network(f'{ip_str}/24', strict=False)
-            return {
-                'interface': 'auto', 'ip': ip_str, 'gateway': '',
-                'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
-                'first_host': str(net.network_address + 1),
-                'last_host': str(net.broadcast_address - 1),
-                'total_hosts': net.num_addresses - 2
-            }
-    except Exception:
-        pass
+    # 5. Dynamic POSIX socket probe (offline UDP connect to gateway or corporate DNS)
+    socket_targets = [gw, '192.168.1.1', '10.0.0.1', '172.16.0.1', '1.1.1.1', '8.8.8.8']
+    for target in socket_targets:
+        if not target:
+            continue
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect((target, 80))
+            ip_str = s.getsockname()[0]
+            s.close()
+            if is_valid_unicast_host(ip_str) and not ip_str.startswith('127.'):
+                if is_container:
+                    try:
+                        if ipaddress.IPv4Address(ip_str) in ipaddress.IPv4Network("172.16.0.0/12"):
+                            continue
+                    except Exception:
+                        pass
+                net = ipaddress.IPv4Network(f'{ip_str}/24', strict=False)
+                return {
+                    'interface': 'auto', 'ip': ip_str, 'gateway': gw,
+                    'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
+                    'first_host': str(net.network_address + 1),
+                    'last_host': str(net.broadcast_address - 1),
+                    'total_hosts': net.num_addresses - 2
+                }
+        except Exception:
+            continue
 
     return None
 
-def get_host_network_info():
-    """Detect real host network info dynamically with zero hardcoded values."""
+_HOST_NET_CACHE = None
+_HOST_NET_CACHE_TIME = 0
+
+def get_host_network_info(force_refresh=False):
+    """Detect real host network info dynamically with zero hardcoded values, cached for 60s."""
+    global _HOST_NET_CACHE, _HOST_NET_CACHE_TIME
+    now = time.time()
+    if not force_refresh and _HOST_NET_CACHE and (now - _HOST_NET_CACHE_TIME < 60):
+        return _HOST_NET_CACHE.copy()
+
     is_container = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true" or os.environ.get("IS_DOCKER") == "true"
 
     # If running inside Docker, prioritize mounted host network info or environment variables
     if is_container:
         # 1. Check host_network.json mounted from physical host
-        if os.path.exists("host_network.json"):
+        if os.path.isfile("host_network.json") and os.path.getsize("host_network.json") > 0:
             try:
                 with open("host_network.json", "r") as f:
                     data = json.load(f)
-                    if data.get("ip") and data.get("subnet"):
+                    ip = data.get("ip", "").strip()
+                    subnet = data.get("subnet", "").strip()
+                    if ip and subnet and is_valid_unicast_host(ip) and not ip.startswith("127."):
                         data["is_docker"] = True
                         data["source"] = "host_network_json"
-                        parts = data["ip"].split('.')
+                        parts = ip.split('.')
                         data["prefix"] = f"{parts[0]}.{parts[1]}.{parts[2]}." if len(parts) == 4 else ""
+                        _HOST_NET_CACHE = data.copy()
+                        _HOST_NET_CACHE_TIME = now
                         return data
             except Exception:
                 pass
 
         # 2. Read environment variables passed into container
-        env_ip = os.environ.get("HOST_IP")
-        env_subnet = os.environ.get("HOST_SUBNET")
-        if env_ip and env_subnet:
+        env_ip = (os.environ.get("HOST_IP") or "").strip()
+        env_subnet = (os.environ.get("HOST_SUBNET") or "").strip()
+        if env_ip and env_subnet and is_valid_unicast_host(env_ip) and not env_ip.startswith("127."):
             try:
                 net = ipaddress.IPv4Network(env_subnet, strict=False)
                 parts = env_ip.split('.')
                 prefix = f"{parts[0]}.{parts[1]}.{parts[2]}." if len(parts) == 4 else ""
-                return {
+                data = {
                     "ip": env_ip,
                     "subnet": str(net),
                     "cidr": net.prefixlen,
@@ -401,6 +456,9 @@ def get_host_network_info():
                     "is_docker": True,
                     "source": "environment_variables"
                 }
+                _HOST_NET_CACHE = data.copy()
+                _HOST_NET_CACHE_TIME = now
+                return data
             except Exception:
                 pass
 
@@ -411,10 +469,12 @@ def get_host_network_info():
         parts = direct["ip"].split('.')
         direct["prefix"] = f"{parts[0]}.{parts[1]}.{parts[2]}." if len(parts) == 4 else ""
         direct["source"] = "os_direct"
+        _HOST_NET_CACHE = direct.copy()
+        _HOST_NET_CACHE_TIME = now
         return direct
 
     # If completely offline or undetected, return empty state (NO HARDCODED FAKE IPS!)
-    return {
+    res = {
         "ip": "",
         "subnet": "",
         "cidr": 0,
@@ -428,6 +488,9 @@ def get_host_network_info():
         "is_docker": is_container,
         "source": "offline"
     }
+    _HOST_NET_CACHE = res.copy()
+    _HOST_NET_CACHE_TIME = now
+    return res
 
 def get_docker_gateway() -> str:
     """Detect default bridge gateway inside Docker container to connect to host ports."""
@@ -441,7 +504,7 @@ def get_docker_gateway() -> str:
         pass
     return None
 
-def parse_target_hosts(target_str, max_scan=2048, host_ip=""):
+def parse_target_hosts(target_str, max_scan=512, host_ip=""):
     """Parse any CIDR, IP range, single IP, or Domain with optional port into target host list."""
     target_str = target_str.strip()
     clean_target = re.sub(r'^https?://', '', target_str).rstrip('/')
@@ -467,7 +530,7 @@ def parse_target_hosts(target_str, max_scan=2048, host_ip=""):
             if total <= max_scan:
                 return list(net.hosts()), net, net.prefixlen, total, None, target_port
             else:
-                # Massive network (/16, /8): scan the slice around host_ip if valid
+                # Massive network (/16, /8): safe-slice around host_ip or first /24 slice
                 if host_ip:
                     try:
                         curr_ip = ipaddress.ip_address(host_ip)
@@ -476,6 +539,12 @@ def parse_target_hosts(target_str, max_scan=2048, host_ip=""):
                             return list(slice_net.hosts()), net, net.prefixlen, total, None, target_port
                     except Exception:
                         pass
+                try:
+                    c_slices = list(net.subnets(new_prefix=24))
+                    if c_slices:
+                        return list(c_slices[0].hosts()), net, net.prefixlen, total, None, target_port
+                except Exception:
+                    pass
                 return list(net.hosts())[:max_scan], net, net.prefixlen, total, None, target_port
         except ValueError:
             clean_target = clean_target.split('/')[0]
@@ -505,28 +574,95 @@ def index():
 
 @app.route("/api/my-ip")
 def my_ip_route():
-    net_info = get_host_network_info()
-    live_arp = get_live_lan_hosts()
+    refresh = request.args.get("refresh") == "1"
+    net_info = get_host_network_info(force_refresh=refresh)
     user_ip = net_info.get("ip", "")
     user_subnet = net_info.get("subnet", "")
-    
+    is_docker = net_info.get("is_docker", False)
+
+    # Dynamic physical LAN IP detection via incoming HTTP connection
+    hint_ip = request.args.get("hint", "").strip()
+    host_header = request.host.split(":")[0].strip()
+    client_remote = request.remote_addr or ""
+
+    candidate_ips = []
+    for cand in [hint_ip, host_header, client_remote]:
+        if cand and is_valid_unicast_host(cand) and not cand.startswith("127.") and not cand.startswith("169.254."):
+            if cand not in candidate_ips:
+                candidate_ips.append(cand)
+
+    is_docker_bridge = False
+    if user_ip:
+        try:
+            ip_obj = ipaddress.IPv4Address(user_ip)
+            if is_docker and ip_obj in ipaddress.IPv4Network("172.16.0.0/12"):
+                is_docker_bridge = True
+        except Exception:
+            pass
+
+    if (not user_ip or is_docker_bridge) and candidate_ips:
+        for cand in candidate_ips:
+            try:
+                c_obj = ipaddress.IPv4Address(cand)
+                # Ensure cand is a private LAN IP and NOT docker bridge
+                if c_obj.is_private and (not is_docker or c_obj not in ipaddress.IPv4Network("172.16.0.0/12")):
+                    user_ip = cand
+                    c_net = ipaddress.IPv4Network(f"{cand}/24", strict=False)
+                    user_subnet = str(c_net)
+                    net_info["ip"] = user_ip
+                    net_info["subnet"] = user_subnet
+                    net_info["cidr"] = 24
+                    net_info["netmask"] = "255.255.255.0"
+                    net_info["first_host"] = str(c_net.network_address + 1)
+                    net_info["last_host"] = str(c_net.broadcast_address - 1)
+                    net_info["total_hosts"] = 254
+                    parts = user_ip.split('.')
+                    net_info["prefix"] = f"{parts[0]}.{parts[1]}.{parts[2]}."
+                    net_info["source"] = "http_request_detection"
+                    global _HOST_NET_CACHE, _HOST_NET_CACHE_TIME
+                    _HOST_NET_CACHE = net_info.copy()
+                    _HOST_NET_CACHE_TIME = time.time()
+                    break
+            except Exception:
+                continue
+
+    live_arp = get_live_lan_hosts()
+    cidr = net_info.get("cidr", 24)
+    recommended_subnet = user_subnet
+    parts = user_ip.split('.') if user_ip else []
+    c_slice = f"{parts[0]}.{parts[1]}.{parts[2]}.0/24" if len(parts) == 4 else ""
+
+    if cidr < 24 and c_slice:
+        recommended_subnet = c_slice
+
     presets = []
+    if c_slice and c_slice != user_subnet:
+        presets.append({
+            "icon": "ph-lightning",
+            "label": f"วงย่อย Class C แนะนำ ({c_slice}) — 254 เครื่อง",
+            "subnet": c_slice,
+            "recommended": True
+        })
     if user_subnet:
-        presets.append({"icon": "ph-crosshair", "label": f"วงเครือข่ายที่พบ ({user_subnet})", "subnet": user_subnet})
-        parts = user_ip.split('.') if user_ip else []
-        if len(parts) == 4 and net_info.get("cidr", 24) < 24:
-            c_slice = f"{parts[0]}.{parts[1]}.{parts[2]}.0/24"
-            if c_slice != user_subnet:
-                presets.append({"icon": "ph-lightning", "label": f"วงย่อย Class C ({c_slice})", "subnet": c_slice})
-        if user_ip:
-            presets.append({"icon": "ph-laptop", "label": f"เฉพาะเครื่องนี้ ({user_ip})", "subnet": f"{user_ip}/32"})
-    elif user_ip:
-        presets.append({"icon": "ph-laptop", "label": f"เฉพาะเครื่องนี้ ({user_ip})", "subnet": f"{user_ip}/32"})
+        presets.append({
+            "icon": "ph-crosshair",
+            "label": f"วงเครือข่ายเต็ม ({user_subnet}) — {net_info.get('total_hosts', 254):,} เครื่อง",
+            "subnet": user_subnet,
+            "recommended": (cidr >= 24)
+        })
+    if user_ip:
+        presets.append({
+            "icon": "ph-laptop",
+            "label": f"เฉพาะเครื่องนี้ ({user_ip})",
+            "subnet": f"{user_ip}/32",
+            "recommended": False
+        })
 
     return jsonify({
         "ip": user_ip,
         "subnet": user_subnet,
-        "cidr": net_info.get("cidr", 0),
+        "recommended_subnet": recommended_subnet,
+        "cidr": cidr,
         "netmask": net_info.get("netmask", ""),
         "gateway": net_info.get("gateway", ""),
         "interface": net_info.get("interface", ""),
@@ -534,7 +670,7 @@ def my_ip_route():
         "last_host": net_info.get("last_host", ""),
         "total_hosts": net_info.get("total_hosts", 0),
         "prefix": net_info.get("prefix", ""),
-        "is_docker": net_info.get("is_docker", False),
+        "is_docker": is_docker,
         "active_devices_count": len(live_arp),
         "presets": presets
     })
@@ -1564,18 +1700,29 @@ async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_
         "badge": "SECURE"
     }
 
-async def check_tcp_port(ip: str, port: int, timeout: float = 0.22) -> bool:
-    """Pre-flight TCP handshake test. Returns False quickly if port is closed."""
+async def check_tcp_port(ip: str, port: int, timeout: float = 0.15) -> bool:
+    """Pre-flight TCP handshake test. Fast non-blocking timeout for LAN discovery."""
     try:
         conn = asyncio.open_connection(ip, port)
         reader, writer = await asyncio.wait_for(conn, timeout=timeout)
-        writer.close()
-        await writer.wait_closed()
+        try:
+            writer.close()
+            await asyncio.wait_for(writer.wait_closed(), timeout=0.05)
+        except Exception:
+            pass
         return True
     except Exception:
         return False
 
-async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, hostname: str = None):
+async def probe_endpoint(
+    client: httpx.AsyncClient,
+    ip_str: str,
+    port: int,
+    hostname: str = None,
+    host_ip: str = "",
+    is_docker: bool = False,
+    docker_gw: str = None
+):
     """Deep inspection of a target IP and port for PHP and Node.js signatures and vulnerabilities."""
     scheme = "https" if port in (443, 8443) else "http"
     target_host = hostname if hostname else ip_str
@@ -1584,23 +1731,21 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
     reported_base_url = f"{scheme}://{target_host}:{port}"
     connect_host = check_host
 
-    # Pre-flight TCP check
-    if not await check_tcp_port(connect_host, port, timeout=0.8 if hostname else 0.35):
+    # Fast pre-flight TCP check (0.15s for LAN IP, 0.5s for hostname)
+    tcp_timeout = 0.5 if hostname else 0.15
+    if not await check_tcp_port(connect_host, port, timeout=tcp_timeout):
         # In Docker on macOS/Windows, container-to-host LAN IP often drops due to NAT hairpin.
-        # Transparently fallback to Docker host gateway or host.docker.internal if target is host machine
-        net_info = get_host_network_info()
-        is_docker = net_info.get("is_docker", False)
-        host_ip = net_info.get("ip", "")
-        if is_docker and (check_host == host_ip or check_host in ("127.0.0.1", "localhost", "0.0.0.0")):
-            gw = get_docker_gateway()
+        # ONLY check Docker hairpin fallback if target is explicitly host or localhost
+        is_self = (check_host in ("127.0.0.1", "localhost", "0.0.0.0")) or (bool(host_ip) and check_host == host_ip)
+        if is_docker and is_self:
             candidates = []
-            if gw:
-                candidates.append(gw)
+            if docker_gw:
+                candidates.append(docker_gw)
             candidates.extend(["host.docker.internal", "127.0.0.1"])
             
             found_conn = None
             for cand in candidates:
-                if await check_tcp_port(cand, port, timeout=0.3):
+                if await check_tcp_port(cand, port, timeout=0.15):
                     found_conn = cand
                     break
             if found_conn:
@@ -2285,7 +2430,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
 def scan():
     data = request.json or {}
     subnet_str = data.get("subnet", "").strip()
-    concurrency = int(data.get("concurrency", 80))
+    concurrency = min(max(int(data.get("concurrency", 120)), 20), 200)
     custom_ports = data.get("ports", None)
 
     net_info = get_host_network_info()
@@ -2296,7 +2441,7 @@ def scan():
         return jsonify({"error": "No subnet or IP address provided to scan"}), 400
 
     try:
-        hosts, target_net, cidr, total_possible, target_domain, target_port = parse_target_hosts(subnet_str, max_scan=2048, host_ip=net_info.get("ip", ""))
+        hosts, target_net, cidr, total_possible, target_domain, target_port = parse_target_hosts(subnet_str, max_scan=512, host_ip=net_info.get("ip", ""))
     except Exception as e:
         return jsonify({"error": f"Invalid subnet or IP format: {e}"}), 400
 
@@ -2319,13 +2464,23 @@ def scan():
         ports = [80, 443, 8080, 8000, 8888, 8081, 8443, 3000, 5000, 5050, 4000, 5173]
     host_strings = set(str(h) for h in hosts)
 
+    curr_is_docker = net_info.get("is_docker", False)
+    curr_host_ip = net_info.get("ip", "")
+    curr_docker_gw = get_docker_gateway() if curr_is_docker else None
+
     async def run_probes():
         limits = httpx.Limits(max_connections=concurrency, max_keepalive_connections=20)
         async with httpx.AsyncClient(verify=False, limits=limits) as client:
             sem = asyncio.Semaphore(concurrency)
             async def bound_probe(ip_str, p):
                 async with sem:
-                    return await probe_endpoint(client, ip_str, p, hostname=target_domain)
+                    return await probe_endpoint(
+                        client, ip_str, p,
+                        hostname=target_domain,
+                        host_ip=curr_host_ip,
+                        is_docker=curr_is_docker,
+                        docker_gw=curr_docker_gw
+                    )
 
             tasks = []
             for h in hosts:
@@ -2358,14 +2513,13 @@ def scan():
             # Query real-time ARP cache for any hosts in this subnet that didn't have web ports open
             live_arp = get_live_lan_hosts(target_net)
             gw_ip = net_info.get("gateway", "")
-            host_ip = net_info.get("ip", "")
 
             for act_ip, mac in live_arp.items():
                 if act_ip in host_strings or (target_net and ipaddress.ip_address(act_ip) in target_net):
                     if act_ip not in seen_ips:
                         seen_ips.add(act_ip)
                         is_gw = (act_ip == gw_ip)
-                        is_self = (act_ip == host_ip)
+                        is_self = (act_ip == curr_host_ip)
                         dev_name, dev_type, is_mobile = resolve_device_details(act_ip, mac, is_gw=is_gw)
 
                         open_ports = []
@@ -2504,6 +2658,7 @@ def scan():
         "subnet": subnet_str,
         "cidr": cidr,
         "scanned_hosts": len(hosts),
+        "scanned_hosts_count": len(hosts),
         "total_hosts_in_subnet": total_possible,
         "total_active_found": len(all_active_list),
         "total_php_found": len(php_list),

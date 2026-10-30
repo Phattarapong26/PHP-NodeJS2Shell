@@ -8,11 +8,29 @@ echo "=========================================================="
 echo "  [ThaiCERT SCANNER] PHP LAN Discovery & Security Audit"
 echo "=========================================================="
 
+# 0. Clean up if Docker previously created host_network.json or active_hosts.txt as directories
+if [ -d "$DIR/host_network.json" ]; then
+  rm -rf "$DIR/host_network.json"
+fi
+if [ -d "$DIR/active_hosts.txt" ]; then
+  rm -rf "$DIR/active_hosts.txt"
+fi
+
+touch "$DIR/host_network.json"
+touch "$DIR/active_hosts.txt"
+
 # 1. Dynamically Detect Physical Network (IP, Netmask, CIDR, Subnet, Gateway, Interface)
 NET_JSON=$(python3 -c "
 import subprocess, re, ipaddress, json, socket
 
+def is_ignored_iface(iface):
+    if not iface:
+        return True
+    low = iface.lower()
+    return any(low.startswith(p) for p in ('lo', 'docker', 'br-', 'veth', 'virbr', 'tun', 'tap', 'utun', 'vmnet', 'vbox', 'cni', 'flannel'))
+
 def get_net_info():
+    gw = ''
     # macOS route & ifconfig
     try:
         r = subprocess.run(['route', '-n', 'get', 'default'], capture_output=True, text=True, timeout=2)
@@ -21,20 +39,21 @@ def get_net_info():
         iface = iface_m.group(1) if iface_m else 'en0'
         gw = gw_m.group(1) if gw_m else ''
 
-        res_if = subprocess.run(['ifconfig', iface], capture_output=True, text=True, timeout=2)
-        m = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+)\s+netmask\s+(0x[0-9a-fA-F]+|\d+\.\d+\.\d+\.\d+)', res_if.stdout)
-        if m:
-            ip_str = m.group(1)
-            mask_raw = m.group(2)
-            mask_ip = str(ipaddress.IPv4Address(int(mask_raw, 16))) if mask_raw.startswith('0x') else mask_raw
-            net = ipaddress.IPv4Network(f'{ip_str}/{mask_ip}', strict=False)
-            return {
-                'interface': iface, 'ip': ip_str, 'gateway': gw,
-                'netmask': mask_ip, 'subnet': str(net), 'cidr': net.prefixlen,
-                'first_host': str(net.network_address + 1),
-                'last_host': str(net.broadcast_address - 1),
-                'total_hosts': net.num_addresses - 2
-            }
+        if iface and not is_ignored_iface(iface):
+            res_if = subprocess.run(['ifconfig', iface], capture_output=True, text=True, timeout=2)
+            m = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+)\s+netmask\s+(0x[0-9a-fA-F]+|\d+\.\d+\.\d+\.\d+)', res_if.stdout)
+            if m:
+                ip_str = m.group(1)
+                mask_raw = m.group(2)
+                mask_ip = str(ipaddress.IPv4Address(int(mask_raw, 16))) if mask_raw.startswith('0x') else mask_raw
+                net = ipaddress.IPv4Network(f'{ip_str}/{mask_ip}', strict=False)
+                return {
+                    'interface': iface, 'ip': ip_str, 'gateway': gw,
+                    'netmask': mask_ip, 'subnet': str(net), 'cidr': net.prefixlen,
+                    'first_host': str(net.network_address + 1),
+                    'last_host': str(net.broadcast_address - 1),
+                    'total_hosts': net.num_addresses - 2
+                }
     except Exception:
         pass
 
@@ -44,37 +63,43 @@ def get_net_info():
         parts = r.stdout.split()
         gw = parts[parts.index('via') + 1] if 'via' in parts else ''
         iface = parts[parts.index('dev') + 1] if 'dev' in parts else 'eth0'
-        r_addr = subprocess.run(['ip', '-4', '-o', 'addr', 'show', iface], capture_output=True, text=True, timeout=2)
-        m = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+/\d+)', r_addr.stdout)
-        if m:
-            net = ipaddress.IPv4Network(m.group(1), strict=False)
-            ip_str = m.group(1).split('/')[0]
-            return {
-                'interface': iface, 'ip': ip_str, 'gateway': gw,
-                'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
-                'first_host': str(net.network_address + 1),
-                'last_host': str(net.broadcast_address - 1),
-                'total_hosts': net.num_addresses - 2
-            }
+        if iface and not is_ignored_iface(iface):
+            r_addr = subprocess.run(['ip', '-4', '-o', 'addr', 'show', iface], capture_output=True, text=True, timeout=2)
+            m = re.search(r'inet\s+(\d+\.\d+\.\d+\.\d+/\d+)', r_addr.stdout)
+            if m:
+                net = ipaddress.IPv4Network(m.group(1), strict=False)
+                ip_str = m.group(1).split('/')[0]
+                return {
+                    'interface': iface, 'ip': ip_str, 'gateway': gw,
+                    'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
+                    'first_host': str(net.network_address + 1),
+                    'last_host': str(net.broadcast_address - 1),
+                    'total_hosts': net.num_addresses - 2
+                }
     except Exception:
         pass
 
-    # Dynamic POSIX socket probe (determines outbound IP on any OS without hardcoded values)
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('1.1.1.1', 80))
-        ip_str = s.getsockname()[0]
-        s.close()
-        net = ipaddress.IPv4Network(f'{ip_str}/24', strict=False)
-        return {
-            'interface': 'auto', 'ip': ip_str, 'gateway': '',
-            'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
-            'first_host': str(net.network_address + 1),
-            'last_host': str(net.broadcast_address - 1),
-            'total_hosts': net.num_addresses - 2
-        }
-    except Exception:
-        pass
+    # Dynamic POSIX socket probe (offline UDP connect to gateway or corporate DNS)
+    socket_targets = [gw, '192.168.1.1', '10.0.0.1', '172.16.0.1', '1.1.1.1', '8.8.8.8']
+    for target in socket_targets:
+        if not target:
+            continue
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect((target, 80))
+            ip_str = s.getsockname()[0]
+            s.close()
+            if ip_str and not ip_str.startswith('127.'):
+                net = ipaddress.IPv4Network(f'{ip_str}/24', strict=False)
+                return {
+                    'interface': 'auto', 'ip': ip_str, 'gateway': gw,
+                    'netmask': str(net.netmask), 'subnet': str(net), 'cidr': net.prefixlen,
+                    'first_host': str(net.network_address + 1),
+                    'last_host': str(net.broadcast_address - 1),
+                    'total_hosts': net.num_addresses - 2
+                }
+        except Exception:
+            continue
 
     return {
         'interface': '', 'ip': '', 'gateway': '',

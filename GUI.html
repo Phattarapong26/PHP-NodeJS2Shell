@@ -414,7 +414,8 @@
                   <!-- Active Spinner (Hidden by default) -->
                   <div id="btnScanSpinner" class="hidden flex-col items-center">
                     <i class="ph-bold ph-spinner animate-spin text-2xl sm:text-3xl"></i>
-                    <span id="scanPercentText" class="text-xs font-semibold mt-1 tracking-wider text-blue-100">0%</span>
+                    <span id="scanPercentText" class="text-xs font-semibold mt-0.5 tracking-wider text-blue-100">0%</span>
+                    <span class="text-[10px] text-rose-200 hover:text-white font-medium">กดเพื่อหยุด</span>
                   </div>
                 </button>
 
@@ -435,8 +436,11 @@
             <div class="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden border border-white/80">
               <div id="scanProgressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full w-0 transition-all duration-150"></div>
             </div>
-            <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1 px-1">
+            <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1.5 px-1">
               <span id="scanProgressStats">สแกน 0 / 254 เครื่อง</span>
+              <button id="btnCancelScan" type="button" class="inline-flex items-center gap-1 text-rose-600 hover:text-rose-700 font-semibold px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer">
+                <i class="ph-bold ph-x-circle"></i> หยุดสแกน
+              </button>
               <span id="scanSpeedStat">ความเร็ว: ~65 host/s</span>
             </div>
           </div>
@@ -2138,25 +2142,27 @@ Content-Type: text/html; charset=UTF-8</div>
       const step3Ex = document.getElementById('step3ExampleSpeed');
       if (step3Ex) step3Ex.textContent = `สแกน ${data.total_hosts.toLocaleString()} เครื่องพร้อมกันแบบ High-concurrency Async`;
 
-      // Set main input to detected subnet
-      if (mainSubnetInput && data.subnet) {
-        mainSubnetInput.value = data.subnet;
+      // Set main input to recommended subnet (safe Class C slice) or detected subnet only if empty
+      const chosenSubnet = data.recommended_subnet || data.subnet;
+      if (mainSubnetInput && (!mainSubnetInput.value || mainSubnetInput.value.trim() === "")) {
+        mainSubnetInput.value = chosenSubnet;
+        recalculateSubnet(chosenSubnet);
       }
       if (targetIpTypeBadge) {
         targetIpTypeBadge.textContent = `CIDR Subnet (${data.total_hosts.toLocaleString()} hosts)`;
       }
 
       // Render preset chips inside Settings Drawer
-      renderDynamicPresets(data.presets, data.subnet);
+      renderDynamicPresets(data.presets, chosenSubnet);
 
-      statusPillText.textContent = `Online · เครือข่าย: ${data.subnet || data.ip}`;
+      statusPillText.textContent = `Online · เครือข่าย: ${chosenSubnet || data.ip}`;
       statusIndicatorDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-      updateStepBadge(`ระบบพร้อมสแกนเป้าหมาย: ${data.subnet || data.ip}`, "ph-check-circle");
+      updateStepBadge(`ระบบพร้อมสแกนเป้าหมาย: ${chosenSubnet || data.ip}`, "ph-check-circle");
 
       if (data.is_docker) {
         showToast(`สภาพแวดล้อม Docker (Host IP: ${data.ip})`);
       } else {
-        showToast(`ตรวจพบเครือข่ายอัตโนมัติ: ${data.subnet} (${data.active_devices_count ?? 0} อุปกรณ์ออนไลน์)`);
+        showToast(`ตรวจพบเครือข่ายอัตโนมัติ: ${chosenSubnet} (${data.active_devices_count ?? 0} อุปกรณ์ออนไลน์)`);
       }
     }
 
@@ -2166,7 +2172,12 @@ Content-Type: text/html; charset=UTF-8</div>
     async function autoDetectLocalNetwork() {
       updateStepBadge("กำลังตรวจสอบการเชื่อมต่อเครือข่าย...", "ph-network");
       try {
-        const res = await apiFetch("/api/my-ip");
+        let hintParam = "";
+        const locHost = window.location.hostname;
+        if (locHost && /^\d+\.\d+\.\d+\.\d+$/.test(locHost) && !locHost.startsWith("127.")) {
+          hintParam = `?hint=${encodeURIComponent(locHost)}`;
+        }
+        const res = await apiFetch(`/api/my-ip${hintParam}`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.ip) {
@@ -2204,6 +2215,20 @@ Content-Type: text/html; charset=UTF-8</div>
       }
     }
 
+    let currentScanAbortController = null;
+
+    function cancelCurrentScan() {
+      if (!appState.isScanning) return;
+      if (currentScanAbortController) {
+        currentScanAbortController.abort();
+        currentScanAbortController = null;
+      }
+      appState.isScanning = false;
+      finishScan("0");
+      updateStepBadge("ยกเลิกการสแกนเรียบร้อย — ระบบพร้อมทำงาน", "ph-x-circle");
+      showToast("ยกเลิกการสแกนแล้ว");
+    }
+
     // Start 5-Step Scan Flow according to user's diagram
     async function startScanWorkflow() {
       if (appState.isScanning) return;
@@ -2239,22 +2264,23 @@ Content-Type: text/html; charset=UTF-8</div>
       highlightWorkflowStep(0);
 
       // STEP 1: โปรแกรมอ่าน IP เครื่องตัวเองอัตโนมัติ
-      await delay(250);
+      await delay(200);
       highlightWorkflowStep(1);
       updateStepBadge(`1. ตรวจพบเป้าหมาย: ${targetSubnet}`, "ph-laptop");
       
       // STEP 2: คำนวณขอบเขตวง LAN (Subnet) อัตโนมัติ
-      await delay(250);
+      await delay(200);
       highlightWorkflowStep(2);
       updateStepBadge(`2. ตรวจสอบขอบเขตเป้าหมาย: ${parsedTarget ? parsedTarget.rangeText : targetSubnet}`, "ph-chart-pie-slice");
 
       // STEP 3: ส่งคำขอคู่ขนานแบบ Async (ความเร็วสูง)
-      await delay(250);
+      await delay(200);
       highlightWorkflowStep(3);
       const portCountInfo = (appState.selectedPorts && appState.selectedPorts.length) ? `(${appState.selectedPorts.length} พอร์ต)` : '';
       updateStepBadge(`3. ส่ง Async Parallel Request สแกน ${totalToScan.toLocaleString()} เครื่อง ${portCountInfo}...`, "ph-lightning");
 
-      // Launch Async Request to Backend
+      // Launch Async Request to Backend with AbortController
+      currentScanAbortController = new AbortController();
       const scanPromise = (async () => {
         try {
           const res = await apiFetch("/api/scan", {
@@ -2264,26 +2290,45 @@ Content-Type: text/html; charset=UTF-8</div>
               subnet: targetSubnet,
               concurrency: appState.concurrency,
               ports: appState.selectedPorts || null
-            })
+            }),
+            signal: currentScanAbortController.signal
           });
           if (res.ok) {
             return await res.json();
           }
         } catch (e) {
-          console.warn("Scan fetch error:", e);
+          if (e.name === 'AbortError') {
+            console.log("Scan cancelled by user");
+          } else {
+            console.warn("Scan fetch error:", e);
+          }
         }
         return null;
       })();
 
-      // Animate progress smoothly while scanning in background
-      for (let p = 15; p <= 90; p += 15) {
-        await delay(200);
+      // Animate progress smoothly with live timer so UI NEVER freezes
+      let p = 15;
+      const progressTimer = setInterval(() => {
+        if (!appState.isScanning) {
+          clearInterval(progressTimer);
+          return;
+        }
+        const elapsedSec = ((performance.now() - appState.scanStartTime) / 1000).toFixed(1);
+        if (p < 92) {
+          p += Math.max(1, Math.round((92 - p) * 0.15));
+        }
         scanProgressBar.style.width = `${p}%`;
         scanPercentText.textContent = `${p}%`;
-        scanProgressStats.textContent = `สแกน ${Math.round((p / 100) * totalToScan).toLocaleString()} / ${totalToScan.toLocaleString()} เครื่อง`;
-      }
+        scanProgressStats.textContent = `สแกน ${Math.round((p / 100) * totalToScan).toLocaleString()} / ${totalToScan.toLocaleString()} เครื่อง (${elapsedSec}s)`;
+      }, 150);
 
       const backendData = await scanPromise;
+      clearInterval(progressTimer);
+
+      if (!appState.isScanning) {
+        return; // Cancelled
+      }
+      currentScanAbortController = null;
 
       // STEP 4: จำแนกอุปกรณ์ในวง LAN และระบุเซิร์ฟเวอร์ PHP & Node.js
       highlightWorkflowStep(4);
@@ -3671,8 +3716,20 @@ ${data.c_patch_directive}
 
     // Event Listeners
     btnScan.addEventListener('click', () => {
-      startScanWorkflow();
+      if (appState.isScanning) {
+        cancelCurrentScan();
+      } else {
+        startScanWorkflow();
+      }
     });
+
+    const btnCancelScanEl = document.getElementById('btnCancelScan');
+    if (btnCancelScanEl) {
+      btnCancelScanEl.addEventListener('click', (e) => {
+        e.preventDefault();
+        cancelCurrentScan();
+      });
+    }
 
     btnOpenResultsQuick.addEventListener('click', openResultsModal);
     btnCloseResults.addEventListener('click', closeResultsModal);

@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code and assets
 COPY . .
 
+# Ensure empty host network and active hosts files exist as regular files
+RUN touch /app/host_network.json /app/active_hosts.txt
+
 EXPOSE 5050
 
 ENV PORT=5050
