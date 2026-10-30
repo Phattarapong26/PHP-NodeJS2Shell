@@ -293,7 +293,11 @@
       </div>
 
       <!-- Right Window Actions -->
-      <div class="flex items-center gap-4 text-slate-400 text-sm">
+      <div class="flex items-center gap-3 text-slate-400 text-sm">
+        <a href="/diagram" target="_blank" class="hover:text-indigo-600 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50/90 text-indigo-700 border border-indigo-200/70 shadow-sm" title="เปิดแผนผังสถาปัตยกรรมและข้อจำกัดระบบ (หน้าเต็ม)">
+          <i class="ph-bold ph-git-fork text-sm"></i>
+          <span>ผังสถาปัตยกรรม & ขอบเขต</span>
+        </a>
         <button id="btnToggleSettings" class="hover:text-slate-700 transition" title="Network Config">
           <i class="ph ph-gear text-lg"></i>
         </button>
@@ -898,9 +902,14 @@
               <p class="text-xs text-slate-400">ระบบทำงานอัตโนมัติตาม Flowchart ที่กำหนด</p>
             </div>
           </div>
-          <button id="btnCloseWorkflow" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
-            <i class="ph-bold ph-x text-base"></i>
-          </button>
+          <div class="flex items-center gap-2">
+            <a href="/diagram" target="_blank" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60 transition-colors flex items-center gap-1 shadow-sm">
+              <i class="ph-bold ph-arrow-square-out"></i> ผังเต็ม & ข้อจำกัด
+            </a>
+            <button id="btnCloseWorkflow" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
+              <i class="ph-bold ph-x text-base"></i>
+            </button>
+          </div>
         </div>
 
         <!-- Workflow Visual Vertical Steps (Matched to soft neumorphic style) -->

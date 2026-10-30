@@ -20,6 +20,7 @@ services:
       - ./active_hosts.txt:/app/active_hosts.txt:ro
       - ./GUI.html:/app/GUI.html
       - ./app.py:/app/app.py
+      - ./diagram.html:/app/diagram.html
 
   test-target:
     build:

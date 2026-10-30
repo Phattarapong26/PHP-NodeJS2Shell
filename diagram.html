@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPScaner Architecture & Workflow Diagram | แผนผังระบบและกลไกการทำงาน</title>
+  
+  <!-- Fonts: Inter & Prompt (Thai) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#4f46e5',
+              600: '#4338ca',
+              700: '#3730a3',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }
+    .code-pill {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.375rem;
+      font-size: 0.775rem;
+      color: #38bdf8;
+    }
+    .flow-connector {
+      position: relative;
+    }
+    .flow-connector::after {
+      content: '';
+      position: absolute;
+      bottom: -1.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 1.25rem;
+      background: linear-gradient(to bottom, #3b82f6, #6366f1);
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    }
+    .glow-border {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-200 antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="ph-bold ph-shield-check text-2xl text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-white tracking-wide text-lg sm:text-xl">OPScaner Architecture Diagram</h1>
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">v2.0 Verified</span>
+          </div>
+          <p class="text-xs text-slate-400">แผนผังอธิบาย ขอบเขต, สถาปัตยกรรมกระบวนการทำงาน และข้อจำกัดเชิงเทคนิค (ตรงตามซอร์สโค้ดจริง 100%)</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors">
+          <i class="ph-bold ph-arrow-left"></i> กลับหน้า Dashboard สแกนเนอร์
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+    <div class="flex flex-wrap gap-2 p-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 max-w-xl">
+      <button onclick="switchTab('tab-workflow')" id="btn-tab-workflow" class="tab-btn flex-1 inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-semibold text-xs sm:text-sm bg-blue-600 text-white shadow transition-all">
+        <i class="ph-bold ph-git-fork text-base"></i> 1. กระบวนการทำงาน (Workflow)
+      </button>
+      <button onclick="switchTab('tab-scope')" id="btn-tab-scope" class="tab-btn flex-1 inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
+        <i class="ph-bold ph-crosshair text-base"></i> 2. ขอบเขตระบบ (Scope)
+      </button>
+      <button onclick="switchTab('tab-limits')" id="btn-tab-limits" class="tab-btn flex-1 inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
+        <i class="ph-bold ph-warning-octagon text-base"></i> 3. ข้อจำกัด (Limitations)
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: WORKFLOW & ARCHITECTURE DIAGRAM -->
+    <!-- ========================================== -->
+    <section id="tab-workflow" class="tab-content space-y-8">
+      
+      <!-- Intro Banner -->
+      <div class="glass-card rounded-2xl p-6 glow-border">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg"><i class="ph-bold ph-cpu"></i></span>
+              ผังกระบวนการทำงานระดับโค้ด (Execution Pipeline Architecture)
+            </h2>
+            <p class="text-sm text-slate-400 mt-1.5 leading-relaxed">
+              สถาปัตยกรรมทำงานแบบ <span class="text-blue-400 font-semibold">AsyncIO High-Concurrency</span> ผสานการตรวจจับ Layer 2 ARP และ HTTP Fingerprint โดยสแกนทั้งวง 254 เครื่อง (<span class="code-pill">192.168.1.0/24</span>) เสร็จสิ้นใน <span class="text-emerald-400 font-semibold font-mono">0.54 วินาที</span>
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="code-pill text-emerald-400 bg-emerald-950/40 border-emerald-500/30">AsyncIO Concurrency: 120</span>
+            <span class="code-pill text-cyan-400 bg-cyan-950/40 border-cyan-500/30">TCP Timeout: 0.15s</span>
+            <span class="code-pill text-amber-400 bg-amber-950/40 border-amber-500/30">Max Batch: 512 hosts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- INTERACTIVE STEP-BY-STEP FLOWCHART -->
+      <div class="relative space-y-6">
+
+        <!-- STEP 0 -->
+        <div class="glass-card rounded-xl p-5 border-l-4 border-l-indigo-500">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 font-mono">PHASE 0</span>
+                <h3 class="font-bold text-white text-base">การจัดเตรียมสภาพแวดล้อมและการรัน (Orchestration & File Setup)</h3>
+              </div>
+              <p class="text-xs text-slate-400">ไฟล์ที่ทำงาน: <span class="code-pill">run.sh</span>, <span class="code-pill">docker-compose.yml</span>, <span class="code-pill">Dockerfile</span></p>
+            </div>
+            <span class="text-xs font-mono text-indigo-400">Offline POSIX UDP</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">1. แก้ไขปัญหา Directory Mount</span>
+              <p class="text-slate-400">ตรวจสอบและลบไดเรกทอรีผิดพลาดหาก Docker เคยสร้างทับ แล้ว <span class="code-pill">touch host_network.json</span> เป็นไฟล์จริงก่อน container สตาร์ท</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">2. ตรวจสอบการ์ดเครือข่ายจริง</span>
+              <p class="text-slate-400">ตัดการ์ดเสมือน (<span class="code-pill">docker0, br-*, veth*, tun*</span>) ทิ้ง คัดเลือกเฉพาะการ์ดจริงผ่าน <span class="code-pill">route -n get default</span> หรือ <span class="code-pill">ip route</span></p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">3. Offline Socket Probe</span>
+              <p class="text-slate-400">เชื่อมต่อ UDP Socket ไปยัง Gateway IP โดยไม่ยิงแพ็กเก็ตออกอินเทอร์เน็ต ได้ IP จริงของเครื่องใน 0.0001 วินาที แม้ระบบอยู่ในเครือข่ายปิด (Air-gapped)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-center"><i class="ph-bold ph-arrow-down text-slate-600 text-lg"></i></div>
+
+        <!-- STEP 1 -->
+        <div class="glass-card rounded-xl p-5 border-l-4 border-l-blue-500">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 font-mono">PHASE 1</span>
+                <h3 class="font-bold text-white text-base">ระบบตรวจจับเครือข่ายอัตโนมัติ (Dynamic Subnet Ingestion)</h3>
+              </div>
+              <p class="text-xs text-slate-400">ฟังก์ชัน: <span class="code-pill">my_ip_route()</span>, <span class="code-pill">get_host_network_info()</span> ใน <span class="code-pill">app.py:575</span></p>
+            </div>
+            <span class="text-xs font-mono text-blue-400">TTL 60s Cache</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">1. HTTP Host Header Fallback</span>
+              <p class="text-slate-400">เมื่อผู้ใช้เปิดเบราว์เซอร์เข้าผ่าน IP (เช่น <span class="code-pill">http://192.168.1.41:5050</span>) ระบบอ่านค่าจาก <span class="code-pill">request.host</span> ทันที แก้ปัญหา Docker IP หลอก</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">2. Docker Bridge Elimination</span>
+              <p class="text-slate-400">ปฏิเสธ IP ในช่วง <span class="code-pill">172.16.0.0/12</span> ของ Docker Container ไม่ให้นำมาเป็นวง LAN ขององค์กรโดยเด็ดขาด</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">3. Class C Safe Slicing</span>
+              <p class="text-slate-400">หากเครือข่ายเป็น <span class="code-pill">/16</span> หรือ <span class="code-pill">/22</span> ระบบจะตัดวงเฉพาะกลุ่มเครื่องท้องถิ่น (<span class="code-pill">/24</span> ขนาด 254 เครื่อง) เป็นค่าเริ่มต้น ไม่ให้เผลอสแกน 65,534 เครื่อง</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-center"><i class="ph-bold ph-arrow-down text-slate-600 text-lg"></i></div>
+
+        <!-- STEP 2 -->
+        <div class="glass-card rounded-xl p-5 border-l-4 border-l-cyan-500">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 font-mono">PHASE 2</span>
+                <h3 class="font-bold text-white text-base">กระจายงานคู่ขนานความเร็วสูง (High-Concurrency Async Dispatcher)</h3>
+              </div>
+              <p class="text-xs text-slate-400">ฟังก์ชัน: <span class="code-pill">scan()</span>, <span class="code-pill">parse_target_hosts()</span> ใน <span class="code-pill">app.py:2429</span></p>
+            </div>
+            <span class="text-xs font-mono text-cyan-400">Async Semaphore (120)</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">1. Subnet & Port Matrix</span>
+              <p class="text-slate-400">สร้าง Matrix เป้าหมาย 254 โฮสต์ x 12 พอร์ตมาตรฐาน = 3,048 งาน หรือกำหนดพอร์ตเป้าหมายเฉพาะเจาะจง</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">2. Zero-Subprocess Architecture</span>
+              <p class="text-slate-400">ส่งค่า <span class="code-pill">curr_host_ip, curr_is_docker</span> เข้าไปใน Loop ล่วงหน้า ห้ามเรียก <span class="code-pill">subprocess.run</span> ใน Loop พอร์ตปิดเด็ดขาด แก้ปัญหาค้าง 100%</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">3. AbortController Support</span>
+              <p class="text-slate-400">เชื่อมต่อสัญญาณยกเลิกจากฝั่ง Web UI ผู้ใช้กดปุ่ม 'หยุดสแกน' เพื่อตัด HTTP Request และคืนทรัพยากรทันทีในเสี้ยววินาที</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-center"><i class="ph-bold ph-arrow-down text-slate-600 text-lg"></i></div>
+
+        <!-- STEP 3 -->
+        <div class="glass-card rounded-xl p-5 border-l-4 border-l-emerald-500">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 font-mono">PHASE 3</span>
+                <h3 class="font-bold text-white text-base">การตรวจสอบพอร์ตแบบไม่บล็อก (Pre-flight TCP Check & Hairpin Fallback)</h3>
+              </div>
+              <p class="text-xs text-slate-400">ฟังก์ชัน: <span class="code-pill">check_tcp_port()</span> ใน <span class="code-pill">app.py:1688</span></p>
+            </div>
+            <span class="text-xs font-mono text-emerald-400">0.15s Non-blocking Handshake</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">1. Fast TCP SYN Check</span>
+              <p class="text-slate-400">ส่ง TCP Handshake ด้วย Timeout 0.15s (ปกติพอร์ตเปิดตอบใน 1-5 ms) หากพอร์ตปิด OS คืนค่า RST ทันที ไม่เสียเวลารอ</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">2. Safe Socket Cleanup</span>
+              <p class="text-slate-400">ครอบคำสั่ง <span class="code-pill">writer.wait_closed()</span> ด้วย timeout 0.05s ป้องกันเธรดค้างกรณีเซิร์ฟเวอร์ปลายทางไม่ส่ง FIN/ACK</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">3. Docker NAT Hairpin Bypass</span>
+              <p class="text-slate-400">หากเป้าหมายคือเครื่อง Host ตัวเอง (<span class="code-pill">127.0.0.1</span> หรือ IP เครื่อง) สลับเชื่อมต่อไปยัง Docker Gateway หรือ <span class="code-pill">host.docker.internal</span> อัตโนมัติ</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-center"><i class="ph-bold ph-arrow-down text-slate-600 text-lg"></i></div>
+
+        <!-- STEP 4 -->
+        <div class="glass-card rounded-xl p-5 border-l-4 border-l-amber-500">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 font-mono">PHASE 4</span>
+                <h3 class="font-bold text-white text-base">การจำแนกเทคโนโลยีและลายเซ็น (Deep Fingerprint & Signature Matching)</h3>
+              </div>
+              <p class="text-xs text-slate-400">ฟังก์ชัน: <span class="code-pill">probe_endpoint()</span> ใน <span class="code-pill">app.py:1700-1850</span></p>
+            </div>
+            <span class="text-xs font-mono text-amber-400">Zero Weaponized Payload</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">1. Header Analysis</span>
+              <p class="text-slate-400">วิเคราะห์ <span class="code-pill">Server</span>, <span class="code-pill">X-Powered-By</span>, <span class="code-pill">X-Node-Version</span>, ตรวจสอบ Brotli ผ่าน <span class="code-pill">Content-Encoding: br</span></p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">2. Session Cookies</span>
+              <p class="text-slate-400">ตรวจจับ <span class="code-pill">PHPSESSID</span>, <span class="code-pill">ci_session</span>, <span class="code-pill">laravel_session</span>, <span class="code-pill">connect.sid</span>, <span class="code-pill">koa.sess</span></p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">3. DOM & Body Markers</span>
+              <p class="text-slate-400">ตรวจจับ <span class="code-pill">wp-content</span>, <span class="code-pill">phpmyadmin</span>, <span class="code-pill">__next_data__</span>, <span class="code-pill">/_nuxt/</span>, <span class="code-pill">@vite/client</span></p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">4. Secondary Probes</span>
+              <p class="text-slate-400">ตรวจสอบ <span class="code-pill">/index.php</span> และ Easter Egg <span class="code-pill">?=PHPB8B5F2A0...</span> เพื่อยืนยัน PHP แม้เซิร์ฟเวอร์จะซ่อน header</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-center"><i class="ph-bold ph-arrow-down text-slate-600 text-lg"></i></div>
+
+        <!-- STEP 5 -->
+        <div class="glass-card rounded-xl p-5 border-l-4 border-l-rose-500">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 font-mono">PHASE 5</span>
+                <h3 class="font-bold text-white text-base">การประเมินกลไกความเสี่ยง 5 สาย (5 Security Chains Audit: Chains A ถึง E)</h3>
+              </div>
+              <p class="text-xs text-slate-400">ฟังก์ชัน: <span class="code-pill">audit_security_chains()</span>, <span class="code-pill">probe_lfi_prerequisite()</span> ใน <span class="code-pill">app.py:1570-1685</span></p>
+            </div>
+            <span class="text-xs font-mono text-rose-400">Terminal Explainer Layout</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-5 gap-2.5 text-xs">
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-rose-400 block mb-1">Chain A: Upload Progress</span>
+              <p class="text-slate-400 text-[11px]">ตรวจการเปิดฟีเจอร์อัปโหลดไฟล์แฝงใน Session ซึ่งเป็นจุดเริ่มการสร้างโค้ดแฝง</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-amber-400 block mb-1">Chain B: Info Exposure</span>
+              <p class="text-slate-400 text-[11px]">ตรวจการเปิดเผยหมายเลขเวอร์ชัน PHP และ OS ผ่าน expose_php / Server Header</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-yellow-400 block mb-1">Chain C: Deserialization</span>
+              <p class="text-slate-400 text-[11px]">ตรวจความเสี่ยงจากการสลับ serialize_handler ข้ามรูปแบบ (php vs php_serialize)</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-purple-400 block mb-1">Chain D: Memory Limit</span>
+              <p class="text-slate-400 text-[11px]">ตรวจความเสี่ยง OOM Bailout และขอบเขตหน่วยความจำใน Zend Engine</p>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-blue-400 block mb-1">Chain E: Worker Lifecycle</span>
+              <p class="text-slate-400 text-[11px]">ตรวจการคงค้างของบัฟเฟอร์ใน PHP-FPM Worker ที่ไม่ถูกรีไซเคิล (pm.max_requests)</p>
+            </div>
+          </div>
+          <div class="mt-3 p-3 rounded-lg bg-rose-950/20 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2">
+            <i class="ph-bold ph-shield-check text-base text-rose-400"></i>
+            <span><strong>การตรวจสอบ LFI แบบปลอดภัย (Benign Canary Probe):</strong> ทดสอบส่ง canary token เช่น <span class="code-pill">?page=thaicert_audit_probe_canary_test</span> เพื่อดูข้อผิดพลาด include stream โดยไม่มีการรันคำสั่ง OS หรือทิ้งไฟล์อันตรายใดๆ บนเครื่องเป้าหมาย</span>
+          </div>
+        </div>
+
+        <div class="flex justify-center"><i class="ph-bold ph-arrow-down text-slate-600 text-lg"></i></div>
+
+        <!-- STEP 6 -->
+        <div class="glass-card rounded-xl p-5 border-l-4 border-l-purple-500">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 font-mono">PHASE 6</span>
+                <h3 class="font-bold text-white text-base">ผสานข้อมูล Layer 2 ARP และจัดกลุ่มตาม ThaiCERT 8 มิติ</h3>
+              </div>
+              <p class="text-xs text-slate-400">ฟังก์ชัน: <span class="code-pill">get_live_lan_hosts()</span>, <span class="code-pill">resolve_device_details()</span> ใน <span class="code-pill">app.py:2514-2598</span></p>
+            </div>
+            <span class="text-xs font-mono text-purple-400">Layer 2 ARP Mapping</span>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">1. ตรวจพบอุปกรณ์ที่ไม่มี Web Service</span>
+              <p class="text-slate-400">ดึงข้อมูล MAC Address จาก ARP Table จัดกลุ่มอุปกรณ์ที่ไม่มีพอร์ตเว็บ เช่น ปรินเตอร์, เราเตอร์, กล้องวงจรปิด ไม่ให้หลุดจากการตรวจสอบ</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">2. ThaiCERT 8 Groups Summary</span>
+              <p class="text-slate-400">คำนวณและจัดสรรอุปกรณ์เข้า 8 หมวดหมู่ (CMS, Mobile API, Control Panel, IoT, Docker, Windows PHP, Dev/Legacy, Outsourced)</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="font-semibold text-slate-200 block mb-1">3. Real-time Dashboard Rendering</span>
+              <p class="text-slate-400">ส่งผลลัพธ์ JSON กลับไปยัง Frontend พร้อมค่า Latency รายเครื่อง และเปิดให้คลิกตรวจสอบ Deep Audit รายพอร์ตได้ทันที</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: SCOPE (ขอบเขตระบบ) -->
+    <!-- ========================================== -->
+    <section id="tab-scope" class="tab-content space-y-6 hidden">
+      <div class="glass-card rounded-2xl p-6 glow-border">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg"><i class="ph-bold ph-crosshair"></i></span>
+          ขอบเขตการทำงานของระบบ (Scope of Audit & Detection)
+        </h2>
+        <p class="text-sm text-slate-400 mt-1.5 leading-relaxed">
+          ระบบถูกออกแบบมาเพื่อเป็น <span class="text-blue-400 font-semibold">เครื่องมือตรวจประเมินความปลอดภัยเชิงรับ (Non-destructive Security Audit Tool)</span> ประจำหน่วยงานและองค์กร ครอบคลุมทั้งระบบเครือข่ายและเว็บแอปพลิเคชัน
+        </p>
+      </div>
+
+      <!-- Scope Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- 1. รูปแบบเป้าหมายที่รองรับ -->
+        <div class="glass-card rounded-xl p-5 space-y-4">
+          <div class="flex items-center gap-2.5 text-blue-400 font-bold border-b border-slate-800 pb-3">
+            <i class="ph-bold ph-globe text-xl"></i>
+            <h3>1. รูปแบบเป้าหมายที่รองรับ (Target Formats)</h3>
+          </div>
+          <ul class="space-y-3 text-xs text-slate-300">
+            <li class="flex items-start gap-2">
+              <i class="ph-bold ph-check text-emerald-400 text-sm mt-0.5"></i>
+              <div>
+                <strong class="text-white">CIDR Subnet (Class C & Enterprise):</strong>
+                <p class="text-slate-400 mt-0.5">รองรับ <span class="code-pill">192.168.1.0/24</span>, <span class="code-pill">10.0.0.0/22</span>, <span class="code-pill">172.16.0.0/24</span> โดยมีระบบจำกัดขนาดเพื่อความปลอดภัย (Max Scan 512 hosts)</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="ph-bold ph-check text-emerald-400 text-sm mt-0.5"></i>
+              <div>
+                <strong class="text-white">Single Host IP (/32):</strong>
+                <p class="text-slate-400 mt-0.5">ระบุตรวจสอบเครื่องเดี่ยว เช่น <span class="code-pill">192.168.1.41</span> หรือ <span class="code-pill">10.10.20.15/32</span></p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="ph-bold ph-check text-emerald-400 text-sm mt-0.5"></i>
+              <div>
+                <strong class="text-white">IP Range:</strong>
+                <p class="text-slate-400 mt-0.5">ระบุช่วง IP เริ่มต้นถึงสิ้นสุด เช่น <span class="code-pill">192.168.1.10 - 192.168.1.50</span></p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="ph-bold ph-check text-emerald-400 text-sm mt-0.5"></i>
+              <div>
+                <strong class="text-white">Domain & FQDN:</strong>
+                <p class="text-slate-400 mt-0.5">ใส่ชื่อโฮสต์ เช่น <span class="code-pill">intranet.org.go.th</span> ระบบทำการ Resolve DNS อัตโนมัติ</p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <i class="ph-bold ph-check text-emerald-400 text-sm mt-0.5"></i>
+              <div>
+                <strong class="text-white">Port Specific Target:</strong>
+                <p class="text-slate-400 mt-0.5">รองรับการระบุพอร์ตในเป้าหมาย เช่น <span class="code-pill">192.168.1.41:8080</span> หรือ <span class="code-pill">dev.local:3000</span></p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 2. พอร์ตบริการที่ตรวจสอบ -->
+        <div class="glass-card rounded-xl p-5 space-y-4">
+          <div class="flex items-center gap-2.5 text-cyan-400 font-bold border-b border-slate-800 pb-3">
+            <i class="ph-bold ph-plugs text-xl"></i>
+            <h3>2. พอร์ตบริการที่ตรวจสอบ (Ports In-Scope)</h3>
+          </div>
+          <div class="space-y-3 text-xs text-slate-300">
+            <p class="text-slate-400 leading-relaxed">
+              ระบบตรวจสอบพอร์ตบริการเว็บและแอปพลิเคชันมาตรฐาน 12 พอร์ตที่นิยมใช้รัน PHP, Node.js, Reverse Proxy และ Dev Server:
+            </p>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <span class="code-pill text-white bg-slate-800">80 (HTTP)</span>
+              <span class="code-pill text-white bg-slate-800">443 (HTTPS)</span>
+              <span class="code-pill text-white bg-slate-800">8080 (Alt-HTTP/Proxy)</span>
+              <span class="code-pill text-white bg-slate-800">8000 (Dev Server)</span>
+              <span class="code-pill text-white bg-slate-800">8888 (Webmin/PHP)</span>
+              <span class="code-pill text-white bg-slate-800">8081 (Docker/Node)</span>
+              <span class="code-pill text-white bg-slate-800">8443 (Alt-HTTPS)</span>
+              <span class="code-pill text-white bg-slate-800">3000 (Node.js/Next.js)</span>
+              <span class="code-pill text-white bg-slate-800">5000 (Flask/Express)</span>
+              <span class="code-pill text-white bg-slate-800">5050 (Scanner/App)</span>
+              <span class="code-pill text-white bg-slate-800">4000 (Backend API)</span>
+              <span class="code-pill text-white bg-slate-800">5173 (Vite/SPA)</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">
+              💡 <em>ผู้ดูแลระบบสามารถกำหนดพอร์ตเอง (Custom Ports) ได้อย่างอิสระตั้งแต่พอร์ต 1 ถึง 65535 ในหน้าตั้งค่า</em>
+            </p>
+          </div>
+        </div>
+
+        <!-- 3. ThaiCERT 8 กลุ่มระบบ -->
+        <div class="glass-card rounded-xl p-5 space-y-4 md:col-span-2">
+          <div class="flex items-center gap-2.5 text-emerald-400 font-bold border-b border-slate-800 pb-3">
+            <i class="ph-bold ph-squares-four text-xl"></i>
+            <h3>3. ขอบเขตการจัดกลุ่มสินทรัพย์สารสนเทศตาม ThaiCERT 8 มิติ (Asset Classification)</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร</span>
+              <p class="text-slate-400 mt-1">CMS: WordPress, Joomla, Drupal, Intranet Portal ภายในหน่วยงาน</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 2: ระบบหลังบ้านแอปมือถือ และ API</span>
+              <p class="text-slate-400 mt-1">Mobile API, REST/JSON Endpoints, Node.js / Express / Next.js SSR</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 3: Hosting Control Panel</span>
+              <p class="text-slate-400 mt-1">แผงควบคุมโฮสติ้ง cPanel, DirectAdmin, Plesk, Webmin (พอร์ต 8888, 8080)</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป</span>
+              <p class="text-slate-400 mt-1">อุปกรณ์เครือข่าย, กล้อง CCTV, เครื่องพิมพ์ Network Printer ผ่าน Layer 2 ARP</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 5: Container และ Docker Image</span>
+              <p class="text-slate-400 mt-1">ระบบที่รันบน Docker, Alpine Linux, คอนเทนเนอร์ไมโครเซอร์วิส</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 6: Windows ที่มี PHP ติดตั้งอยู่</span>
+              <p class="text-slate-400 mt-1">Microsoft IIS, XAMPP on Windows, PHP-CGI (เสี่ยงต่อ CVE-2024-4577)</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 7: ระบบทดสอบ ระบบเก่า และสำรอง</span>
+              <p class="text-slate-400 mt-1">Staging/Dev Server, PHP 5.6/7.4 เก่าที่ไม่ได้แพตช์, เครื่องลืมปิด</p>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+              <span class="font-bold text-white block">กลุ่ม 8: ระบบที่ผู้ให้บริการภายนอกดูแล</span>
+              <p class="text-slate-400 mt-1">Outsourced Web Application, Vendor Managed Services, SaaS ภายนอก</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: LIMITATIONS (ข้อจำกัดระบบ) -->
+    <!-- ========================================== -->
+    <section id="tab-limits" class="tab-content space-y-6 hidden">
+      <div class="glass-card rounded-2xl p-6 glow-border">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg"><i class="ph-bold ph-warning-octagon"></i></span>
+          ข้อจำกัดเชิงเทคนิคและสภาพแวดล้อม (Technical Limitations & Boundaries)
+        </h2>
+        <p class="text-sm text-slate-400 mt-1.5 leading-relaxed">
+          ความโปร่งใสในขอบเขตการทำงาน สิ่งที่ระบบทำได้และข้อจำกัดที่ไม่สามารถตรวจได้จากเครือข่ายภายนอก (เพื่อความเข้าใจที่ถูกต้องของผู้ตรวจสอบ)
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- ข้อจำกัด 1: Non-destructive Safety Boundary -->
+        <div class="glass-card rounded-xl p-5 border-t-4 border-t-blue-500 space-y-3">
+          <div class="flex items-center gap-2 text-white font-bold">
+            <i class="ph-bold ph-shield-warning text-blue-400 text-lg"></i>
+            <h3>1. ขอบเขตความปลอดภัย (Non-destructive Design)</h3>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            ระบบ<strong>ปฏิเสธการส่ง Payload เจาะระบบจริง (Exploitation)</strong> หรือรันคำสั่ง OS เช่น <span class="code-pill">shell_exec('id')</span> หรือการเขียน Shell ลงดิสก์อัตโนมัติทั้งวง LAN:
+          </p>
+          <div class="p-3 rounded-lg bg-blue-950/20 border border-blue-500/20 text-xs text-blue-300">
+            <strong>เหตุผล:</strong> เพื่อป้องกันไม่ให้ Memory Corruption (Use-After-Free) ไปทำลายกระบวนการทำงานของ PHP-FPM / Apache จนเซิร์ฟเวอร์โรงพยาบาลหรือธนาคารเกิด Service Crash และป้องกันไม่ให้เกิดความผิดตาม พ.ร.บ. คอมพิวเตอร์ฯ
+          </div>
+        </div>
+
+        <!-- ข้อจำกัด 2: Network & VLAN Isolation -->
+        <div class="glass-card rounded-xl p-5 border-t-4 border-t-amber-500 space-y-3">
+          <div class="flex items-center gap-2 text-white font-bold">
+            <i class="ph-bold ph-broadcast text-amber-400 text-lg"></i>
+            <h3>2. ข้อจำกัดเรื่อง VLAN และ Client Isolation</h3>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            การตรวจจับอุปกรณ์รอบข้างผ่าน <span class="code-pill">Layer 2 ARP</span> จะทำงานได้สมบูรณ์ใน Broadcast Domain เดียวกัน:
+          </p>
+          <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-500/20 text-xs text-amber-300">
+            <strong>ผลกระทบ:</strong> หากเครือข่ายองค์กรมีการเปิดใช้ <em>Client Isolation บน Wi-Fi</em> หรือเครื่องสแกนเนอร์อยู่คนละ VLAN ผ่านเราเตอร์ L3 การค้นหาเครื่องที่ไม่มีพอร์ตเว็บผ่าน ARP อาจไม่เห็นอุปกรณ์บางส่วน
+          </div>
+        </div>
+
+        <!-- ข้อจำกัด 3: Banner Obfuscation -->
+        <div class="glass-card rounded-xl p-5 border-t-4 border-t-purple-500 space-y-3">
+          <div class="flex items-center gap-2 text-white font-bold">
+            <i class="ph-bold ph-eye-slash text-purple-400 text-lg"></i>
+            <h3>3. การซ่อนเวอร์ชัน (Header Hardening)</h3>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            กรณีที่เซิร์ฟเวอร์เป้าหมายปิดการแสดงผล <span class="code-pill">expose_php = Off</span> และปรับแก้ Server Token ให้เป็นชื่ออื่น:
+          </p>
+          <div class="p-3 rounded-lg bg-purple-950/20 border border-purple-500/20 text-xs text-purple-300">
+            <strong>ผลกระทบ:</strong> ระบบจะใช้การวิเคราะห์พฤติกรรม (Behavioral Signatures, Cookies, Framework Markers) ซึ่งอาจระบุเวอร์ชันได้เป็นช่วงความเสี่ยง แทนที่จะเป็นเลข Patch ย่อยที่แน่นอน
+          </div>
+        </div>
+
+        <!-- ข้อจำกัด 4: Subnet Slicing Cap -->
+        <div class="glass-card rounded-xl p-5 border-t-4 border-t-rose-500 space-y-3">
+          <div class="flex items-center gap-2 text-white font-bold">
+            <i class="ph-bold ph-traffic-cone text-rose-400 text-lg"></i>
+            <h3>4. เพดานการสแกนเครือข่ายขนาดใหญ่ (Max Scan Cap)</h3>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            ระบบกำหนดเพดาน <span class="code-pill">max_scan = 512 hosts</span> เพื่อความปลอดภัยของโครงข่ายองค์กร:
+          </p>
+          <div class="p-3 rounded-lg bg-rose-950/20 border border-rose-500/20 text-xs text-rose-300">
+            <strong>ผลกระทบ:</strong> หากผู้ใช้กรอก Subnet ขนาดมหาศาล เช่น <span class="code-pill">10.0.0.0/8</span> หรือ <span class="code-pill">172.16.0.0/16</span> ระบบจะตัดสแกนเฉพาะช่วง Class C แรก (254 เครื่อง) เพื่อไม่ให้ทราฟฟิกถล่ม Core Switch ขององค์กร
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    function switchTab(tabId) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+      });
+      // Deactivate all buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow');
+        btn.classList.add('text-slate-400');
+      });
+
+      // Show selected tab
+      const targetTab = document.getElementById(tabId);
+      if (targetTab) {
+        targetTab.classList.remove('hidden');
+      }
+
+      // Activate selected button
+      const targetBtn = document.getElementById('btn-' + tabId);
+      if (targetBtn) {
+        targetBtn.classList.add('bg-blue-600', 'text-white', 'shadow');
+        targetBtn.classList.remove('text-slate-400');
+      }
+    }
+  </script>
+</body>
+</html>

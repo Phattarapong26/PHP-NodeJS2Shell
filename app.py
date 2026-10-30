@@ -572,6 +572,10 @@ def parse_target_hosts(target_str, max_scan=512, host_ip=""):
 def index():
     return send_from_directory(".", "GUI.html")
 
+@app.route("/diagram")
+def diagram_page():
+    return send_from_directory(".", "diagram.html")
+
 @app.route("/api/my-ip")
 def my_ip_route():
     refresh = request.args.get("refresh") == "1"

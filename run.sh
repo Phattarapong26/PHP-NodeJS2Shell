@@ -170,6 +170,7 @@ if [ "$1" == "--docker" ] || [ ! -f "$DIR/venv/bin/python" ]; then
       -v "$DIR/active_hosts.txt:/app/active_hosts.txt:ro" \
       -v "$DIR/GUI.html:/app/GUI.html" \
       -v "$DIR/app.py:/app/app.py" \
+      -v "$DIR/diagram.html:/app/diagram.html" \
       thaicert-php-scanner
   fi
 else
