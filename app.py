@@ -1218,28 +1218,32 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
                 "title": "[Chain A] session.upload_progress filename injection + LFI",
                 "verdict": chain_a_verdict,
                 "remediation": chain_a_remedy,
-                "stages": chain_a_stages
+                "stages": chain_a_stages,
+                "hardening_ini": "; [Chain A: ป้องกัน Session Upload Progress และบังคับ Strict Mode]\nsession.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1"
             },
             "chain_b": {
                 "title": "[Chain B] INI Leak via Session Engine (SAPI & Save Path Exposure)",
                 "verdict": chain_b_verdict,
                 "remediation": chain_b_remedy,
-                "stages": chain_b_stages
+                "stages": chain_b_stages,
+                "hardening_ini": "; [Chain B: ปิดกั้นการเปิดเผยค่า INI ข้อมูลเวอร์ชัน และปิด Error หน้าเว็บ]\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On\nerror_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT"
             },
             "chain_c": {
                 "title": "[Chain C] serializer-handler mismatch -> Object Deserialization Risk",
                 "verdict": chain_c_verdict,
                 "remediation": chain_c_remedy,
-                "stages": chain_c_stages
+                "stages": chain_c_stages,
+                "hardening_ini": "; [Chain C: ควบคุม Serializer Handler ป้องกันความไม่สอดคล้อง]\nsession.serialize_handler = php"
             },
             "chain_d": {
                 "title": "[Chain D] OOM skips cleanup -> Poisoned Session -> LFI",
                 "verdict": chain_d_verdict,
                 "remediation": chain_d_remedy,
-                "stages": chain_d_stages
+                "stages": chain_d_stages,
+                "hardening_ini": "; [Chain D: ควบคุมขนาดหน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n; สิทธิ์โฟลเดอร์ที่แนะนำ: chmod 0700 /var/lib/php/sessions && chown www-data:www-data /var/lib/php/sessions"
             }
         },
-        "hardening_ini": "session.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\nsession.serialize_handler = php\nmemory_limit = 256M\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On"
+        "hardening_ini": "; [Chain B Defense: ปิดกั้นการเปิดเผยข้อมูลสภาพแวดล้อม]\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On\nerror_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT\n\n; [Chain A Defense: ป้องกันการสร้างข้อมูลเซสชันแฝงผ่าน Upload Progress]\nsession.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\n\n; [Chain C Defense: ป้องกันความไม่สอดคล้องของ Serializer และ Object Deserialization]\nsession.serialize_handler = php\n\n; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\""
     }
 
 async def check_tcp_port(ip: str, port: int, timeout: float = 0.22) -> bool:
@@ -1295,9 +1299,10 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
         is_php = header_php or has_phpsessid or has_php_cookie or body_php
         php_version_str = powered if "php" in powered.lower() else (server if "php" in server.lower() else "")
 
-        # Step 2: Detect Node.js Signatures
-        node_powered = any(n in powered.lower() for n in ["express", "next", "nuxt", "nest", "fastify", "koa", "sails", "node", "remix", "svelte", "astro", "ghost", "strapi", "gatsby"])
-        node_server = any(n in server.lower() for n in ["node", "express", "next", "deno", "bun"])
+        # Step 2: Detect Node.js Signatures (Use regex word boundaries to avoid false positives like "ubuntu" matching "bun")
+        node_kw = ["express", "next", "nuxt", "nest", "fastify", "koa", "sails", "node", "remix", "svelte", "astro", "ghost", "strapi", "gatsby"]
+        node_powered = any(re.search(rf'\b{re.escape(n)}\b', powered, re.IGNORECASE) for n in node_kw)
+        node_server = any(re.search(rf'\b{re.escape(n)}\b', server, re.IGNORECASE) for n in ["node", "express", "next", "deno", "bun"])
         node_cookies = any(c in cookies_str.lower() for c in ["connect.sid", "koa.sess", "koa:sess", "next-auth", "io=", "sails.sid"])
         node_body = any(sig in body_text for sig in ["__next_data__", "/_next/", "__nuxt__", "/_nuxt/", "/@vite/client", "cannot get /", "cannot post /"])
         
@@ -1308,7 +1313,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
         if node_ver_hdr:
             node_version_str = f"v{node_ver_hdr.lstrip('v')}"
         elif is_node:
-            m_ver = re.search(r'(?:node(?:\.js)?/|v)?(\d+\.\d+(?:\.\d+)?)', f"{powered} {server}")
+            m_ver = re.search(r'(?:node(?:\.js)?/|v)(\d+\.\d+(?:\.\d+)?)', f"{powered} {server}", re.IGNORECASE)
             if m_ver:
                 node_version_str = f"v{m_ver.group(1)}"
             elif "express" in powered.lower():
@@ -1418,6 +1423,83 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             expose_php=(powered != "")
         )
         
+        # Collect signatures matched for verification evidence
+        signatures_matched = []
+        if is_php:
+            signatures_matched.append(f"PHP Runtime: {php_version_str or 'PHP'}")
+        if is_node:
+            signatures_matched.append(f"Node.js Runtime: {node_version_str}")
+        if has_phpsessid:
+            signatures_matched.append("PHPSESSID Cookie Active")
+        if has_php_cookie:
+            signatures_matched.append("PHP Framework Session Active")
+        if cms_name and cms_name != "Web Application":
+            signatures_matched.append(f"CMS / Framework: {cms_name}")
+        if waf_name and "Direct Access" not in waf_name:
+            signatures_matched.append(f"Edge Defense: {waf_name}")
+        if powered:
+            signatures_matched.append(f"Header: X-Powered-By: {powered}")
+        if server:
+            signatures_matched.append(f"Header: Server: {server}")
+        if has_hsts:
+            signatures_matched.append("Security Header: HSTS Active")
+        else:
+            signatures_matched.append("Security Header: Missing HSTS")
+        if has_csp:
+            signatures_matched.append("Security Header: CSP Active")
+        else:
+            signatures_matched.append("Security Header: Missing CSP")
+
+        response_headers_display = {}
+        for k, v in headers.items():
+            k_lower = k.lower()
+            if k_lower in [
+                "server", "x-powered-by", "set-cookie", "content-type", 
+                "content-length", "date", "strict-transport-security", 
+                "content-security-policy", "x-frame-options", "x-content-type-options",
+                "x-node-version", "x-php-version", "access-control-allow-origin"
+            ] or k_lower.startswith("x-"):
+                response_headers_display[k] = v
+
+        probe_steps = [
+            {
+                "step": "1. TCP Handshake",
+                "desc": f"ตรวจสอบการเชื่อมต่อพอร์ต {port}/TCP — สถานะ: เปิดใช้งานและตอบสนองปกติ",
+                "status": "pass"
+            },
+            {
+                "step": "2. Passive HTTP Probe Request",
+                "desc": f"ส่งคำขอ GET {base_url}/ พร้อมส่วนหัว User-Agent ตรวจสอบเชิงรับ (Non-destructive)",
+                "status": "pass"
+            },
+            {
+                "step": "3. Header & Cookie Forensic Inspection",
+                "desc": f"ได้รับรหัสตอบสนอง HTTP {resp.status_code} ({latency}) วิเคราะห์ส่วนหัว Server, X-Powered-By และคุกกี้เซสชัน",
+                "status": "pass" if resp.status_code < 400 else "info"
+            },
+            {
+                "step": "4. Defensive Security Chains Assessment",
+                "desc": f"วิเคราะห์ค่าคอนฟิกเทียบกับมาตรฐาน ThaiCERT และกลไก Chains A, B, C, D — ผลสรุป: {security_chains.get('overall_status', 'Audit Completed')}",
+                "status": "pass" if security_chains.get('overall_status') == 'Defensively Hardened' else "warn"
+            }
+        ]
+
+        probe_log = {
+            "target_url": f"{base_url}/",
+            "method": "GET",
+            "port": port,
+            "status_code": resp.status_code,
+            "status_text": f"{resp.status_code} {getattr(resp, 'reason_phrase', 'OK')}",
+            "latency": latency,
+            "audit_strategy": "Non-destructive Passive Audit (การตรวจสอบเชิงรับ ไม่รบกวนการทำงาน)",
+            "request_headers": req_headers,
+            "response_headers": response_headers_display,
+            "all_response_headers": dict(headers),
+            "cookies_found": [c.strip() for c in cookies_str.split(";") if c.strip() and "=" in c][:6] if cookies_str else [],
+            "signatures_matched": signatures_matched,
+            "probe_steps": probe_steps
+        }
+
         deep_audit = {
             "waf": waf_name,
             "cms": cms_name,
@@ -1432,7 +1514,8 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             "primary_group": thaicert_info["primary_group"],
             "group_labels": thaicert_info["group_labels"],
             "group_evidence": thaicert_info["evidence"],
-            "security_chains": security_chains
+            "security_chains": security_chains,
+            "probe_log": probe_log
         }
 
         # Step 5: Evaluate & Return Classification
@@ -1462,6 +1545,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
                 "security_chains": security_chains,
+                "probe_log": probe_log,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -1491,6 +1575,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
                 "security_chains": security_chains,
+                "probe_log": probe_log,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -1519,6 +1604,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
                 "security_chains": security_chains,
+                "probe_log": probe_log,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -1549,6 +1635,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
                 "security_chains": security_chains,
+                "probe_log": probe_log,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": "Secure",
@@ -1650,6 +1737,11 @@ def scan():
                                     item["vulnerability"] = r["vulnerability"]
                                     item["cveNote"] = r["cveNote"]
 
+                                if r.get("probe_log"):
+                                    item["probe_log"] = r["probe_log"]
+                                    if "deep_audit" in item and isinstance(item["deep_audit"], dict):
+                                        item["deep_audit"]["probe_log"] = r["probe_log"]
+
                     if r.get("is_php") and not any(p["ip"] == r["ip"] for p in php_results):
                         php_results.append(r)
                     if r.get("is_node") and not any(n["ip"] == r["ip"] for n in node_results):
@@ -1680,6 +1772,24 @@ def scan():
                             latency = "< 5 ms (Wi-Fi)"
 
                         cve_note = "เกตเวย์เครือข่าย LAN (ปลอดภัยจาก php2shell และ Node2Shell 100%)" if is_gw else "เครื่องลูกข่ายทั่วไปในวง LAN (ไม่มีบริการเว็บ — ปลอดภัย 100%)"
+                        arp_probe_log = {
+                            "target_url": f"arp://{act_ip}",
+                            "method": "ARP Probe",
+                            "port": open_ports[0] if open_ports else 0,
+                            "status_code": 200,
+                            "status_text": "ARP Cache Active",
+                            "latency": latency,
+                            "audit_strategy": "Layer 2 ARP Discovery & Passive Port Verification",
+                            "request_headers": {"Protocol": "ARP / ICMP Handshake"},
+                            "response_headers": {"Hardware-Type": "Ethernet", "MAC": mac, "Device": dev_name},
+                            "all_response_headers": {},
+                            "cookies_found": [],
+                            "signatures_matched": [f"MAC: {mac}", f"Device: {dev_name}"],
+                            "probe_steps": [
+                                {"step": "1. ARP Discovery", "desc": f"ตรวจพบ MAC Address {mac} ในเครือข่าย LAN", "status": "pass"},
+                                {"step": "2. Web Port Verification", "desc": "ตรวจสอบพอร์ตบริการเว็บมาตรฐาน (ไม่พบเปิดบริการเว็บ — ปลอดภัย)", "status": "pass"}
+                            ]
+                        }
                         all_active.append({
                             "is_php": False,
                             "is_node": False,
@@ -1699,6 +1809,7 @@ def scan():
                             "latency": latency,
                             "vulnerability": "Secure",
                             "cveNote": cve_note,
+                            "probe_log": arp_probe_log,
                             "thaicert_groups": [4],
                             "primary_group": "กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์ทั่วไปในเครือข่าย",
                             "group_labels": ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Network Device)"],
@@ -1719,7 +1830,8 @@ def scan():
                                     "applicable": False,
                                     "overall_status": "Non-PHP Device",
                                     "chains": {}
-                                }
+                                },
+                                "probe_log": arp_probe_log
                             }
                         })
 
