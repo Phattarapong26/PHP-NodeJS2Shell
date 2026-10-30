@@ -634,6 +634,10 @@
           <span id="quickPhpCount">ยังไม่ได้สแกน</span>
           <i class="ph-bold ph-caret-right"></i>
         </button>
+        <button id="btnFooterExportAmberPdf" class="font-bold text-amber-950 bg-amber-400 hover:bg-amber-500 border border-amber-500 flex items-center gap-1.5 px-3 py-1 rounded-md shadow-sm transition cursor-pointer text-xs" title="ดาวน์โหลดรายงานความมั่นคงปลอดภัย TLP:AMBER (PDF)">
+          <i class="ph-bold ph-file-pdf text-sm"></i>
+          <span>รายงาน TLP:AMBER (PDF)</span>
+        </button>
       </div>
     </footer>
 
@@ -657,6 +661,10 @@
           </div>
           
           <div class="flex items-center gap-2.5">
+            <button id="btnExportAmberPdfModal" class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-500 border border-amber-500 shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="ออกรายงานความมั่นคงปลอดภัยตามมาตรฐาน สกมช. (TLP:AMBER PDF)">
+              <i class="ph-bold ph-file-pdf text-sm text-amber-950"></i>
+              <span>ออกรายงาน TLP:AMBER (PDF)</span>
+            </button>
             <button id="btnExportReport" class="px-3 py-1.5 rounded-xl neu-pill-btn text-xs font-semibold flex items-center gap-1.5 transition text-slate-700 hover:text-blue-600" title="ส่งออกรายงานเป็นไฟล์ CSV">
               <i class="ph-bold ph-download-simple text-blue-600"></i>
               <span>Export CSV</span>
@@ -4634,12 +4642,64 @@ ${data.c_patch_directive}
       updateCalculatedPorts();
     }
 
-    // TLP:AMBER PDF Export Handlers
+    // TLP:AMBER PDF Export Handlers (Zero Mock, Real Data Direct Download)
+    async function downloadFullAmberPdfReport(btnElement = null) {
+      let origHtml = '';
+      if (btnElement) {
+        origHtml = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> <span>กำลังสร้าง PDF...</span>';
+      }
+      showToast("กำลังประมวลผลและสร้างรายงาน PDF ทางการ สกมช. (TLP:AMBER)...");
+
+      const targetVal = (mainSubnetInput ? mainSubnetInput.value : appState.subnetPrefix + '0/24') || 'Local Network';
+      const hostsToSend = appState.allHosts && appState.allHosts.length > 0 ? appState.allHosts : [];
+
+      try {
+        const resp = await fetch('/api/report/pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            target: targetVal,
+            hosts: hostsToSend
+          })
+        });
+
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `NCSA_Advisory_TLPAMBER_${targetVal.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+          showToast("ดาวน์โหลดรายงานความมั่นคงปลอดภัย TLP:AMBER (PDF) สำเร็จ");
+        } else {
+          window.open('/api/report/preview', '_blank');
+        }
+      } catch (err) {
+        window.open('/api/report/preview', '_blank');
+      } finally {
+        if (btnElement && origHtml) {
+          btnElement.innerHTML = origHtml;
+        }
+      }
+    }
+
     const btnExportAmberPdf = document.getElementById('btnExportAmberPdf');
     if (btnExportAmberPdf) {
-      btnExportAmberPdf.addEventListener('click', () => {
-        window.open('/api/report/pdf', '_blank');
-      });
+      btnExportAmberPdf.addEventListener('click', () => downloadFullAmberPdfReport(btnExportAmberPdf));
+    }
+
+    const btnExportAmberPdfModal = document.getElementById('btnExportAmberPdfModal');
+    if (btnExportAmberPdfModal) {
+      btnExportAmberPdfModal.addEventListener('click', () => downloadFullAmberPdfReport(btnExportAmberPdfModal));
+    }
+
+    const btnFooterExportAmberPdf = document.getElementById('btnFooterExportAmberPdf');
+    if (btnFooterExportAmberPdf) {
+      btnFooterExportAmberPdf.addEventListener('click', () => downloadFullAmberPdfReport(btnFooterExportAmberPdf));
     }
 
     const btnExportHostPdf = document.getElementById('btnExportHostPdf');
