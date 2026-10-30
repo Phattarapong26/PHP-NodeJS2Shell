@@ -1040,72 +1040,40 @@
             </div>
           </div>
 
-          <!-- Layer 3: Host Verification Guidance (คำสั่งตรวจสอบเลขแพตช์จริงบนเซิร์ฟเวอร์) -->
-          <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-slate-200 shadow-md space-y-2.5">
-            <div class="flex items-center justify-between text-xs font-bold text-white">
-              <span class="flex items-center gap-1.5 text-blue-300">
-                <i class="ph-bold ph-terminal-window"></i> 3. คำสั่งตรวจสอบเลขแพตช์จริงบนเซิร์ฟเวอร์ (Local Credentialed Audit)
-              </span>
-              <button id="btnCopyAuditCmd" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-semibold flex items-center gap-1 transition cursor-pointer">
-                <i class="ph-bold ph-copy"></i>
-                <span id="copyCmdText">คัดลอกคำสั่ง</span>
-              </button>
-            </div>
-            <p class="text-[11px] text-slate-300 leading-relaxed">
-              เนื่องจากเซิร์ฟเวอร์ตั้งค่าปิดบังเวอร์ชัน (<code class="text-amber-300">expose_php = Off</code>) ตามหลักความมั่นคงปลอดภัย จึงไม่ควรส่งคำขอรบกวนระบบ ผู้ดูแลระบบสามารถรันคำสั่งด้านล่างนี้ใน Terminal ของเซิร์ฟเวอร์ เพื่อตรวจเลขแพตช์ที่แท้จริง:
-            </p>
-            <div class="p-2.5 rounded-xl bg-slate-950 font-mono text-[11px] text-emerald-400 overflow-x-auto select-all border border-slate-700/60">
-              <span id="auditTerminalCmd">php -v && (dpkg -l | grep -E "php[0-9]" || rpm -qa | grep php)</span>
-            </div>
-            <div class="p-2.5 rounded-xl bg-blue-950/60 border border-blue-800/40 text-[11px] text-blue-200">
-              <b class="text-blue-100">เกณฑ์ความปลอดภัยมาตรฐาน ThaiCERT:</b>
-              <ul class="list-disc list-inside mt-1 space-y-0.5 text-blue-300">
-                <li>สำหรับ PHP 8.2: ต้องเป็นเวอร์ชัน <span class="font-bold text-emerald-300">8.2.20+</span> ขึ้นไป</li>
-                <li>สำหรับ PHP 8.3: ต้องเป็นเวอร์ชัน <span class="font-bold text-emerald-300">8.3.8+</span> ขึ้นไป</li>
-                <li>(หากพบ PHP 5.x / 7.x / 8.0 / 8.1 ถือว่าหมดอายุการสนับสนุน End-of-Life ควรอัปเกรดด่วน)</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Layer 4: Deep Security Chains Analysis (Chains A ถึง E) -->
+          <!-- Layer 3: Deep Security Chains Analysis (Chains A ถึง E) -->
           <div class="p-4 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm space-y-3" id="auditLayerSecurityChains">
             <div class="flex items-center justify-between text-xs font-bold text-slate-800 border-b border-slate-100 pb-2">
               <span class="flex items-center gap-1.5 text-indigo-900">
-                <i class="ph-bold ph-shield-check text-indigo-600 text-base"></i> 4. การประเมินกลไกความเสี่ยง 5 สายเจาะลึก (Security Chains Audit - Chains A ถึง E)
+                <i class="ph-bold ph-terminal-window text-indigo-600 text-base"></i> 3. การประเมินกลไกความเสี่ยง 5 สายเจาะลึก (Security Chains Audit - Chains A ถึง E)
               </span>
               <span id="auditChainsOverallBadge" class="px-2 py-0.5 rounded-md font-semibold text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200">Defensively Hardened</span>
             </div>
 
-            <!-- Helpful Explanatory Banner -->
-            <div id="auditChainsReasonNote" class="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
-              <i class="ph-bold ph-info text-amber-600 text-sm mt-0.5 flex-shrink-0"></i>
-              <div class="flex-1">
-                <span id="auditChainsReasonText">ระบบตรวจพบบริการ PHP แต่เซิร์ฟเวอร์เปิดโหมดปิดบังเวอร์ชัน (expose_php = Off) ตามมาตรฐาน CIS จึงไม่ส่งคำขอรบกวนระบบเพื่อดึงเลขแพตช์ แนะนำให้ผู้ดูแลระบบตรวจสอบเลขเวอร์ชันจริงภายในเครื่อง (ข้อ 3) และปรับแต่งค่า php.ini เพิ่มเติม (ข้อ 4)</span>
-              </div>
-            </div>
-
             <!-- Chain Selection Tabs -->
             <div class="flex items-center gap-1.5 border-b border-slate-100 pb-2 flex-wrap">
-              <button id="tabBtnChainA" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 cursor-pointer transition" onclick="switchAuditChain('chain_a')">
-                Chain A: Upload Progress LFI
+              <button id="tabBtnChainAll" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-900 text-cyan-300 border border-cyan-500/50 cursor-pointer transition shadow-xs" onclick="switchAuditChain('all')">
+                All Chains (Console View)
+              </button>
+              <button id="tabBtnChainA" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_a')">
+                [A] Upload Progress
               </button>
               <button id="tabBtnChainB" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_b')">
-                Chain B: INI Leak via Session
+                [B] INI Leak
               </button>
               <button id="tabBtnChainC" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_c')">
-                Chain C: Serializer Mismatch
+                [C] Serializer Mismatch
               </button>
               <button id="tabBtnChainD" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_d')">
-                Chain D: OOM Session Cleanup
+                [D] OOM Cleanup
               </button>
               <button id="tabBtnChainE" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_e')">
-                Chain E: PHP-FPM Worker OOM
+                [E] Worker Reuse
               </button>
             </div>
 
-            <!-- Active Chain Stages Content -->
+            <!-- Active Chain Stages Content (High-contrast CLI console cards) -->
             <div id="chainDetailContainer" class="space-y-2">
-              <!-- Dynamically populated with 6-stage cards -->
+              <!-- Dynamically populated with CLI console cards & summary table -->
             </div>
 
             <!-- Discovered VA Findings & Configuration State (ค่าของการ VA ที่ตรวจพบจริง) -->
@@ -1305,6 +1273,71 @@ Content-Type: text/html; charset=UTF-8</div>
           </button>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Chain Deep Info & Remediation Modal (เมื่อกด icon info มุมขวา) -->
+    <div id="chainInfoModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
+      <div class="neu-modal-surface w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/90 transform scale-95 transition-transform duration-200" id="chainInfoContent">
+        <!-- Header -->
+        <div class="px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex items-center justify-between border-b border-slate-700/60">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shadow-xs">
+              <i class="ph-bold ph-info text-lg"></i>
+            </div>
+            <div>
+              <h4 id="chainInfoTitle" class="font-bold text-xs sm:text-sm text-white">รายละเอียดทางเทคนิคและผลกระทบของความเสี่ยง</h4>
+              <span id="chainInfoTagBadge" class="text-[10px] font-mono text-cyan-300">Security Chain Telemetry</span>
+            </div>
+          </div>
+          <button onclick="closeChainInfoModal()" class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer">
+            <i class="ph-bold ph-x text-sm"></i>
+          </button>
+        </div>
+        <!-- Body -->
+        <div class="p-5 space-y-3.5 text-xs overflow-y-auto max-h-[70vh] bg-slate-50">
+          <!-- ปัญหาที่ตรวจพบ -->
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+            <div class="flex items-center gap-2 text-amber-900 font-bold text-xs">
+              <i class="ph-bold ph-warning-circle text-amber-600 text-base"></i>
+              <span>ปัญหาที่ตรวจพบ (Detected Risk & Mechanism):</span>
+            </div>
+            <p id="chainInfoProblem" class="text-slate-700 leading-relaxed pl-6 text-[11.5px]"></p>
+          </div>
+
+          <!-- ผลกระทบต่อระบบ -->
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+            <div class="flex items-center gap-2 text-rose-900 font-bold text-xs">
+              <i class="ph-bold ph-shield-warning text-rose-600 text-base"></i>
+              <span>ผลกระทบต่อระบบ (Security Impact & Severity):</span>
+            </div>
+            <p id="chainInfoImpact" class="text-slate-700 leading-relaxed pl-6 text-[11.5px]"></p>
+          </div>
+
+          <!-- สิ่งที่จะกลายเป็นช่องโหว่ -->
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+            <div class="flex items-center gap-2 text-indigo-900 font-bold text-xs">
+              <i class="ph-bold ph-lock-key-open text-indigo-600 text-base"></i>
+              <span>สิ่งที่จะกลายเป็นช่องโหว่ (Vulnerability Vector & Preconditions):</span>
+            </div>
+            <p id="chainInfoVector" class="text-slate-700 leading-relaxed pl-6 text-[11.5px]"></p>
+          </div>
+
+          <!-- แนวทางป้องกันและแก้ไข -->
+          <div class="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
+            <div class="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+              <i class="ph-bold ph-shield-check text-emerald-600 text-base"></i>
+              <span>แนวทางป้องกันและแก้ไข (Defensive Mitigation & Hardening):</span>
+            </div>
+            <p id="chainInfoMitigation" class="text-slate-700 leading-relaxed pl-6 text-[11.5px]"></p>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div class="px-5 py-3 bg-white border-t border-slate-200 flex justify-end">
+          <button onclick="closeChainInfoModal()" class="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold cursor-pointer transition">
+            ปิดหน้าต่าง
+          </button>
+        </div>
       </div>
     </div>
 
@@ -3091,8 +3124,8 @@ Content-Type: text/html; charset=UTF-8</div>
         });
       }
 
-      // Initialize Chain Tabs & Content (Default to Chain A)
-      switchAuditChain('chain_a');
+      // Initialize Chain Tabs & Content (Default to 'all' Console View)
+      switchAuditChain('all');
 
       modal.classList.remove('opacity-0', 'pointer-events-none');
       if (content) {
@@ -3101,14 +3134,24 @@ Content-Type: text/html; charset=UTF-8</div>
       }
     }
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     function switchAuditChain(chainKey) {
       appState.activeAuditChain = chainKey;
-      ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e'].forEach(k => {
-        const btnId = k === 'chain_a' ? 'tabBtnChainA' : (k === 'chain_b' ? 'tabBtnChainB' : (k === 'chain_c' ? 'tabBtnChainC' : (k === 'chain_d' ? 'tabBtnChainD' : 'tabBtnChainE')));
+      ['all', 'chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e'].forEach(k => {
+        const btnId = k === 'all' ? 'tabBtnChainAll' : (k === 'chain_a' ? 'tabBtnChainA' : (k === 'chain_b' ? 'tabBtnChainB' : (k === 'chain_c' ? 'tabBtnChainC' : (k === 'chain_d' ? 'tabBtnChainD' : 'tabBtnChainE'))));
         const btn = document.getElementById(btnId);
         if (btn) {
           if (k === chainKey) {
-            btn.className = "chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 cursor-pointer transition";
+            btn.className = "chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-900 text-cyan-300 border border-cyan-500/50 cursor-pointer transition shadow-xs";
           } else {
             btn.className = "chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition";
           }
@@ -3120,11 +3163,157 @@ Content-Type: text/html; charset=UTF-8</div>
       }
     }
 
-    function toggleChainViewMode(mode) {
-      appState.chainViewMode = mode;
-      if (appState.selectedAuditHost) {
-        renderAuditChainDetail(appState.selectedAuditHost, appState.activeAuditChain);
+    function openChainInfoModal(chainKey) {
+      const host = appState.selectedAuditHost;
+      if (!host) return;
+      const secChains = host.security_chains || (host.deep_audit && host.deep_audit.security_chains) || {};
+      const chains = secChains.chains || {};
+      const chain = chains[chainKey];
+      if (!chain) return;
+
+      const info = chain.info || {};
+      const titleEl = document.getElementById('chainInfoTitle');
+      const tagEl = document.getElementById('chainInfoTagBadge');
+      const problemEl = document.getElementById('chainInfoProblem');
+      const impactEl = document.getElementById('chainInfoImpact');
+      const vectorEl = document.getElementById('chainInfoVector');
+      const mitigationEl = document.getElementById('chainInfoMitigation');
+
+      if (titleEl) titleEl.textContent = `[Chain ${chain.tag || 'A'}] ${chain.short_title || chain.title}`;
+      if (tagEl) tagEl.textContent = `Verdict: ${chain.verdict_code || 'EVALUATED'} (${chain.stages_display || '6/6'} Stages)`;
+      
+      if (problemEl) problemEl.textContent = info.problem || chain.verdict || "ตรวจพบการทำงานของกลไกเซสชัน";
+      if (impactEl) impactEl.textContent = info.impact || "อาจส่งผลกระทบต่อความมั่นคงปลอดภัยของโครงสร้างเซสชัน";
+      if (vectorEl) vectorEl.textContent = info.vulnerability_vector || "ต้องการเงื่อนไขจุดเรียกไฟล์ LFI หรือ Serializer Mismatch ในการกระตุ้นช่องโหว่";
+      if (mitigationEl) mitigationEl.textContent = info.mitigation || chain.remediation || "กำหนดค่าความปลอดภัยใน php.ini";
+
+      const modal = document.getElementById('chainInfoModal');
+      const content = document.getElementById('chainInfoContent');
+      if (modal) {
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        if (content) {
+          content.classList.remove('scale-95');
+          content.classList.add('scale-100');
+        }
       }
+    }
+
+    function closeChainInfoModal() {
+      const modal = document.getElementById('chainInfoModal');
+      const content = document.getElementById('chainInfoContent');
+      if (modal) {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        if (content) {
+          content.classList.remove('scale-100');
+          content.classList.add('scale-95');
+        }
+      }
+    }
+
+    function renderChainConsoleBlock(key, chain, host) {
+      if (!chain) return '';
+      const tag = chain.tag || key.replace('chain_', '').toUpperCase();
+      const vCode = chain.verdict_code || (chain.verdict && chain.verdict.includes('VULNERABLE') ? 'CONFIRMED' : (chain.verdict && chain.verdict.includes('SECURE') ? 'SECURE' : 'MITIGATED'));
+      
+      let vBadgeClass = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+      if (vCode === 'CONFIRMED' || vCode === 'VULNERABLE') {
+        vBadgeClass = 'bg-rose-500/20 text-rose-400 border-rose-500/40';
+      } else if (vCode === 'INCONCLUSIVE' || vCode === 'REVIEW') {
+        vBadgeClass = 'bg-amber-500/20 text-amber-400 border-amber-500/40';
+      } else if (vCode === 'NOT_APPLICABLE') {
+        vBadgeClass = 'bg-slate-700/40 text-slate-400 border-slate-600/40';
+      }
+
+      const stages = chain.cli_stages || (Array.isArray(chain.stages) ? chain.stages.map((st, i) => ({
+        num: st.stage || `${i+1}/6`,
+        name: st.name ? st.name.toLowerCase().slice(0, 24) : `stage ${i+1}`,
+        status: st.badge === 'PASS' || st.badge === 'SECURE' ? 'PASS' : (st.badge === 'VULN' ? 'PASS' : (st.badge === 'PROTECTED' ? 'BLOCKED' : st.status || 'UNKNOWN')),
+        evidence: st.detail || ''
+      })) : []);
+
+      return `
+        <div class="space-y-2 pt-3 border-t border-slate-800/80 first:border-0 first:pt-0">
+          <!-- Chain Header & Right Corner Info Icon -->
+          <div class="flex items-center justify-between gap-2 pb-1">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-cyan-300 text-xs sm:text-sm">[${tag}] ${escapeHtml(chain.short_title || chain.title)}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold border font-mono ${vBadgeClass}">
+                ${vCode}
+              </span>
+              <button onclick="openChainInfoModal('${key}')" class="w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-amber-500/40 hover:border-amber-400 flex items-center justify-center transition cursor-pointer" title="คลิกเพื่ออ่านปัญหา ผลกระทบ และสิ่งที่จะเป็นช่องโหว่">
+                <i class="ph-bold ph-info text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Stage Lines (Indented, Monospace, Aligned) -->
+          <div class="space-y-1 text-[11px] font-mono pl-2 sm:pl-4">
+            ${stages.map(st => {
+              let sColor = 'text-emerald-400';
+              if (st.status === 'FAIL' || st.status === 'BLOCKED' || st.status === 'SAFE') sColor = 'text-slate-400';
+              else if (st.status === 'VULN' || st.status === 'VULNERABLE') sColor = 'text-rose-400';
+              else if (st.status === 'UNKNOWN' || st.status === 'AUDIT') sColor = 'text-amber-400';
+              return `
+                <div class="flex items-baseline gap-2 flex-wrap sm:flex-nowrap">
+                  <span class="text-slate-500 flex-shrink-0 w-9">[${st.num}]</span>
+                  <span class="text-slate-300 flex-shrink-0 w-44 sm:w-52">${escapeHtml(st.name)}</span>
+                  <span class="font-bold flex-shrink-0 w-16 ${sColor}">${st.status}</span>
+                  <span class="text-slate-400 truncate flex-1">${escapeHtml(st.evidence)}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Chain Verdict & Missing Footer -->
+          <div class="pt-1.5 text-[11px] font-mono pl-2 sm:pl-4 text-slate-300 space-y-0.5">
+            <div>verdict : <b class="${(vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400' : 'text-emerald-400'}">${vCode}</b></div>
+            ${chain.stuck_at ? `<div class="text-amber-400">stuck at: ${escapeHtml(chain.stuck_at)}</div>` : ''}
+            <div class="text-slate-400">missing : ${escapeHtml(chain.missing || 'nothing -- every stage passed')}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderChainSummaryTable(chains) {
+      const chainKeys = ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e'];
+      const rows = chainKeys.map(k => {
+        const ch = chains[k];
+        if (!ch) return '';
+        const tag = ch.tag || k.replace('chain_', '').toUpperCase();
+        const vCode = ch.verdict_code || (ch.verdict && ch.verdict.includes('VULNERABLE') ? 'CONFIRMED' : (ch.verdict && ch.verdict.includes('SECURE') ? 'SECURE' : 'MITIGATED'));
+        let vColor = (vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400 font-bold' : ((vCode === 'INCONCLUSIVE' || vCode === 'REVIEW') ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold');
+        
+        return `
+          <tr class="hover:bg-slate-900/60 cursor-pointer transition border-b border-slate-900/80" onclick="switchAuditChain('${k}')" title="คลิกเพื่อเลือกดู Chain ${tag}">
+            <td class="py-1.5 px-2.5 font-bold text-cyan-300">${tag}</td>
+            <td class="py-1.5 px-2.5 text-slate-400">${ch.stages_display || '6/6'}</td>
+            <td class="py-1.5 px-2.5 ${vColor}">${vCode}</td>
+            <td class="py-1.5 px-2.5 text-slate-400 truncate max-w-xs">${escapeHtml(ch.missing || 'nothing')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      return `
+        <div class="pt-3 border-t border-slate-800 text-[10.5px] font-mono">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="text-slate-500 border-b border-slate-800">
+                  <th class="py-1.5 px-2.5 font-bold">CHAIN</th>
+                  <th class="py-1.5 px-2.5 font-bold">STAGE</th>
+                  <th class="py-1.5 px-2.5 font-bold">VERDICT</th>
+                  <th class="py-1.5 px-2.5 font-bold">MISSING</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
     }
 
     function renderAuditChainDetail(host, chainKey) {
@@ -3133,9 +3322,8 @@ Content-Type: text/html; charset=UTF-8</div>
 
       const secChains = host.security_chains || (host.deep_audit && host.deep_audit.security_chains) || {};
       const chains = secChains.chains || {};
-      const chain = chains[chainKey];
 
-      if (!host.is_php || !chain) {
+      if (!host.is_php || !chains || Object.keys(chains).length === 0) {
         container.innerHTML = `
           <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-500">
             <i class="ph-bold ph-shield-check text-3xl text-emerald-500 mb-2 inline-block"></i>
@@ -3146,150 +3334,41 @@ Content-Type: text/html; charset=UTF-8</div>
         return;
       }
 
-      const isChainPass = chain.verdict && (chain.verdict.includes('SECURE') || chain.verdict.includes('PASS'));
-      const verdictBadgeCls = isChainPass 
-        ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
-        : 'bg-amber-50 text-amber-700 border-amber-300';
-
-      const viewMode = appState.chainViewMode || 'detail';
-
-      let stagesHtml = '';
-      if (Array.isArray(chain.stages)) {
-        if (viewMode === 'detail') {
-          // --- 1. FULL COMPREHENSIVE DETAIL LIST VIEW ---
-          stagesHtml = `
-            <div class="space-y-3 mt-3">
-              ${chain.stages.map((st, idx) => {
-                const isPass = st.badge === 'PASS' || st.badge === 'PROTECTED' || st.badge === 'SAFE' || st.badge === 'SECURE';
-                const badgeCls = isPass ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200';
-                const stageNumCls = isPass ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white';
-                const cardBorder = isPass ? 'border-slate-200/90 hover:border-emerald-300' : 'border-amber-200/90 hover:border-amber-300';
-                
-                return `
-                  <div class="p-4 rounded-2xl bg-white border ${cardBorder} shadow-xs transition space-y-3">
-                    <!-- Stage Title Bar -->
-                    <div class="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
-                      <div class="flex items-center gap-3 min-w-0">
-                        <span class="w-8 h-8 rounded-xl ${stageNumCls} font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm">
-                          ${st.stage}
-                        </span>
-                        <div>
-                          <h5 class="font-bold text-slate-800 text-xs sm:text-sm leading-snug">${st.name}</h5>
-                          <span class="text-[10px] text-slate-400 font-mono">ลำดับขั้นที่ ${idx + 1} จากทั้งหมด 6 ขั้นตอนตามเกณฑ์มาตรฐานความปลอดภัย</span>
-                        </div>
-                      </div>
-                      <span class="text-[11px] font-mono px-2.5 py-1 rounded-lg font-bold border ${badgeCls} shadow-xs whitespace-nowrap">
-                        ${st.status}
-                      </span>
-                    </div>
-
-                    <!-- Assessment Result Alert Box -->
-                    <div class="p-3 rounded-xl ${isPass ? 'bg-emerald-50/70 border border-emerald-200/70 text-emerald-950' : 'bg-amber-50/70 border border-amber-200/70 text-amber-950'} text-xs">
-                      <div class="flex items-start gap-2">
-                        <i class="ph-bold ${isPass ? 'ph-check-circle text-emerald-600' : 'ph-warning text-amber-600'} text-base mt-0.5 flex-shrink-0"></i>
-                        <div>
-                          <span class="font-bold block text-[11px] uppercase tracking-wide opacity-80">ผลการประเมินความปลอดภัย:</span>
-                          <span class="text-xs leading-relaxed font-medium">${st.detail || ''}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Technical Breakdown Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
-                      ${st.mechanism ? `
-                        <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-200/80">
-                          <span class="text-slate-500 font-bold text-[11px] flex items-center gap-1.5 mb-1 text-indigo-900">
-                            <i class="ph-bold ph-gear text-indigo-600"></i> กลไกการทำงานทางเทคนิค (Technical Mechanism):
-                          </span>
-                          <p class="text-slate-700 text-xs leading-relaxed">${st.mechanism}</p>
-                        </div>
-                      ` : ''}
-                      ${st.check_item ? `
-                        <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-200/80">
-                          <span class="text-slate-500 font-bold text-[11px] flex items-center gap-1.5 mb-1 text-blue-900">
-                            <i class="ph-bold ph-magnifying-glass text-blue-600"></i> สิ่งที่ระบบตรวจสอบ / ปัจจัยเสี่ยง (Verification Check):
-                          </span>
-                          <p class="text-slate-700 text-xs leading-relaxed">${st.check_item}</p>
-                        </div>
-                      ` : ''}
-                    </div>
-
-                    <!-- Stage Specific Mitigation Tip -->
-                    ${st.defense_tip ? `
-                      <div class="p-2.5 rounded-xl bg-gradient-to-r from-indigo-50/80 to-blue-50/60 border border-indigo-200/70 text-xs text-indigo-950 flex items-start gap-2">
-                        <i class="ph-bold ph-shield-check text-indigo-600 text-base mt-0.5 flex-shrink-0"></i>
-                        <div>
-                          <b class="text-indigo-950 text-[11px]">แนวทางป้องกันเฉพาะขั้นตอน (Defensive Mitigation):</b>
-                          <p class="text-indigo-900 text-xs mt-0.5 leading-relaxed font-medium">${st.defense_tip}</p>
-                        </div>
-                      </div>
-                    ` : ''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `;
-        } else {
-          // --- 2. COMPACT SUMMARY CARDS VIEW ---
-          stagesHtml = `
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
-              ${chain.stages.map(st => {
-                const isPass = st.badge === 'PASS' || st.badge === 'PROTECTED' || st.badge === 'SAFE' || st.badge === 'SECURE';
-                const badgeCls = isPass ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200';
-                const stageNumCls = isPass ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
-                return `
-                  <div class="p-3 rounded-xl bg-white border border-slate-200/80 shadow-xs flex items-start gap-2.5 hover:border-blue-300 transition">
-                    <span class="w-6 h-6 rounded-md ${stageNumCls} font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">${st.stage}</span>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-start justify-between gap-1">
-                        <span class="font-bold text-slate-800 text-xs leading-snug">${st.name}</span>
-                        <span class="text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold border ${badgeCls} flex-shrink-0">${st.status}</span>
-                      </div>
-                      <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">${st.detail}</p>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `;
-        }
+      let consoleBody = '';
+      if (chainKey === 'all') {
+        const keys = ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e'];
+        consoleBody = keys.map(k => renderChainConsoleBlock(k, chains[k], host)).join('');
+      } else {
+        consoleBody = renderChainConsoleBlock(chainKey, chains[chainKey], host);
       }
 
+      const summaryTable = renderChainSummaryTable(chains);
+
       container.innerHTML = `
-        <div class="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/90 space-y-3">
-          <!-- Chain Title & Header Bar -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h4 class="font-bold text-slate-800 text-sm sm:text-base">${chain.title}</h4>
-                <span class="px-2.5 py-0.5 rounded-md font-bold text-[11px] border ${verdictBadgeCls} flex-shrink-0 shadow-xs">
-                  ${chain.verdict}
-                </span>
-              </div>
-              <p class="text-[11px] text-slate-500 mt-1">รายงานการตรวจสอบ 6 ลำดับขั้นแบบละเอียดตามมาตรฐาน php2shell explain & ThaiCERT Security Guidance</p>
+        <div class="p-4 sm:p-5 rounded-2xl bg-slate-950 font-mono text-[11.5px] text-slate-200 border border-slate-800 shadow-xl space-y-4 select-text">
+          <!-- Terminal Header -->
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800/80 text-[10.5px]">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+              <span class="text-slate-300 font-bold ml-1">[*] php2shell --explain 2.0.0</span>
             </div>
-
-            <!-- View Mode Switcher -->
-            <div class="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 self-start sm:self-auto flex-shrink-0 shadow-xs">
-              <button onclick="toggleChainViewMode('detail')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1.5 ${viewMode === 'detail' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600'}">
-                <i class="ph-bold ph-list-dashes text-xs"></i>
-                <span>รายการวิเคราะห์แบบละเอียด (Detail List)</span>
-              </button>
-              <button onclick="toggleChainViewMode('compact')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1.5 ${viewMode === 'compact' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-600'}">
-                <i class="ph-bold ph-squares-four text-xs"></i>
-                <span>การ์ดสรุปย่อ</span>
-              </button>
+            <div class="text-slate-400">
+              chains: A, B, C, D, E &nbsp;|&nbsp; mode: full
             </div>
           </div>
 
-          <!-- Stages Breakdown List -->
-          ${stagesHtml}
-
-          <!-- Chain Remediation Advice -->
-          <div class="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 text-xs text-indigo-900 mt-3">
-            <b class="text-indigo-950 flex items-center gap-1.5 text-xs"><i class="ph-bold ph-lightbulb text-indigo-600 text-sm"></i> ข้อแนะนำการปรับปรุงความปลอดภัยเฉพาะสายนี้ (Hardening Remediation):</b>
-            <div class="font-mono text-[11px] text-indigo-950 mt-1.5 p-2.5 rounded-xl bg-white/90 border border-indigo-100 whitespace-pre-wrap leading-relaxed select-all">${chain.remediation}</div>
+          <!-- Target Banner -->
+          <div class="text-[11px] text-slate-400">
+            [*] ${escapeHtml(host.ip || '127.0.0.1')} &rarr; ${escapeHtml(host.ip || '127.0.0.1')} port <span class="text-cyan-400 font-bold">${host.port || (host.ports && host.ports[0]) || 80}</span>
           </div>
+
+          <!-- Active Chain / All Chains Blocks -->
+          ${consoleBody}
+
+          <!-- Bottom Summary Matrix Table -->
+          ${summaryTable}
         </div>
       `;
     }
@@ -3642,6 +3721,13 @@ ${data.c_patch_directive}
     if (deepAuditModalEl) {
       deepAuditModalEl.addEventListener('click', (e) => {
         if (e.target === deepAuditModalEl) closeDeepAuditModal();
+      });
+    }
+
+    const chainInfoModalEl = document.getElementById('chainInfoModal');
+    if (chainInfoModalEl) {
+      chainInfoModalEl.addEventListener('click', (e) => {
+        if (e.target === chainInfoModalEl) closeChainInfoModal();
       });
     }
 
