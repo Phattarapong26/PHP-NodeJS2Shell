@@ -660,6 +660,141 @@
           <span class="text-[11px] font-semibold text-slate-500 font-mono" id="bannerScannedTargetText"></span>
         </div>
 
+        <!-- ThaiCERT 8 Groups Inspection Matrix (NCSA Guidelines) -->
+        <div class="px-6 py-2.5 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50/70 border-b border-slate-200/70">
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                <i class="ph-bold ph-squares-four"></i>
+              </div>
+              <span class="font-bold text-slate-800 text-xs sm:text-sm">ตรวจสอบ PHP ให้ครบ 8 กลุ่มระบบ (เกณฑ์แนะนำ ThaiCERT / สกมช.)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="activeGroupFilterTag" class="hidden px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300 items-center gap-1 cursor-pointer transition hover:bg-blue-200" onclick="clearGroupFilter()" title="คลิกเพื่อยกเลิกตัวกรอง">
+                <span id="activeGroupFilterName">กลุ่ม 1</span>
+                <i class="ph-bold ph-x text-xs"></i>
+              </span>
+              <span class="text-[10px] text-slate-400">คลิกการ์ดเพื่อกรองตามกลุ่มระบบ</span>
+            </div>
+          </div>
+          
+          <!-- 8 Interactive Cards Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5" id="thaicertGroupGrid">
+            <!-- Group 1 -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-blue-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="1" onclick="toggleGroupFilter(1)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded border border-blue-200">กลุ่ม 1</span>
+                <i class="ph-bold ph-globe text-blue-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-700 leading-tight">เว็บไซต์ / CMS</div>
+              <div class="text-[9px] text-slate-400 truncate" title="WordPress, Drupal, Joomla, Moodle">WordPress, Moodle</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount1">0</span>
+              </div>
+            </div>
+
+            <!-- Group 2 -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-indigo-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="2" onclick="toggleGroupFilter(2)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1 py-0.2 rounded border border-indigo-200">กลุ่ม 2</span>
+                <i class="ph-bold ph-code text-indigo-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-700 leading-tight">แอป & API</div>
+              <div class="text-[9px] text-slate-400 truncate" title="Laravel, Symfony, REST API">Laravel, API</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount2">0</span>
+              </div>
+            </div>
+
+            <!-- Group 3 -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-purple-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="3" onclick="toggleGroupFilter(3)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200">กลุ่ม 3</span>
+                <i class="ph-bold ph-gauge text-purple-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-700 leading-tight">Control Panel</div>
+              <div class="text-[9px] text-slate-400 truncate" title="cPanel, Plesk, DirectAdmin">cPanel, Plesk</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount3">0</span>
+              </div>
+            </div>
+
+            <!-- Group 4 -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-amber-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="4" onclick="toggleGroupFilter(4)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">กลุ่ม 4</span>
+                <i class="ph-bold ph-hard-drives text-amber-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-700 leading-tight">อุปกรณ์ & NAS</div>
+              <div class="text-[9px] text-slate-400 truncate" title="Appliance, NAS Synology/QNAP">Appliance, NAS</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount4">0</span>
+              </div>
+            </div>
+
+            <!-- Group 5 -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-cyan-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="5" onclick="toggleGroupFilter(5)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-cyan-700 bg-cyan-50 px-1 py-0.2 rounded border border-cyan-200">กลุ่ม 5</span>
+                <i class="ph-bold ph-package text-cyan-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-700 leading-tight">Container / K8s</div>
+              <div class="text-[9px] text-slate-400 truncate" title="Docker, Podman, Kubernetes">Docker, K8s</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount5">0</span>
+              </div>
+            </div>
+
+            <!-- Group 6: Windows PHP (High Priority CVE-2024-4577) -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-rose-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="6" onclick="toggleGroupFilter(6)" title="จุดเฝ้าระวังสำคัญของ ThaiCERT: ตรวจสอบ Windows ที่ติดตั้ง PHP (IIS, XAMPP, Laragon)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded border border-rose-200">กลุ่ม 6 ⚠️</span>
+                <i class="ph-bold ph-microsoft-windows-logo text-rose-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-800 leading-tight">Windows PHP</div>
+              <div class="text-[9px] text-slate-400 truncate" title="Windows IIS, XAMPP, Laragon">XAMPP, IIS</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount6">0</span>
+              </div>
+            </div>
+
+            <!-- Group 7 -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-orange-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="7" onclick="toggleGroupFilter(7)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-orange-700 bg-orange-50 px-1 py-0.2 rounded border border-orange-200">กลุ่ม 7</span>
+                <i class="ph-bold ph-clock-counter-clockwise text-orange-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-700 leading-tight">Dev / UAT / สำรอง</div>
+              <div class="text-[9px] text-slate-400 truncate" title="Development, Staging, DR, Shadow IT">UAT, DR, เก่า</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount7">0</span>
+              </div>
+            </div>
+
+            <!-- Group 8 -->
+            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-teal-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="8" onclick="toggleGroupFilter(8)">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-teal-700 bg-teal-50 px-1 py-0.2 rounded border border-teal-200">กลุ่ม 8</span>
+                <i class="ph-bold ph-cloud text-teal-600 text-xs"></i>
+              </div>
+              <div class="text-[10px] font-bold text-slate-700 leading-tight">Cloud / ภายนอก</div>
+              <div class="text-[9px] text-slate-400 truncate" title="Shared Hosting, Cloud VM, Outsourced">Cloud, Shared</div>
+              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                <span class="text-slate-400 text-[9px]">พบ</span>
+                <span class="font-bold text-slate-700" id="badgeGroupCount8">0</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
         <!-- Filter & Search Tool Bar -->
         <div class="px-6 py-2.5 bg-white/70 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs backdrop-blur-sm">
           <div class="flex items-center gap-1.5 flex-wrap">
@@ -845,6 +980,19 @@
         <!-- Body -->
         <div class="p-6 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
           
+          <!-- ThaiCERT 8 Groups Target Classification -->
+          <div class="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-slate-50/80 border border-blue-200/80 shadow-sm space-y-1.5">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-800">
+              <span class="flex items-center gap-1.5 text-blue-900">
+                <i class="ph-bold ph-squares-four text-base text-blue-600"></i> การจำแนกตาม 8 กลุ่มระบบ ThaiCERT / สกมช.
+              </span>
+              <span id="auditGroupPrimaryBadge" class="px-2 py-0.5 rounded-md font-semibold text-[11px] bg-blue-100 text-blue-800 border border-blue-200 font-mono">กำลังประเมิน...</span>
+            </div>
+            <div id="auditGroupList" class="flex flex-wrap gap-1.5 pt-1">
+              <!-- Injected group badges -->
+            </div>
+          </div>
+
           <!-- Layer 1: Edge & Network Security -->
           <div class="p-4 rounded-2xl bg-white/70 border border-slate-200/80 shadow-sm space-y-2">
             <div class="flex items-center justify-between text-xs font-bold text-slate-800">
@@ -899,6 +1047,52 @@
                 <li>สำหรับ PHP 8.3: ต้องเป็นเวอร์ชัน <span class="font-bold text-emerald-300">8.3.8+</span> ขึ้นไป</li>
                 <li>(หากพบ PHP 5.x / 7.x / 8.0 / 8.1 ถือว่าหมดอายุการสนับสนุน End-of-Life ควรอัปเกรดด่วน)</li>
               </ul>
+            </div>
+          </div>
+
+          <!-- Layer 4: Deep Security Chains Analysis (Chains A, C, D) -->
+          <div class="p-4 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm space-y-3" id="auditLayerSecurityChains">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-800 border-b border-slate-100 pb-2">
+              <span class="flex items-center gap-1.5 text-indigo-900">
+                <i class="ph-bold ph-shield-check text-indigo-600 text-base"></i> 4. การประเมินกลไกความเสี่ยง 3 สายเจาะลึก (Security Chains Audit)
+              </span>
+              <span id="auditChainsOverallBadge" class="px-2 py-0.5 rounded-md font-semibold text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200">Defensively Hardened</span>
+            </div>
+
+            <!-- Chain Selection Tabs -->
+            <div class="flex items-center gap-1.5 border-b border-slate-100 pb-2 flex-wrap">
+              <button id="tabBtnChainA" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 cursor-pointer transition" onclick="switchAuditChain('chain_a')">
+                Chain A: Upload Progress LFI
+              </button>
+              <button id="tabBtnChainC" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_c')">
+                Chain C: Serializer Mismatch
+              </button>
+              <button id="tabBtnChainD" class="chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition" onclick="switchAuditChain('chain_d')">
+                Chain D: OOM Session Cleanup
+              </button>
+            </div>
+
+            <!-- Active Chain Stages Content -->
+            <div id="chainDetailContainer" class="space-y-2">
+              <!-- Dynamically populated with 6-stage cards -->
+            </div>
+
+            <!-- Hardening Directives (php.ini) with 1-Click Copy -->
+            <div class="pt-2 border-t border-slate-200/60">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="font-bold text-slate-700 text-[11px] flex items-center gap-1">
+                  <i class="ph-bold ph-file-code text-indigo-600"></i> แนวทางปรับปรุงค่า php.ini เพื่อความปลอดภัย (Hardening Directives):
+                </span>
+                <button id="btnCopyHardeningIni" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold flex items-center gap-1 transition cursor-pointer">
+                  <i class="ph-bold ph-copy"></i>
+                  <span id="copyIniBtnText">คัดลอก php.ini Hardening</span>
+                </button>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-900 font-mono text-[11px] text-emerald-400 border border-slate-800 select-all overflow-x-auto whitespace-pre leading-relaxed" id="hardeningIniCodeBox">session.upload_progress.enabled = Off
+session.use_strict_mode = 1
+session.serialize_handler = php
+memory_limit = 256M
+expose_php = Off</div>
             </div>
           </div>
 
@@ -983,6 +1177,48 @@
           <label class="block font-semibold text-slate-700 mb-1.5">ทางลัดเลือกวงสแกน (Presets)</label>
           <div id="settingsPresetsList" class="flex flex-col gap-1.5">
             <!-- Dynamically populated with preset buttons -->
+          </div>
+        </div>
+
+        <!-- ThaiCERT 8 Groups Enterprise Scope Presets -->
+        <div class="p-3.5 rounded-xl neu-concave-card border border-indigo-200/80 bg-gradient-to-br from-indigo-50/50 via-white to-blue-50/40 space-y-2">
+          <div class="flex items-center justify-between font-semibold text-slate-800">
+            <span class="flex items-center gap-1.5 text-indigo-900">
+              <i class="ph-bold ph-shield-check text-indigo-600"></i>
+              <span>ขอบเขตการตรวจสอบ (ThaiCERT Enterprise Scope)</span>
+            </span>
+            <span class="text-[10px] font-mono text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200">ปรับแต่งตามองค์กร</span>
+          </div>
+          <p class="text-[10px] text-slate-500">เลือกรูปแบบการประเมินความปลอดภัยตามบริบทของระบบงานในหน่วยงาน:</p>
+          <div class="space-y-1.5">
+            <label class="flex items-start gap-2 p-2 rounded-xl bg-white/80 border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
+              <input type="radio" name="thaicert_scope" value="all" checked class="mt-0.5 accent-indigo-600" onchange="onScopePresetChange('all')">
+              <div class="flex-1">
+                <div class="font-bold text-slate-800 text-[11px]">🌟 ตรวจสอบครบทั้ง 8 กลุ่มระบบ (แนะนำสำหรับองค์กร)</div>
+                <div class="text-[10px] text-slate-500">ประเมินทุกระบบ: CMS, API, Panel, NAS/Appliance, Docker, Windows, Dev, Cloud</div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2 p-2 rounded-xl bg-white/80 border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
+              <input type="radio" name="thaicert_scope" value="windows" class="mt-0.5 accent-indigo-600" onchange="onScopePresetChange('windows')">
+              <div class="flex-1">
+                <div class="font-bold text-slate-800 text-[11px]">🪟 เน้นกลุ่ม 6: Windows + PHP (เฝ้าระวังสูงสุด CVE-2024-4577)</div>
+                <div class="text-[10px] text-slate-500">มุ่งเน้นเครื่อง Windows IIS, XAMPP, Laragon ที่อาจได้รับผลกระทบจาก Best-Fit Encoding</div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2 p-2 rounded-xl bg-white/80 border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
+              <input type="radio" name="thaicert_scope" value="web_api" class="mt-0.5 accent-indigo-600" onchange="onScopePresetChange('web_api')">
+              <div class="flex-1">
+                <div class="font-bold text-slate-800 text-[11px]">🌐 เน้นกลุ่ม 1 & 2: เว็บไซต์และ API ภายในองค์กร</div>
+                <div class="text-[10px] text-slate-500">เน้น WordPress, Drupal, Joomla, Moodle, Laravel, REST APIs</div>
+              </div>
+            </label>
+            <label class="flex items-start gap-2 p-2 rounded-xl bg-white/80 border border-slate-200/80 hover:border-indigo-400 cursor-pointer transition">
+              <input type="radio" name="thaicert_scope" value="dev_shadow" class="mt-0.5 accent-indigo-600" onchange="onScopePresetChange('dev_shadow')">
+              <div class="flex-1">
+                <div class="font-bold text-slate-800 text-[11px]">🕒 เน้นกลุ่ม 7: ระบบทดสอบ / เก่า / สำรอง (Shadow IT)</div>
+                <div class="text-[10px] text-slate-500">ค้นหาเครื่อง Dev, UAT, Staging, DR Site หรือ Snapshot เก่าที่มักตกค้าง</div>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -1273,7 +1509,12 @@
       customPortListStr: '80, 443, 8080, 8000, 18080',
       selectedStandardPorts: [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 18080, 9000, 8088, 5050, 8880, 9090],
       wideScopeCount: 100,
-      selectedPorts: [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 18080, 9000, 8088, 5050, 8880, 9090]
+      selectedPorts: [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 18080, 9000, 8088, 5050, 8880, 9090],
+      activeGroupFilter: null,
+      scopePreset: 'all',
+      selectedAuditHost: null,
+      activeAuditChain: 'chain_a',
+      thaicertSummary: {}
     };
 
     // DOM Elements
@@ -1796,6 +2037,7 @@
         appState.totalNodeFound = backendData.total_node_found || appState.foundNodeHosts.length;
         appState.totalVulnFound = backendData.total_vuln_found || 0;
         appState.discardedDevices = backendData.discarded || [];
+        appState.thaicertSummary = backendData.thaicert_summary || {};
       } else {
         appState.allHosts = [];
         appState.foundPhpHosts = [];
@@ -1805,6 +2047,7 @@
         appState.totalNodeFound = 0;
         appState.totalVulnFound = 0;
         appState.discardedDevices = [];
+        appState.thaicertSummary = {};
       }
 
       // Default to showing all discovered online devices
@@ -1941,6 +2184,60 @@
           banner.className = "px-6 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-700 backdrop-blur-sm";
           if (bannerIcon) bannerIcon.className = "ph-bold ph-info text-slate-500 text-base flex-shrink-0";
           bannerText.textContent = `สแกนเสร็จสิ้น — ไม่พบเครื่องที่ตอบสนองในวง ${targetSub || ''}`;
+        }
+      }
+
+      // Update ThaiCERT 8 Groups Matrix Cards
+      for (let g = 1; g <= 8; g++) {
+        const groupHosts = appState.allHosts.filter(h => (h.thaicert_groups || []).includes(g));
+        const gTotal = groupHosts.length;
+        const gVuln = groupHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+        
+        const countBadge = document.getElementById(`badgeGroupCount${g}`);
+        if (countBadge) {
+          if (gTotal === 0) {
+            countBadge.textContent = '0';
+            countBadge.className = 'font-bold text-slate-400 text-[10px]';
+          } else if (gVuln > 0) {
+            countBadge.innerHTML = `<span class="text-rose-600 font-bold">${gTotal}</span> <span class="text-[9px] text-rose-500 font-semibold">(${gVuln} เสี่ยง)</span>`;
+          } else {
+            countBadge.innerHTML = `<span class="text-emerald-600 font-bold">${gTotal}</span>`;
+          }
+        }
+
+        const card = document.querySelector(`.group-card[data-group="${g}"]`);
+        if (card) {
+          if (appState.activeGroupFilter === g) {
+            card.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50/90', 'border-blue-400', 'shadow-sm');
+            card.classList.remove('bg-white/80', 'border-slate-200/80');
+          } else {
+            card.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50/90', 'border-blue-400', 'shadow-sm');
+            card.classList.add('bg-white/80', 'border-slate-200/80');
+          }
+        }
+      }
+
+      // Update active group filter indicator
+      const groupTag = document.getElementById('activeGroupFilterTag');
+      const groupTagName = document.getElementById('activeGroupFilterName');
+      if (groupTag && groupTagName) {
+        if (appState.activeGroupFilter) {
+          const gNames = {
+            1: 'กลุ่ม 1: เว็บไซต์/CMS',
+            2: 'กลุ่ม 2: แอป & API',
+            3: 'กลุ่ม 3: Hosting Panel',
+            4: 'กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์',
+            5: 'กลุ่ม 5: Container/K8s',
+            6: 'กลุ่ม 6: Windows PHP (CVE-2024-4577)',
+            7: 'กลุ่ม 7: Dev/UAT/สำรอง',
+            8: 'กลุ่ม 8: Cloud/ภายนอก'
+          };
+          groupTagName.textContent = gNames[appState.activeGroupFilter] || `กลุ่ม ${appState.activeGroupFilter}`;
+          groupTag.classList.remove('hidden');
+          groupTag.classList.add('inline-flex');
+        } else {
+          groupTag.classList.add('hidden');
+          groupTag.classList.remove('inline-flex');
         }
       }
 
@@ -2095,6 +2392,24 @@
               <div class="flex flex-col min-w-0">
                 <span class="font-bold text-slate-800 text-xs">${item.device_name || item.webServer}</span>
                 <span class="text-[10px] text-slate-400 font-mono">${item.mac ? 'MAC: ' + item.mac : 'DHCP Host'}</span>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  ${(item.thaicert_groups && item.thaicert_groups.length > 0 ? item.thaicert_groups : [4]).map(g => {
+                    const titles = {
+                      1: "ก.1 เว็บไซต์/CMS",
+                      2: "ก.2 แอป & API",
+                      3: "ก.3 Hosting Panel",
+                      4: "ก.4 ซอฟต์แวร์/อุปกรณ์",
+                      5: "ก.5 Container/K8s",
+                      6: "ก.6 Windows PHP ⚠️",
+                      7: "ก.7 Dev/UAT/สำรอง",
+                      8: "ก.8 Cloud/ภายนอก"
+                    };
+                    const isG6 = g === 6;
+                    const isV = item.vulnerability === 'Critical' || item.vulnerability === 'Warning';
+                    const bgCls = isG6 ? (isV ? 'bg-rose-100 text-rose-800 border-rose-300 font-bold' : 'bg-amber-100 text-amber-800 border-amber-300') : 'bg-slate-100 text-slate-600 border-slate-200';
+                    return `<span class="px-1.5 py-0.2 rounded text-[9px] border ${bgCls}">${titles[g] || 'ก.' + g}</span>`;
+                  }).join('')}
+                </div>
               </div>
             </div>
           </td>
@@ -2142,10 +2457,29 @@
         baseList = appState.allHosts;
       }
 
+      // ThaiCERT 8 Groups Filter
+      if (appState.activeGroupFilter) {
+        baseList = baseList.filter(item => (item.thaicert_groups || []).includes(appState.activeGroupFilter));
+      }
+
+      // Enterprise Scope Presets Filter
+      if (appState.scopePreset === 'windows') {
+        baseList = baseList.filter(item => (item.thaicert_groups || []).includes(6));
+      } else if (appState.scopePreset === 'web_api') {
+        baseList = baseList.filter(item => {
+          const g = item.thaicert_groups || [];
+          return g.includes(1) || g.includes(2);
+        });
+      } else if (appState.scopePreset === 'dev_shadow') {
+        baseList = baseList.filter(item => (item.thaicert_groups || []).includes(7));
+      }
+
       if (term) {
         baseList = baseList.filter(item => 
           (item.ip && item.ip.toLowerCase().includes(term)) ||
           (item.webServer && item.webServer.toLowerCase().includes(term)) ||
+          (item.primary_group && item.primary_group.toLowerCase().includes(term)) ||
+          (item.group_labels && item.group_labels.some(l => l.toLowerCase().includes(term))) ||
           (item.phpVersion && item.phpVersion.toLowerCase().includes(term)) ||
           (item.nodeVersion && item.nodeVersion.toLowerCase().includes(term)) ||
           (item.runtime_version && item.runtime_version.toLowerCase().includes(term)) ||
@@ -2153,6 +2487,32 @@
         );
       }
       return baseList;
+    }
+
+    function toggleGroupFilter(g) {
+      if (appState.activeGroupFilter === g) {
+        appState.activeGroupFilter = null;
+      } else {
+        appState.activeGroupFilter = g;
+      }
+      renderResultsTable();
+    }
+
+    function clearGroupFilter() {
+      appState.activeGroupFilter = null;
+      renderResultsTable();
+    }
+
+    function onScopePresetChange(preset) {
+      appState.scopePreset = preset;
+      renderResultsTable();
+      const presetNames = {
+        all: "ตรวจสอบครบทั้ง 8 กลุ่มระบบ",
+        windows: "เน้นกลุ่ม 6: Windows + PHP",
+        web_api: "เน้นกลุ่ม 1 & 2: เว็บไซต์และ API ภายใน",
+        dev_shadow: "เน้นกลุ่ม 7: ระบบทดสอบ / เก่า / สำรอง"
+      };
+      showToast(`ขอบเขต: ${presetNames[preset] || preset}`);
     }
 
     function switchFilterToAll() {
@@ -2165,6 +2525,7 @@
 
     function openDeepAuditModal(host) {
       if (!host) return;
+      appState.selectedAuditHost = host;
       const modal = document.getElementById('deepAuditModal');
       const content = document.getElementById('deepAuditContent');
       if (!modal) return;
@@ -2173,6 +2534,43 @@
       const targetBadge = document.getElementById('auditTargetBadge');
       if (targetBadge) targetBadge.textContent = host.ip;
 
+      // ThaiCERT 8 Groups Classification
+      const primaryBadge = document.getElementById('auditGroupPrimaryBadge');
+      if (primaryBadge) {
+        primaryBadge.textContent = host.primary_group || deep.primary_group || "กลุ่ม 4: อุปกรณ์ทั่วไป";
+      }
+
+      const groupListEl = document.getElementById('auditGroupList');
+      if (groupListEl) {
+        groupListEl.innerHTML = '';
+        const groups = host.thaicert_groups || deep.thaicert_groups || [4];
+        const groupLabels = host.group_labels || deep.group_labels || [];
+        const groupIcons = {
+          1: 'ph-globe text-blue-600',
+          2: 'ph-code text-indigo-600',
+          3: 'ph-gauge text-purple-600',
+          4: 'ph-hard-drives text-amber-600',
+          5: 'ph-package text-cyan-600',
+          6: 'ph-microsoft-windows-logo text-rose-600',
+          7: 'ph-clock-counter-clockwise text-orange-600',
+          8: 'ph-cloud text-teal-600'
+        };
+        groups.forEach((g, idx) => {
+          const label = groupLabels[idx] || `กลุ่ม ${g}`;
+          const isG6 = g === 6;
+          const isVuln = host.vulnerability === 'Critical' || host.vulnerability === 'Warning';
+          const pill = document.createElement('span');
+          pill.className = `px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border ${
+            isG6 && isVuln 
+              ? 'bg-rose-50 text-rose-800 border-rose-300 shadow-sm'
+              : (isG6 ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-white text-slate-700 border-slate-200/90 shadow-sm')
+          }`;
+          pill.innerHTML = `<i class="ph-bold ${groupIcons[g] || 'ph-squares-four'}"></i> <span>${label}</span>`;
+          groupListEl.appendChild(pill);
+        });
+      }
+
+      // Layer 1: Edge & Network Security
       const wafBadge = document.getElementById('auditWafBadge');
       if (wafBadge) {
         wafBadge.textContent = host.waf || deep.waf || "Direct Access";
@@ -2188,6 +2586,7 @@
         hsts.className = deep.hsts ? "text-emerald-700 font-bold block" : "text-amber-700 font-bold block";
       }
 
+      // Layer 2: Application & Runtime Hardening
       const cmsName = document.getElementById('auditCmsName');
       if (cmsName) {
         const title = host.site_name || deep.site_title;
@@ -2220,15 +2619,148 @@
         }
       }
 
+      // Layer 3: Local Credentialed Audit Command
       const terminalCmd = document.getElementById('auditTerminalCmd');
       if (terminalCmd) {
         terminalCmd.textContent = deep.host_verify_cmd || "php -v && (dpkg -l | grep -E 'php[0-9]' || rpm -qa | grep php)";
       }
 
+      // Layer 4: Deep Security Chains Analysis (Chains A, C, D)
+      const chainsOverallBadge = document.getElementById('auditChainsOverallBadge');
+      const secChains = host.security_chains || deep.security_chains || {};
+      if (chainsOverallBadge) {
+        if (!host.is_php) {
+          chainsOverallBadge.textContent = "Non-PHP Service (ไม่เกี่ยวข้อง)";
+          chainsOverallBadge.className = "px-2 py-0.5 rounded-md font-semibold text-[11px] bg-slate-100 text-slate-600 border border-slate-200";
+        } else if (secChains.overall_status === 'Defensively Hardened') {
+          chainsOverallBadge.textContent = "Defensively Hardened (ปลอดภัยตามเกณฑ์)";
+          chainsOverallBadge.className = "px-2 py-0.5 rounded-md font-semibold text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200";
+        } else {
+          chainsOverallBadge.textContent = "Audit & Hardening Recommended (แนะนำปรับแต่ง)";
+          chainsOverallBadge.className = "px-2 py-0.5 rounded-md font-semibold text-[11px] bg-amber-50 text-amber-700 border border-amber-200";
+        }
+      }
+
+      // Update hardening ini box
+      const iniBox = document.getElementById('hardeningIniCodeBox');
+      if (iniBox) {
+        iniBox.textContent = secChains.hardening_ini || "session.upload_progress.enabled = Off\nsession.use_strict_mode = 1\nsession.serialize_handler = php\nmemory_limit = 256M\nexpose_php = Off";
+      }
+
+      // Initialize Chain Tabs & Content (Default to Chain A)
+      switchAuditChain('chain_a');
+
       modal.classList.remove('opacity-0', 'pointer-events-none');
       if (content) {
         content.classList.remove('scale-95');
         content.classList.add('scale-100');
+      }
+    }
+
+    function switchAuditChain(chainKey) {
+      appState.activeAuditChain = chainKey;
+      ['chain_a', 'chain_c', 'chain_d'].forEach(k => {
+        const btnId = k === 'chain_a' ? 'tabBtnChainA' : (k === 'chain_c' ? 'tabBtnChainC' : 'tabBtnChainD');
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          if (k === chainKey) {
+            btn.className = "chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 cursor-pointer transition";
+          } else {
+            btn.className = "chain-tab px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent cursor-pointer transition";
+          }
+        }
+      });
+
+      if (appState.selectedAuditHost) {
+        renderAuditChainDetail(appState.selectedAuditHost, chainKey);
+      }
+    }
+
+    function renderAuditChainDetail(host, chainKey) {
+      const container = document.getElementById('chainDetailContainer');
+      if (!container) return;
+
+      const secChains = host.security_chains || (host.deep_audit && host.deep_audit.security_chains) || {};
+      const chains = secChains.chains || {};
+      const chain = chains[chainKey];
+
+      if (!host.is_php || !chain) {
+        container.innerHTML = `
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-slate-500">
+            <i class="ph-bold ph-shield-check text-2xl text-emerald-500 mb-1 inline-block"></i>
+            <p class="font-semibold text-slate-700 text-xs">อุปกรณ์นี้ไม่ใช่เซิร์ฟเวอร์ PHP</p>
+            <p class="text-[11px] mt-0.5">จึงไม่อยู่ในเงื่อนไขความเสี่ยงของกลไก php2shell (Chains A, C, D)</p>
+          </div>
+        `;
+        return;
+      }
+
+      const isChainPass = chain.verdict && (chain.verdict.includes('SECURE') || chain.verdict.includes('PASS'));
+      const verdictBadgeCls = isChainPass 
+        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+        : 'bg-amber-50 text-amber-700 border-amber-200';
+
+      let stagesHtml = '';
+      if (Array.isArray(chain.stages)) {
+        stagesHtml = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+            ${chain.stages.map(st => {
+              const isPass = st.badge === 'PASS' || st.badge === 'PROTECTED' || st.badge === 'SAFE' || st.badge === 'SECURE';
+              const badgeCls = isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+              const stageNumCls = isPass ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
+              return `
+                <div class="p-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-2">
+                  <span class="w-6 h-6 rounded-md ${stageNumCls} font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">${st.stage}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="font-bold text-slate-800 text-[11px] truncate">${st.name}</span>
+                      <span class="text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold ${badgeCls}">${st.status}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-0.5">${st.detail}</p>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h4 class="font-bold text-slate-800 text-xs">${chain.title}</h4>
+              <p class="text-[10px] text-slate-400 mt-0.5">การตรวจสอบขั้นตอน 6 ลำดับขั้นตามมาตรฐาน php2shell explain</p>
+            </div>
+            <span class="px-2 py-0.5 rounded-md font-semibold text-[10px] border ${verdictBadgeCls} flex-shrink-0">
+              ${chain.verdict}
+            </span>
+          </div>
+          ${stagesHtml}
+          <div class="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 text-[11px] text-indigo-900 mt-2">
+            <b class="text-indigo-950 flex items-center gap-1"><i class="ph-bold ph-lightbulb"></i> ข้อแนะนำการป้องกันเฉพาะสายนี้:</b>
+            <div class="font-mono text-[10px] text-indigo-800 mt-1 whitespace-pre-wrap">${chain.remediation}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function copyHardeningIni() {
+      const codeBox = document.getElementById('hardeningIniCodeBox');
+      const text = codeBox ? codeBox.textContent.trim() : "session.upload_progress.enabled = Off\nsession.use_strict_mode = 1\nsession.serialize_handler = php\nmemory_limit = 256M\nexpose_php = Off";
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          const btnText = document.getElementById('copyIniBtnText');
+          if (btnText) btnText.textContent = "คัดลอกเรียบร้อย!";
+          showToast("คัดลอกการตั้งค่า php.ini Hardening เรียบร้อยแล้ว");
+          setTimeout(() => {
+            if (btnText) btnText.textContent = "คัดลอก php.ini Hardening";
+          }, 2000);
+        }).catch(() => {
+          showToast("คำแนะนำ: " + text);
+        });
+      } else {
+        showToast("คำแนะนำ: " + text);
       }
     }
 
@@ -2259,17 +2791,24 @@
         showToast("ไม่พบข้อมูลที่จะส่งออก");
         return;
       }
-      let csvContent = "\uFEFFIP Address,Device Type,Runtime / Version,Open Ports,Latency,Security Assessment\n";
+      let csvContent = "\uFEFFIP Address,Device Type,Runtime / Version,Open Ports,Latency,ThaiCERT Groups,Primary Group,Security Chains Status,Security Assessment,Remediation Advice\n";
       listToExport.forEach(item => {
         const portsStr = Array.isArray(item.ports) && item.ports.length > 0 ? item.ports.join(';') : 'Closed';
         const runtimeVal = item.runtime_version || item.phpVersion || 'ไม่มี Web Service';
-        csvContent += `"${item.ip}","${item.device_name || item.webServer}","${runtimeVal}","${portsStr}","${item.latency || '1ms'}","${item.cveNote}"\n`;
+        const groupsStr = (item.thaicert_groups || []).join(';');
+        const primaryG = item.primary_group || 'กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์ทั่วไป';
+        const secChains = item.security_chains || (item.deep_audit && item.deep_audit.security_chains) || {};
+        const chainsStatus = secChains.overall_status || (item.is_php ? 'Hardened' : 'N/A');
+        const remedy = item.vulnerability === 'Critical' 
+          ? 'อัปเกรด PHP เป็น 8.2.20+ / 8.3.8+ ด่วน หรือตั้งค่า session.upload_progress.enabled = Off'
+          : (item.is_php ? 'ตั้งค่า session.use_strict_mode = 1 และ expose_php = Off' : 'ระบบปกติ');
+        csvContent += `"${item.ip}","${item.device_name || item.webServer}","${runtimeVal}","${portsStr}","${item.latency || '1ms'}","${groupsStr}","${primaryG}","${chainsStatus}","${item.cveNote}","${remedy}"\n`;
       });
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `ThaiCERT_Network_Scan_${appState.subnetPrefix}0.csv`);
+      link.setAttribute("download", `ThaiCERT_Network_Scan_${appState.subnetPrefix || 'scan_'}report.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -2433,6 +2972,11 @@
           showToast("คำสั่ง: " + text);
         }
       });
+    }
+
+    const btnCopyHardeningIni = document.getElementById('btnCopyHardeningIni');
+    if (btnCopyHardeningIni) {
+      btnCopyHardeningIni.addEventListener('click', copyHardeningIni);
     }
 
     // Settings Drawer Controls

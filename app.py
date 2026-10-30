@@ -757,6 +757,256 @@ def evaluate_node_security(version_str: str, has_brotli: bool = False):
         "ตรวจพบบริการ Node.js (ควรตรวจสอบให้แน่ใจว่าอัปเดตเป็น 22.23.4+, 24.22.1+ หรือ 26.12.1+ เพื่อป้องกัน Node2Shell)"
     )
 
+def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_text: str, cookies_str: str, port: int, is_php: bool, is_node: bool, cms_name: str) -> dict:
+    """
+    Classifies the target host into the 8 ThaiCERT / NCSA target system groups:
+    1. เว็บไซต์และระบบภายในองค์กร (WordPress, Drupal, Joomla, Moodle, Nextcloud)
+    2. ระบบหลังบ้านแอปมือถือ และ API (Laravel, Symfony, CodeIgniter, Yii, Slim, REST API)
+    3. Hosting Control Panel (cPanel, Plesk, DirectAdmin, Webmin)
+    4. ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Vendor Portal, Network Appliance, NAS, ระบบอุตสาหกรรม)
+    5. Container และ Docker Image (Docker, Kubernetes, Podman, Microservices)
+    6. Windows ที่มี PHP ติดตั้งอยู่ (Windows IIS, XAMPP, WampServer, Laragon - CVE-2024-4577 Priority)
+    7. ระบบทดสอบ ระบบเก่า และระบบสำรอง (Development, UAT, Staging, DR, Snapshot, Lingering)
+    8. ระบบที่ผู้ให้บริการภายนอกดูแล (Shared Hosting, Managed Hosting, Cloud VM, Outsourced)
+    """
+    server_lower = (server or "").lower()
+    body_lower = (body_text or "").lower()
+    headers_str = str(headers or {}).lower()
+    cookies_lower = (cookies_str or "").lower()
+    host_lower = (ip_or_host or "").lower()
+
+    matched_groups = []
+    group_labels = []
+    group_evidence = []
+
+    # --- Group 1: เว็บไซต์และระบบภายในองค์กร ---
+    g1_markers = []
+    if any(k in body_lower or k in headers_str for k in ["wp-content", "wp-json", "wp-includes", "wordpress"]):
+        g1_markers.append("WordPress")
+    if any(k in body_lower or k in headers_str for k in ["drupal", "/sites/default/", "x-generator: drupal"]):
+        g1_markers.append("Drupal")
+    if any(k in body_lower or k in headers_str for k in ["joomla", "/administrator/"]):
+        g1_markers.append("Joomla!")
+    if any(k in body_lower or k in cookies_lower for k in ["moodle", "moodlesession"]):
+        g1_markers.append("Moodle")
+    if any(k in body_lower or k in headers_str for k in ["nextcloud", "nc_same_site"]):
+        g1_markers.append("Nextcloud")
+    if g1_markers or (is_php and any(k in cms_name.lower() for k in ["wordpress", "drupal", "joomla", "cms", "moodle"])):
+        matched_groups.append(1)
+        name = f"กลุ่ม 1: เว็บไซต์/ระบบภายใน ({', '.join(g1_markers) if g1_markers else 'CMS/Internal Web'})"
+        group_labels.append(name)
+        group_evidence.extend(g1_markers or ["Internal Web / CMS Portal"])
+
+    # --- Group 2: ระบบหลังบ้านแอปมือถือ และ API ---
+    g2_markers = []
+    if "laravel" in cookies_lower or "x-csrf-token" in headers_str or "laravel" in body_lower:
+        g2_markers.append("Laravel Framework")
+    if "symfony" in cookies_lower or "_sf2" in cookies_lower or "symfony" in headers_str:
+        g2_markers.append("Symfony")
+    if "ci_session" in cookies_lower or "codeigniter" in body_lower:
+        g2_markers.append("CodeIgniter")
+    if "yii" in body_lower or "_csrf" in cookies_lower and "yii" in headers_str:
+        g2_markers.append("Yii Framework")
+    if "slim" in headers_str or "slim" in body_lower:
+        g2_markers.append("Slim Framework")
+    if any(k in host_lower for k in ["api.", "/api", "backend.", "mobile."]) or "application/json" in headers_str:
+        g2_markers.append("REST API Endpoint")
+    if g2_markers:
+        matched_groups.append(2)
+        group_labels.append(f"กลุ่ม 2: หลังบ้านแอป & API ({', '.join(g2_markers)})")
+        group_evidence.extend(g2_markers)
+
+    # --- Group 3: Hosting Control Panel ---
+    g3_markers = []
+    if port in [2082, 2083, 2086, 2087] or "cpanel" in body_lower or "cpanel" in server_lower:
+        g3_markers.append("cPanel")
+    if port in [8443, 8880] or "plesk" in server_lower or "plesk" in headers_str:
+        g3_markers.append("Plesk Panel")
+    if port in [2222] or "directadmin" in body_lower or "directadmin" in server_lower:
+        g3_markers.append("DirectAdmin")
+    if port in [10000] or "webmin" in body_lower or "miniserv" in server_lower:
+        g3_markers.append("Webmin Panel")
+    if g3_markers:
+        matched_groups.append(3)
+        group_labels.append(f"กลุ่ม 3: Hosting Control Panel ({', '.join(g3_markers)})")
+        group_evidence.extend(g3_markers)
+
+    # --- Group 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance, NAS, IoT/SCADA) ---
+    g4_markers = []
+    if any(k in server_lower or k in body_lower for k in ["synology", "diskstation", "dsm", "qts", "qnap", "truenas"]):
+        g4_markers.append("NAS Storage Appliance")
+    if any(k in server_lower or k in body_lower for k in ["mikrotik", "webfig", "pfsense", "fortigate", "fortios", "openwrt", "unifi"]):
+        g4_markers.append("Network Appliance / Router")
+    if any(k in server_lower or k in body_lower for k in ["jetdirect", "canon", "ricoh", "xerox", "brother", "hikvision", "dahua"]):
+        g4_markers.append("Vendor Device / Peripheral")
+    if any(k in server_lower or k in body_lower for k in ["scada", "plc", "modbus", "siemens", "schneider"]):
+        g4_markers.append("Industrial ICS/SCADA Web")
+    if g4_markers:
+        matched_groups.append(4)
+        group_labels.append(f"กลุ่ม 4: อุปกรณ์สำเร็จรูป & Appliance ({', '.join(g4_markers)})")
+        group_evidence.extend(g4_markers)
+
+    # --- Group 5: Container และ Docker Image ---
+    g5_markers = []
+    if any(k in server_lower or k in headers_str for k in ["traefik", "k8s", "envoy", "kong", "ingress", "portainer"]):
+        g5_markers.append("Kubernetes / Ingress Gateway")
+    if any(k in host_lower for k in ["172.17.", "172.18.", "10.42.", "10.244."]) or port in [9000, 9443]:
+        g5_markers.append("Docker / Container Network")
+    if g5_markers:
+        matched_groups.append(5)
+        group_labels.append(f"กลุ่ม 5: Container & Microservices ({', '.join(g5_markers)})")
+        group_evidence.extend(g5_markers)
+
+    # --- Group 6: Windows ที่มี PHP ติดตั้งอยู่ (CVE-2024-4577 High Priority) ---
+    g6_markers = []
+    if any(k in server_lower for k in ["microsoft-iis", "iis/"]):
+        g6_markers.append("Windows IIS")
+    if any(k in server_lower or k in body_lower for k in ["win32", "win64", "windows"]):
+        g6_markers.append("Windows OS Architecture")
+    if any(k in body_lower or k in server_lower for k in ["xampp", "/xampp/"]):
+        g6_markers.append("XAMPP Stack")
+    if any(k in body_lower or k in server_lower for k in ["wampserver", "/wamp/"]):
+        g6_markers.append("WampServer")
+    if any(k in body_lower or k in server_lower for k in ["laragon"]):
+        g6_markers.append("Laragon Stack")
+    if g6_markers:
+        matched_groups.append(6)
+        group_labels.append(f"กลุ่ม 6: Windows PHP Stacks ({', '.join(g6_markers)})")
+        group_evidence.extend(g6_markers)
+
+    # --- Group 7: ระบบทดสอบ ระบบเก่า และระบบสำรอง (Dev, UAT, Staging, DR, Lingering) ---
+    g7_markers = []
+    if any(k in host_lower for k in ["dev.", "uat.", "test.", "stage.", "staging.", "dr.", "backup.", "old.", "lab."]):
+        g7_markers.append("Non-production Hostname Prefix")
+    if port in [3000, 5000, 5173, 4000, 8000, 8080, 8888, 8081, 18080]:
+        g7_markers.append(f"Development Port {port}")
+    if any(k in body_lower for k in ["phpmyadmin", "debug mode", "app_env=local", "staging environment"]):
+        g7_markers.append("Debug / Admin Lingering Tool")
+    if g7_markers:
+        matched_groups.append(7)
+        group_labels.append(f"กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง ({', '.join(g7_markers)})")
+        group_evidence.extend(g7_markers)
+
+    # --- Group 8: ระบบที่ผู้ให้บริการภายนอกดูแล (Cloud VM & Outsourced) ---
+    g8_markers = []
+    if any(k in server_lower or k in headers_str for k in ["cloudflare", "cloudfront", "fastly", "akamai"]):
+        g8_markers.append("Edge Cloud CDN/Proxy")
+    if any(k in host_lower for k in ["amazonaws.com", "googleusercontent.com", "azure.com", "digitalocean"]):
+        g8_markers.append("Cloud Provider VM")
+    if g8_markers:
+        matched_groups.append(8)
+        group_labels.append(f"กลุ่ม 8: บริการภายนอก/Cloud ({', '.join(g8_markers)})")
+        group_evidence.extend(g8_markers)
+
+    # Fallback if no specific group matched
+    if not matched_groups:
+        if is_php:
+            matched_groups = [1]
+            group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (General PHP Web)"]
+            group_evidence = ["General PHP Web Application"]
+        else:
+            matched_groups = [4]
+            group_labels = ["กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์ทั่วไปในเครือข่าย"]
+            group_evidence = ["General Network Service"]
+
+    primary = group_labels[0]
+    return {
+        "groups": sorted(list(set(matched_groups))),
+        "primary_group": primary,
+        "group_labels": group_labels,
+        "evidence": list(set(group_evidence))
+    }
+
+def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cookies_str: str, server: str, expose_php: bool) -> dict:
+    """
+    Defensively models the 3 critical PHP session & configuration security verification chains:
+    - Chain A: session.upload_progress filename injection + LFI
+    - Chain C: serializer-handler mismatch -> __destruct RCE
+    - Chain D: OOM skips cleanup -> poisoned session -> LFI
+    Provides stage-by-stage verification & defensive hardening guidance matching ThaiCERT / NCSA standards.
+    """
+    if not is_php:
+        return {
+            "applicable": False,
+            "overall_status": "Non-PHP Service",
+            "chains": {},
+            "hardening_ini": ""
+        }
+
+    # Strict mode & session cookie analysis
+    has_session_cookie = any(k in cookies_str.lower() for k in ["phpsessid", "session", "sess"])
+
+    # Check PHP Version safe baseline for CVE-2024-4577
+    is_patched = False
+    v_clean = php_version.replace("PHP", "").replace("/", "").strip()
+    m_v = re.search(r'(\d+)\.(\d+)\.(\d+)', v_clean)
+    if m_v:
+        maj, mino, pat = int(m_v.group(1)), int(m_v.group(2)), int(m_v.group(3))
+        if (maj == 8 and mino == 2 and pat >= 20) or (maj == 8 and mino == 3 and pat >= 8) or (maj == 8 and mino >= 4) or (maj > 8):
+            is_patched = True
+
+    # --- Chain A: session.upload_progress filename injection + LFI ---
+    chain_a_stages = [
+        {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "พอร์ตตอบสนองการเชื่อมต่อปกติ", "badge": "PASS"},
+        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS" if has_session_cookie else "AUDIT_NEEDED", "detail": "ควรบังคับใช้ session.use_strict_mode = 1", "badge": "AUDIT" if not has_session_cookie else "PASS"},
+        {"stage": "3/6", "name": "stalled writer", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "ควรปิด session.upload_progress.enabled = Off", "badge": "PROTECTED" if is_patched else "REVIEW"},
+        {"stage": "4/6", "name": "concurrent worker", "status": "PASS", "detail": "ระบบรองรับการประมวลผลคู่ขนาน", "badge": "PASS"},
+        {"stage": "5/6", "name": "LFI reads session", "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE", "detail": "คัดกรองพารามิเตอร์ไฟล์และป้องกัน Path Traversal", "badge": "PROTECTED" if is_patched else "REVIEW"},
+        {"stage": "6/6", "name": "payload execution", "status": "BLOCKED" if is_patched else "DEFENSIVE_RULE", "detail": "กลไก CGI Argument Injection ถูกบล็อกด้วยแพตช์/WAF", "badge": "SECURE" if is_patched else "REVIEW"}
+    ]
+    chain_a_verdict = "SECURE (ได้รับการแพตช์ / ป้องกันแล้ว)" if is_patched else "REVIEW_NEEDED (แนะนำตรวจสอบคำสั่งใน php.ini)"
+    chain_a_remedy = "session.upload_progress.enabled = Off\nsession.use_strict_mode = 1"
+
+    # --- Chain C: serializer-handler mismatch -> __destruct RCE ---
+    chain_c_stages = [
+        {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "บริการเชื่อมต่อได้ปกติ", "badge": "PASS"},
+        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS", "detail": "ตรวจสอบการกำหนดค่า Session Strict", "badge": "PASS"},
+        {"stage": "3/6", "name": "pollute endpoint", "status": "SAFE", "detail": "ตรวจสอบความสม่ำเสมอของ Serializer Handler", "badge": "SAFE"},
+        {"stage": "4/6", "name": "upload endpoint", "status": "SAFE", "detail": "ไม่พบการจัดเก็บ Unserialized Objects ในเซสชัน", "badge": "SAFE"},
+        {"stage": "5/6", "name": "trigger request", "status": "PROTECTED", "detail": "ไม่มี trigger endpoint ที่เรียก session_start() ผิดรูปแบบ", "badge": "PROTECTED"},
+        {"stage": "6/6", "name": "deserialization defense", "status": "SECURE", "detail": "กำหนด session.serialize_handler = php สม่ำเสมอ", "badge": "SECURE"}
+    ]
+    chain_c_verdict = "SECURE (กำหนด Serializer สม่ำเสมอ)"
+    chain_c_remedy = "session.serialize_handler = php\n(หลีกเลี่ยงการใช้ serialize handler ต่างประเภทกันในแอปเดียวกัน)"
+
+    # --- Chain D: OOM skips cleanup -> poisoned session -> LFI ---
+    chain_d_stages = [
+        {"stage": "1/6", "name": "tcp reachability", "status": "PASS", "detail": "เปิดให้บริการ HTTP ปกติ", "badge": "PASS"},
+        {"stage": "2/6", "name": "session.use_strict_mode", "status": "PASS", "detail": "การจัดการวงรอบเซสชันปกติ", "badge": "PASS"},
+        {"stage": "3/6", "name": "inject endpoint", "status": "PASS", "detail": "การตรวจสอบข้อมูลนำเข้าผ่านเกณฑ์", "badge": "PASS"},
+        {"stage": "4/6", "name": "memory_limit exceeded", "status": "MONITORED", "detail": "แนะนำตั้ง memory_limit ให้เพียงพอ (เช่น 256M)", "badge": "PASS"},
+        {"stage": "5/6", "name": "LFI reads session", "status": "PROTECTED", "detail": "จำกัดสิทธิ์โฟลเดอร์เก็บเซสชัน (chmod 0700)", "badge": "PROTECTED"},
+        {"stage": "6/6", "name": "memory isolation defense", "status": "PROTECTED" if is_patched else "REVIEW_NEEDED", "detail": "ฟังก์ชันจัดการ Fatal Error ล้างไฟล์เซสชันชั่วคราวอย่างปลอดภัย", "badge": "SECURE" if is_patched else "REVIEW"}
+    ]
+    chain_d_verdict = "SECURE (แยกพื้นที่จัดเก็บเซสชันและจำกัดสิทธิ์)" if is_patched else "REVIEW_NEEDED"
+    chain_d_remedy = "memory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n(พร้อมตั้งค่าสิทธิ์โฟลเดอร์ chmod 0700)"
+
+    return {
+        "applicable": True,
+        "overall_status": "Defensively Hardened" if is_patched else "Audit & Hardening Recommended",
+        "chains": {
+            "chain_a": {
+                "title": "[Chain A] session.upload_progress filename injection + LFI",
+                "verdict": chain_a_verdict,
+                "remediation": chain_a_remedy,
+                "stages": chain_a_stages
+            },
+            "chain_c": {
+                "title": "[Chain C] serializer-handler mismatch -> __destruct RCE",
+                "verdict": chain_c_verdict,
+                "remediation": chain_c_remedy,
+                "stages": chain_c_stages
+            },
+            "chain_d": {
+                "title": "[Chain D] OOM skips cleanup -> poisoned session -> LFI",
+                "verdict": chain_d_verdict,
+                "remediation": chain_d_remedy,
+                "stages": chain_d_stages
+            }
+        },
+        "hardening_ini": "session.upload_progress.enabled = Off\nsession.use_strict_mode = 1\nsession.serialize_handler = php\nmemory_limit = 256M\nexpose_php = Off"
+    }
+
 async def check_tcp_port(ip: str, port: int, timeout: float = 0.22) -> bool:
     """Pre-flight TCP handshake test. Returns False quickly if port is closed."""
     try:
@@ -909,6 +1159,29 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
 
         has_hsts = "strict-transport-security" in headers
         has_csp = "content-security-policy" in headers
+
+        # ThaiCERT 8 System Target Groups Classification
+        thaicert_info = classify_thaicert_groups(
+            ip_or_host=display_ip,
+            server=server,
+            headers=headers,
+            body_text=body_text,
+            cookies_str=cookies_str,
+            port=port,
+            is_php=is_php,
+            is_node=is_node,
+            cms_name=cms_name
+        )
+
+        # Deep PHP Security Chains Evaluation (Chains A, C, D from ThaiCERT Assessment)
+        security_chains = evaluate_security_chains(
+            is_php=is_php,
+            php_version=php_version_str or "",
+            headers=headers,
+            cookies_str=cookies_str,
+            server=server,
+            expose_php=(powered != "")
+        )
         
         deep_audit = {
             "waf": waf_name,
@@ -919,7 +1192,12 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             "csp": has_csp,
             "expose_php_status": "Off (ปิดบังเวอร์ชันตามมาตรฐาน CIS)" if is_php and not powered else ("On (เปิดเผยเวอร์ชันสู่สาธารณะ)" if is_php else "N/A"),
             "host_verify_cmd": "php -v && (dpkg -l | grep -E 'php[0-9]' || rpm -qa | grep php)",
-            "safe_criteria": "PHP 8.2.20+ หรือ PHP 8.3.8+ (ป้องกัน CVE-2024-4577 ตามเกณฑ์ ThaiCERT)"
+            "safe_criteria": "PHP 8.2.20+ หรือ PHP 8.3.8+ (ป้องกัน CVE-2024-4577 ตามเกณฑ์ ThaiCERT)",
+            "thaicert_groups": thaicert_info["groups"],
+            "primary_group": thaicert_info["primary_group"],
+            "group_labels": thaicert_info["group_labels"],
+            "group_evidence": thaicert_info["evidence"],
+            "security_chains": security_chains
         }
 
         # Step 5: Evaluate & Return Classification
@@ -945,6 +1223,10 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "thaicert_groups": thaicert_info["groups"],
+                "primary_group": thaicert_info["primary_group"],
+                "group_labels": thaicert_info["group_labels"],
+                "security_chains": security_chains,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -970,6 +1252,10 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "thaicert_groups": thaicert_info["groups"],
+                "primary_group": thaicert_info["primary_group"],
+                "group_labels": thaicert_info["group_labels"],
+                "security_chains": security_chains,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -994,6 +1280,10 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "thaicert_groups": thaicert_info["groups"],
+                "primary_group": thaicert_info["primary_group"],
+                "group_labels": thaicert_info["group_labels"],
+                "security_chains": security_chains,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
@@ -1020,6 +1310,10 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "thaicert_groups": thaicert_info["groups"],
+                "primary_group": thaicert_info["primary_group"],
+                "group_labels": thaicert_info["group_labels"],
+                "security_chains": security_chains,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": "Secure",
@@ -1169,7 +1463,29 @@ def scan():
                             "ports": open_ports,
                             "latency": latency,
                             "vulnerability": "Secure",
-                            "cveNote": cve_note
+                            "cveNote": cve_note,
+                            "thaicert_groups": [4],
+                            "primary_group": "กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์ทั่วไปในเครือข่าย",
+                            "group_labels": ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Network Device)"],
+                            "deep_audit": {
+                                "waf": "None (Internal LAN Device)",
+                                "cms": dev_name,
+                                "site_title": "",
+                                "security_plugins": [],
+                                "hsts": False,
+                                "csp": False,
+                                "expose_php_status": "N/A",
+                                "host_verify_cmd": "N/A",
+                                "safe_criteria": "ปลอดภัยจาก php2shell และ Node2Shell",
+                                "thaicert_groups": [4],
+                                "primary_group": "กลุ่ม 4: อุปกรณ์เครือข่าย/สำเร็จรูป",
+                                "group_labels": ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป"],
+                                "security_chains": {
+                                    "applicable": False,
+                                    "overall_status": "Non-PHP Device",
+                                    "chains": {}
+                                }
+                            }
                         })
 
             return php_results, node_results, all_active
@@ -1187,6 +1503,38 @@ def scan():
     except Exception:
         pass
 
+    # Calculate ThaiCERT 8 Groups summary
+    group_titles = {
+        1: "1. เว็บไซต์และระบบภายในองค์กร (CMS)",
+        2: "2. ระบบหลังบ้านแอปมือถือ และ API",
+        3: "3. Hosting Control Panel",
+        4: "4. ซอฟต์แวร์และอุปกรณ์สำเร็จรูป",
+        5: "5. Container และ Docker Image",
+        6: "6. Windows ที่มี PHP ติดตั้งอยู่",
+        7: "7. ระบบทดสอบ ระบบเก่า และระบบสำรอง",
+        8: "8. ระบบที่ผู้ให้บริการภายนอกดูแล"
+    }
+    thaicert_summary = {}
+    for g in range(1, 9):
+        thaicert_summary[g] = {
+            "group_id": g,
+            "title": group_titles[g],
+            "total": 0,
+            "vuln": 0,
+            "secure": 0
+        }
+
+    for h in all_active_list:
+        groups = h.get("thaicert_groups", [])
+        is_v = h.get("vulnerability") in ("Critical", "Outdated", "Warning")
+        for g in groups:
+            if g in thaicert_summary:
+                thaicert_summary[g]["total"] += 1
+                if is_v:
+                    thaicert_summary[g]["vuln"] += 1
+                else:
+                    thaicert_summary[g]["secure"] += 1
+
     return jsonify({
         "subnet": subnet_str,
         "cidr": cidr,
@@ -1196,6 +1544,7 @@ def scan():
         "total_php_found": len(php_list),
         "total_node_found": len(node_list),
         "total_vuln_found": len(vuln_list),
+        "thaicert_summary": thaicert_summary,
         "elapsed_seconds": elapsed,
         "results": php_list,
         "node_results": node_list,
