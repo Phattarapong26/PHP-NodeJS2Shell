@@ -3217,19 +3217,21 @@ Content-Type: text/html; charset=UTF-8</div>
       const terminal = document.getElementById('asanTerminalTrace');
       const pill = document.getElementById('asanStatusPill');
 
+      const rawIp = (host.ip || '').trim();
+      const port = (host.ports && host.ports[0]) || 8080;
+
       if (btn) btn.disabled = true;
       if (btnText) btnText.textContent = "กำลังส่งคำขอตรวจสอบ C/ASan...";
       if (terminal) {
-        terminal.textContent = `[+] Initiating deep C-level & AddressSanitizer probe to ${host.ip}:${(host.ports && host.ports[0]) || 8080}...\n[*] Probing Zend Engine memory boundaries and var_destroy reentrancy...\n`;
+        terminal.textContent = `[+] Initiating deep C-level & AddressSanitizer probe to ${rawIp}:${port}...\n[*] Probing Zend Engine memory boundaries and var_destroy reentrancy...\n`;
       }
 
       try {
-        const port = (host.ports && host.ports[0]) || 8080;
-        const res = await fetch(`/api/verify-asan-memory?ip=${encodeURIComponent(host.ip)}&port=${encodeURIComponent(port)}`);
+        const res = await fetch(`/api/verify-asan-memory?ip=${encodeURIComponent(rawIp)}&port=${encodeURIComponent(port)}`);
         const data = await res.json();
 
         if (data.status === 'ERROR') {
-          terminal.textContent += `[-] Error probing target: ${data.message || 'Connection failed'}`;
+          terminal.textContent += `[-] Error probing target: ${data.error || data.message || 'Connection failed'}`;
           if (pill) {
             pill.textContent = "PROBE FAILED";
             pill.className = "px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-400";
