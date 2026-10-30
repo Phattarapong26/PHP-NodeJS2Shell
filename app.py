@@ -1463,9 +1463,12 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
         has_phpsessid = "phpsessid" in cookies_str.lower()
         has_php_cookie = any(c in cookies_str.lower() for c in ["ci_session", "laravel_session", "cakephp", "wordpress_"])
         header_php = "php" in powered.lower() or "php" in server.lower() or "php" in headers.get("x-php-version", "").lower()
-        body_php = any(sig in body_text for sig in ["wp-content", "wordpress", "phpmyadmin", "joomla", "drupal", "fatal error:", "parse error:"]) or ".php\"" in body_text or ".php'" in body_text
+        body_php = any(sig in body_text for sig in ["wp-content", "phpmyadmin", "joomla", "drupal", "fatal error: uncaught", "parse error: syntax error", "x-powered-by: php"])
 
         is_php = header_php or has_phpsessid or has_php_cookie or body_php
+        if any(srv in server.lower() for srv in ["werkzeug", "python", "gunicorn", "uvicorn", "caddy", "envoy"]):
+            if not (header_php or has_phpsessid):
+                is_php = False
         php_version_str = powered if "php" in powered.lower() else (server if "php" in server.lower() else "")
 
         # Step 2: Detect Node.js Signatures (Use regex word boundaries to avoid false positives like "ubuntu" matching "bun")
@@ -1509,7 +1512,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                     if "php" in p2.lower() or "php" in s2.lower() or "phpsessid" in c2.lower():
                         is_php = True
                         php_version_str = p2 or s2
-                    elif resp_idx.status_code == 200 and len(resp_idx.content) > 0 and (resp_idx.text == resp.text or "php" in resp_idx.text.lower()):
+                    elif resp_idx.status_code == 200 and len(resp_idx.content) > 0 and resp_idx.text != resp.text and any(sig in resp_idx.text.lower() for sig in ["php", "zend", "wordpress", "joomla"]):
                         is_php = True
                         php_version_str = "PHP Web Service (index.php)"
             except Exception:
@@ -1520,7 +1523,7 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             try:
                 egg_url = f"{base_url}/?=PHPB8B5F2A0-8892-11d3-A2A9-00C04D830509"
                 resp_egg = await client.get(egg_url, headers=req_headers, timeout=1.0)
-                if "php group" in resp_egg.text.lower() or "zend engine" in resp_egg.text.lower():
+                if resp_egg.text != resp.text and ("php group" in resp_egg.text.lower() or "zend engine" in resp_egg.text.lower() or "image/gif" in resp_egg.headers.get("content-type", "")):
                     is_php = True
                     php_version_str = "PHP Easter Egg Detected"
             except Exception:
@@ -1939,6 +1942,9 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
         }
 
         deep_audit = {
+            "target_id": f"{display_ip}:{port}",
+            "port": port,
+            "target_url": base_url,
             "waf": waf_name,
             "cms": cms_name,
             "site_title": site_name,
@@ -1967,6 +1973,9 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
             display_ver = f"PHP ({php_version_str}) + Node.js ({node_version_str})"
             return {
+                "target_id": f"{display_ip}:{port}",
+                "port": port,
+                "target_url": base_url,
                 "is_php": True,
                 "is_node": True,
                 "runtime": "PHP & Node.js",
@@ -1998,6 +2007,9 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             if has_brotli and "[Brotli]" not in display_ver:
                 display_ver += " [Brotli]"
             return {
+                "target_id": f"{display_ip}:{port}",
+                "port": port,
+                "target_url": base_url,
                 "is_php": False,
                 "is_node": True,
                 "runtime": "Node.js",
@@ -2028,6 +2040,9 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
                 php_version_str = "PHP (expose_php=Off / Version Hidden)"
             vuln, note = evaluate_php_security(php_version_str)
             return {
+                "target_id": f"{display_ip}:{port}",
+                "port": port,
+                "target_url": base_url,
                 "is_php": True,
                 "is_node": False,
                 "runtime": "PHP",
@@ -2060,6 +2075,9 @@ async def probe_endpoint(client: httpx.AsyncClient, ip_str: str, port: int, host
             elif any(k in device_desc.lower() for k in ["camera", "dahua", "hikvision", "axis", "nvr", "dvr"]):
                 device_desc = "CCTV Camera"
             return {
+                "target_id": f"{display_ip}:{port}",
+                "port": port,
+                "target_url": base_url,
                 "is_php": False,
                 "is_node": False,
                 "runtime": "None",
@@ -2140,6 +2158,12 @@ def scan():
                     tasks.append(bound_probe(ip_str, p))
             raw_res = await asyncio.gather(*tasks)
 
+            # Group all responding ports by IP so every service knows its sibling ports
+            ip_to_ports = {}
+            for r in raw_res:
+                if r:
+                    ip_to_ports.setdefault(r["ip"], []).append(r["port"])
+
             php_results = []
             node_results = []
             all_active = []
@@ -2147,52 +2171,12 @@ def scan():
             
             for r in raw_res:
                 if r:
-                    if r["ip"] not in seen_ips:
-                        seen_ips.add(r["ip"])
-                        all_active.append(r)
-                    else:
-                        for item in all_active:
-                            if item["ip"] == r["ip"]:
-                                item["ports"] = sorted(list(set(item["ports"] + r["ports"])))
-                                if r.get("is_php") and not item.get("is_php"):
-                                    item["is_php"] = True
-                                    item["phpVersion"] = r["phpVersion"]
-                                if r.get("is_node") and not item.get("is_node"):
-                                    item["is_node"] = True
-                                    item["nodeVersion"] = r["nodeVersion"]
-                                if r.get("has_brotli"):
-                                    item["has_brotli"] = True
-                                
-                                # Upgrade runtime label if dual
-                                if item.get("is_php") and item.get("is_node"):
-                                    item["runtime"] = "PHP & Node.js"
-                                    item["runtime_version"] = f"PHP ({item.get('phpVersion','')}) + Node.js ({item.get('nodeVersion','')})"
-                                elif item.get("is_node"):
-                                    item["runtime"] = "Node.js"
-                                    item["runtime_version"] = item.get("nodeVersion", "Node.js")
-                                elif item.get("is_php"):
-                                    item["runtime"] = "PHP"
-                                    item["runtime_version"] = item.get("phpVersion", "PHP")
-
-                                # Severity upgrade
-                                sev_rank = {"Critical": 4, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Secure": 0}
-                                if sev_rank.get(r.get("vulnerability", "Secure"), 0) > sev_rank.get(item.get("vulnerability", "Secure"), 0):
-                                    item["vulnerability"] = r["vulnerability"]
-                                    item["cveNote"] = r["cveNote"]
-
-                                if r.get("probe_log"):
-                                    item["probe_log"] = r["probe_log"]
-                                    if "deep_audit" in item and isinstance(item["deep_audit"], dict):
-                                        item["deep_audit"]["probe_log"] = r["probe_log"]
-
-                                if r.get("va_findings"):
-                                    item["va_findings"] = r["va_findings"]
-                                    if "deep_audit" in item and isinstance(item["deep_audit"], dict):
-                                        item["deep_audit"]["va_findings"] = r["va_findings"]
-
-                    if r.get("is_php") and not any(p["ip"] == r["ip"] for p in php_results):
+                    r["sibling_ports"] = sorted(list(set(ip_to_ports.get(r["ip"], [r["port"]]))))
+                    seen_ips.add(r["ip"])
+                    all_active.append(r)
+                    if r.get("is_php"):
                         php_results.append(r)
-                    if r.get("is_node") and not any(n["ip"] == r["ip"] for n in node_results):
+                    if r.get("is_node"):
                         node_results.append(r)
 
             # Query real-time ARP cache for any hosts in this subnet that didn't have web ports open
@@ -2291,10 +2275,20 @@ def scan():
 
     vuln_list = [h for h in all_active_list if h.get("vulnerability") in ("Critical", "Outdated", "Warning")]
 
+    def _sort_target_key(item):
+        clean_ip = str(item.get("ip", "")).split()[0]
+        try:
+            ip_obj = ipaddress.ip_address(clean_ip)
+            ip_val = int(ip_obj)
+        except Exception:
+            ip_val = 0
+        port_val = int(item.get("port") or 0)
+        return (ip_val, port_val)
+
     try:
-        all_active_list.sort(key=lambda x: ipaddress.ip_address(x["ip"]))
-        php_list.sort(key=lambda x: ipaddress.ip_address(x["ip"]))
-        node_list.sort(key=lambda x: ipaddress.ip_address(x["ip"]))
+        all_active_list.sort(key=_sort_target_key)
+        php_list.sort(key=_sort_target_key)
+        node_list.sort(key=_sort_target_key)
     except Exception:
         pass
 

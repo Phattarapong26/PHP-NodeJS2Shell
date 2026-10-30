@@ -829,10 +829,10 @@
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100/50">
-                  <th class="py-2.5 px-3">IP Address</th>
+                  <th class="py-2.5 px-3">IP Address : Port</th>
                   <th class="py-2.5 px-3">ประเภทอุปกรณ์ / บริการ</th>
                   <th class="py-2.5 px-3">รันไทม์ (Runtime / Version)</th>
-                  <th class="py-2.5 px-3">Open Ports</th>
+                  <th class="py-2.5 px-3">Port</th>
                   <th class="py-2.5 px-3">Latency</th>
                   <th class="py-2.5 px-3">การประเมินความปลอดภัย (ThaiCERT)</th>
                   <th class="py-2.5 px-3 text-right">Action</th>
@@ -985,6 +985,17 @@
 
         <!-- Body -->
         <div class="p-6 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
+          
+          <!-- Target Service Port Selector (When multiple ports exist on IP) -->
+          <div id="auditPortSwitcherWrapper" class="hidden p-3 rounded-2xl bg-indigo-50/80 border border-indigo-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 text-xs text-indigo-950 font-bold">
+              <i class="ph-bold ph-plugs-connected text-indigo-600 text-sm"></i>
+              <span>เลือกสลับดูผลตามพอร์ตบนเครื่องนี้:</span>
+            </div>
+            <div id="auditPortSwitcherList" class="flex items-center gap-1.5 flex-wrap">
+              <!-- Injected port switch buttons -->
+            </div>
+          </div>
           
           <!-- ThaiCERT 8 Groups Target Classification -->
           <div class="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-slate-50/80 border border-blue-200/80 shadow-sm space-y-1.5">
@@ -2594,16 +2605,19 @@ Content-Type: text/html; charset=UTF-8</div>
         }
 
         const isActionInspect = isPhp || isNode;
-        const webUrl = getWebTargetUrl(item);
-        const hasWebOrPorts = ports.length > 0 || isPhp || isNode;
+        const targetPort = item.port || (item.ports && item.ports[0]) || null;
+        const targetId = item.target_id || (targetPort ? `${item.ip}:${targetPort}` : item.ip);
+        const webUrl = getWebTargetUrl(item, targetPort);
+        const hasWebOrPorts = targetPort || ports.length > 0 || isPhp || isNode;
 
         row.innerHTML = `
           <td class="py-3 px-3 font-mono font-semibold text-slate-800">
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
               <span class="w-2 h-2 rounded-full ${dotColor}"></span>
               ${hasWebOrPorts ? `
                 <a href="${webUrl}" target="_blank" title="เปิดหน้าเว็บ ${webUrl}" class="hover:underline hover:text-blue-600 inline-flex items-center gap-1 text-slate-800">
                   <span>${item.ip}</span>
+                  ${targetPort ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-100/90 text-blue-700 border border-blue-200">:${targetPort}</span>` : ''}
                   <i class="ph-bold ph-arrow-square-out text-[11px] text-slate-400"></i>
                 </a>
               ` : `<span>${item.ip}</span>`}
@@ -2642,21 +2656,15 @@ Content-Type: text/html; charset=UTF-8</div>
             ${runtimeHtml}
           </td>
           <td class="py-3 px-3">
-            <div class="flex gap-1 flex-wrap">
-              ${ports.length > 0 
-                ? ports.map(p => {
-                    const portUrl = getWebTargetUrl(item, p);
-                    const isWebPort = [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 8088, 5050, 9000, 9090].includes(p);
-                    if (isWebPort) {
-                      return `<a href="${portUrl}" target="_blank" title="เปิดหน้าเว็บ ${portUrl}" class="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold inline-flex items-center gap-0.5 transition">
-                        <span>${p === 5050 ? '5050 (Flask)' : (p === 3000 ? '3000 (Node)' : p)}</span>
-                        <i class="ph-bold ph-arrow-square-out text-[9px] opacity-70"></i>
-                      </a>`;
-                    }
-                    return `<span class="bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold">${p === 53 ? '53 (DNS)' : p}</span>`;
-                  }).join('')
-                : `<span class="text-slate-400 font-mono text-[10px]">พอร์ตปิด (Firewall)</span>`}
-            </div>
+            ${targetPort ? `
+              <div class="flex items-center gap-1">
+                <a href="${webUrl}" target="_blank" title="เปิดบริการบนพอร์ต ${targetPort} (${webUrl})" class="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-mono font-bold inline-flex items-center gap-1 transition">
+                  <i class="ph-bold ph-plug text-xs"></i>
+                  <span>${targetPort}</span>
+                  <i class="ph-bold ph-arrow-square-out text-[9px] opacity-70"></i>
+                </a>
+              </div>
+            ` : `<span class="text-slate-400 font-mono text-[10px]">พอร์ตปิด (Firewall)</span>`}
           </td>
           <td class="py-3 px-3 font-mono text-slate-600 text-[11px]">${item.latency || '< 5 ms'}</td>
           <td class="py-3 px-3">
@@ -2673,7 +2681,7 @@ Content-Type: text/html; charset=UTF-8</div>
                   <span>เปิดเว็บ</span>
                 </a>
               ` : ''}
-              <button onclick="inspectHost('${item.ip}')" class="px-2.5 py-1 rounded-lg ${isActionInspect ? 'bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'} transition text-[11px] font-semibold">
+              <button onclick="inspectHost('${targetId}')" class="px-2.5 py-1 rounded-lg ${isActionInspect ? 'bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'} transition text-[11px] font-semibold">
                 ${isActionInspect ? 'ตรวจเจาะลึก' : 'ข้อมูล Host'}
               </button>
             </div>
@@ -2720,6 +2728,8 @@ Content-Type: text/html; charset=UTF-8</div>
       if (term) {
         baseList = baseList.filter(item => 
           (item.ip && item.ip.toLowerCase().includes(term)) ||
+          (item.port && String(item.port).includes(term)) ||
+          (item.target_id && item.target_id.toLowerCase().includes(term)) ||
           (item.webServer && item.webServer.toLowerCase().includes(term)) ||
           (item.primary_group && item.primary_group.toLowerCase().includes(term)) ||
           (item.group_labels && item.group_labels.some(l => l.toLowerCase().includes(term))) ||
@@ -2774,14 +2784,45 @@ Content-Type: text/html; charset=UTF-8</div>
       if (!modal) return;
 
       const deep = host.deep_audit || {};
+      const targetPort = host.port || (host.ports && host.ports[0]) || null;
       const targetBadge = document.getElementById('auditTargetBadge');
-      if (targetBadge) targetBadge.textContent = host.ip;
+      if (targetBadge) {
+        targetBadge.textContent = targetPort ? `${host.ip}:${targetPort}` : host.ip;
+      }
 
       const openWebBtn = document.getElementById('auditTargetOpenWebBtn');
       if (openWebBtn) {
-        const webUrl = getWebTargetUrl(host);
+        const webUrl = getWebTargetUrl(host, targetPort);
         openWebBtn.href = webUrl;
         openWebBtn.title = `เปิดดูหน้าเว็บจริง (${webUrl})`;
+      }
+
+      // Sibling Ports Switcher inside Modal
+      const siblingHosts = appState.allHosts.filter(h => h.ip === host.ip && (h.port || (h.ports && h.ports.length > 0)));
+      const portSwitcherWrapper = document.getElementById('auditPortSwitcherWrapper');
+      const portSwitcherList = document.getElementById('auditPortSwitcherList');
+      if (portSwitcherWrapper && portSwitcherList) {
+        if (siblingHosts.length > 1) {
+          portSwitcherWrapper.classList.remove('hidden');
+          portSwitcherList.innerHTML = '';
+          siblingHosts.forEach(s => {
+            const sPort = s.port || (s.ports && s.ports[0]);
+            const isCurrent = (sPort === targetPort);
+            const isVuln = s.vulnerability === 'Critical' || s.vulnerability === 'Warning';
+            const btn = document.createElement('button');
+            btn.className = `px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1.5 border cursor-pointer ${
+              isCurrent
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                : (isVuln ? 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50')
+            }`;
+            const statusIcon = isVuln ? '<i class="ph-bold ph-shield-warning text-rose-500"></i>' : (s.is_php ? '<i class="ph-bold ph-file-php text-indigo-500"></i>' : '<i class="ph-bold ph-check text-emerald-500"></i>');
+            btn.innerHTML = `${statusIcon} <span>:${sPort}</span> <span class="text-[10px] font-normal opacity-80 font-sans">(${s.runtime_version || s.runtime || 'Web'})</span>`;
+            btn.onclick = () => openDeepAuditModal(s);
+            portSwitcherList.appendChild(btn);
+          });
+        } else {
+          portSwitcherWrapper.classList.add('hidden');
+        }
       }
 
       // ThaiCERT 8 Groups Classification
@@ -3284,7 +3325,7 @@ Content-Type: text/html; charset=UTF-8</div>
       const pill = document.getElementById('asanStatusPill');
 
       const rawIp = (host.ip || '').trim();
-      const port = (host.ports && host.ports[0]) || 8080;
+      const port = host.port || (host.ports && host.ports[0]) || 80;
 
       if (btn) btn.disabled = true;
       if (btnText) btnText.textContent = "กำลังส่งคำขอตรวจสอบ C/ASan...";
@@ -3417,10 +3458,20 @@ ${data.c_patch_directive}
       }
     }
 
-    function inspectHost(ip) {
-      const host = appState.allHosts.find(h => h.ip === ip);
+    function inspectHost(targetId, port) {
+      let host = null;
+      if (port) {
+        host = appState.allHosts.find(h => h.ip === targetId && (h.port === port || (h.ports && h.ports.includes(port))));
+      }
       if (!host) {
-        showToast(`ข้อมูล Host: ${ip}`);
+        host = appState.allHosts.find(h => 
+          h.target_id === targetId || 
+          `${h.ip}:${h.port}` === targetId || 
+          h.ip === targetId
+        );
+      }
+      if (!host) {
+        showToast(`ข้อมูล Host: ${targetId}`);
         return;
       }
       openDeepAuditModal(host);
