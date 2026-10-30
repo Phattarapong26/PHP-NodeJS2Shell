@@ -20,3 +20,13 @@ services:
       - ./active_hosts.txt:/app/active_hosts.txt:ro
       - ./GUI.html:/app/GUI.html
       - ./app.py:/app/app.py
+
+  test-target:
+    build:
+      context: ./test-target
+    image: opscaner-test-target:latest
+    container_name: opscaner-test-target
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8088:8088"
