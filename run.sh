@@ -156,6 +156,8 @@ if [ "$1" == "--docker" ] || [ ! -f "$DIR/venv/bin/python" ]; then
     docker build -t thaicert-php-scanner .
     docker run -d --name thaicert-php-scanner \
       --restart unless-stopped \
+      --cap-add=NET_ADMIN \
+      --device /dev/net/tun \
       -p 5050:5050 \
       -e HOST_IP="$HOST_IP" \
       -e HOST_SUBNET="$HOST_SUBNET" \

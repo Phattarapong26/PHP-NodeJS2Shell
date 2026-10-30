@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     net-tools \
     iproute2 \
     curl \
+    openfortivpn \
+    ppp \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies

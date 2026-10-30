@@ -6,6 +6,10 @@ services:
     restart: unless-stopped
     ports:
       - "5050:5050"
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     environment:
       - HOST_IP=${HOST_IP:-}
       - HOST_SUBNET=${HOST_SUBNET:-}

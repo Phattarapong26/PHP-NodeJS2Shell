@@ -910,6 +910,482 @@ def evaluate_node_security(version_str: str, has_brotli: bool = False):
         "ตรวจพบบริการ Node.js (ควรตรวจสอบให้แน่ใจว่าอัปเดตเป็น 22.23.4+, 24.22.1+ หรือ 26.12.1+ เพื่อป้องกัน Node2Shell)"
     )
 
+# ═══════════════════════════════════════════════════════════════════════
+# SEMVER RANGE ENGINE & MULTI-STACK CVE DATABASE (CybersRMUTL & ThaiCERT Hybrid)
+# ═══════════════════════════════════════════════════════════════════════
+
+def parse_semver(v: str):
+    """Parse version string into (major, minor, patch) integer tuple."""
+    if not v:
+        return None
+    m = re.search(r'(\d+)\.(\d+)(?:\.(\d+))?', str(v))
+    if m:
+        major = int(m.group(1))
+        minor = int(m.group(2))
+        patch = int(m.group(3)) if m.group(3) is not None else 0
+        return (major, minor, patch)
+    return None
+
+def in_range(ver_tuple, lo, hi):
+    """Check if ver_tuple falls inclusively between lo and hi tuples."""
+    if not ver_tuple or not lo or not hi:
+        return False
+    return lo <= ver_tuple <= hi
+
+# NGINX Vulnerability Version Ranges (Dual-range: stable branch <= 1.30.5 + mainline 1.31.0 - 1.31.6)
+NGINX_VULN = {
+    "CVE-2026-15176": [((0, 1, 29), (1, 30, 5)), ((1, 31, 0), (1, 31, 6))],
+    "CVE-2026-93479": [((1, 30, 0), (1, 30, 5)), ((1, 31, 2), (1, 31, 6))],
+    "CVE-2026-97205": [((0, 8, 11), (1, 30, 5)), ((1, 31, 0), (1, 31, 6))],
+    "CVE-2026-95101": [((1, 25, 0), (1, 30, 5)), ((1, 31, 0), (1, 31, 6))],
+    "CVE-2026-97629": [((1, 23, 2), (1, 30, 5)), ((1, 31, 0), (1, 31, 6))],
+    "CVE-2021-23017": [((0, 6, 18), (1, 20, 0)), ((1, 21, 0), (1, 21, 0))],
+}
+
+NGINX_CVE_DESCS = {
+    "CVE-2026-15176": {
+        "name": "NGINX Heap Buffer Overflow (alias + rewrite)",
+        "category": "NGINX",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "trigger": "alias + rewrite + $request_filename",
+        "host_check": "nginx -T 2>/dev/null | grep -B5 -A15 'alias' || echo 'ไม่พบ alias (ปลอดภัย)'",
+        "confirm_vuln": "พบบล็อก location ที่มีทั้ง alias และ rewrite $request_filename บน NGINX < 1.30.6 / 1.31.7",
+        "confirm_safe": "ไม่พบ alias ร่วมกับ rewrite หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    "CVE-2026-93479": {
+        "name": "NGINX Heap Buffer Overflow (map + regex)",
+        "category": "NGINX",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "trigger": "map regex + capture vars",
+        "host_check": "nginx -T 2>/dev/null | grep -B3 -A10 'map.*~' || echo 'ไม่พบ map regex (ปลอดภัย)'",
+        "confirm_vuln": "พบคำสั่ง map regex capture ตัวแปรไปประกอบพาธไฟล์บน NGINX < 1.30.6 / 1.31.7",
+        "confirm_safe": "ไม่พบ map regex หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    "CVE-2026-97205": {
+        "name": "NGINX Use-After-Free (AIO + SSI)",
+        "category": "NGINX",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "trigger": "aio on + ssi on",
+        "host_check": "nginx -T 2>/dev/null | grep -E 'aio\\s+on|ssi\\s+on' || echo 'ไม่พบ aio/ssi (ปลอดภัย)'",
+        "confirm_vuln": "พบบรรทัด aio on และ ssi on เปิดพร้อมกันบน NGINX < 1.30.6 / 1.31.7",
+        "confirm_safe": "ไม่พบ aio หรือ ssi เปิดคู่กัน หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    "CVE-2026-95101": {
+        "name": "NGINX Request Body Injection (HTTP/3)",
+        "category": "NGINX",
+        "severity": "Medium",
+        "cvss": 6.5,
+        "trigger": "listen quic / http3 on",
+        "host_check": "nginx -T 2>/dev/null | grep -E 'listen.*quic|http3\\s+on' || echo 'ไม่พบ HTTP/3 (ปลอดภัย)'",
+        "confirm_vuln": "เปิดใช้งาน HTTP/3 QUIC บน NGINX 1.25.0–1.30.5 / 1.31.0–1.31.6",
+        "confirm_safe": "ไม่ได้เปิด HTTP/3 หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    "CVE-2026-97629": {
+        "name": "NGINX Session Forgery (TLS tickets)",
+        "category": "NGINX",
+        "severity": "Medium",
+        "cvss": 6.5,
+        "trigger": "ssl_session_tickets on",
+        "host_check": "nginx -T 2>/dev/null | grep ssl_session_ticket || echo 'ไม่พบการตั้งค่า ticket'",
+        "confirm_vuln": "เปิดใช้ TLS Session Tickets บน NGINX 1.23.2–1.30.5 / 1.31.0–1.31.6",
+        "confirm_safe": "ระบุ ssl_session_tickets off หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    "CVE-2021-23017": {
+        "name": "NGINX 1-byte Memory Overwrite in DNS resolver",
+        "category": "NGINX",
+        "severity": "High",
+        "cvss": 8.1,
+        "trigger": "resolver directive",
+        "host_check": "nginx -T 2>/dev/null | grep resolver || echo 'ไม่พบ directive resolver'",
+        "confirm_vuln": "พบ directive resolver ในคอนฟิกบน NGINX < 1.20.1 / 1.21.0",
+        "confirm_safe": "ไม่มี directive resolver หรือ NGINX ≥ 1.20.1"
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+# COMPREHENSIVE CVE DATABASE CATALOG (16 ช่องโหว่สำคัญ)
+# ═══════════════════════════════════════════════════════════════════════
+CVE_DATABASE = [
+    {
+        "id": "CVE-2024-4577",
+        "category": "PHP",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "name": "PHP CGI Argument Injection (php2shell / Windows Best-Fit)",
+        "desc": "Best-Fit Character Encoding Mapping บน Windows อนุญาตให้ผู้โจมตี Bypass ตัวกรองและส่งอาร์กิวเมนต์ CGI สู่ php.exe เพื่อรันคำสั่ง OS",
+        "patched": "PHP 8.1.29 / 8.2.20 / 8.3.8+",
+        "host_check": "php -v && (php -i | grep -E 'Server API|System')",
+        "confirm_vuln": "รัน PHP บน Windows ในโหมด CGI/FastCGI และ PHP ต่ำกว่า 8.1.29 / 8.2.20 / 8.3.8",
+        "confirm_safe": "รันบน Linux หรือ PHP-FPM/CLI หรืออัปเกรดเป็น 8.2.20+ / 8.3.8+"
+    },
+    {
+        "id": "CVE-2026-111497",
+        "category": "Node.js",
+        "severity": "Critical",
+        "cvss": 9.2,
+        "name": "Node.js Brotli Out-of-bounds Write (Node2Shell RCE)",
+        "desc": "ความผิดพลาดในตัวถอดรหัส Google Brotli ใน node:zlib ทำให้อ่าน/เขียนทะลุขอบเขตหน่วยความจำและรันโค้ดอันตราย (RCE)",
+        "patched": "Node.js 22.23.4 / 24.22.1 / 26.12.1+",
+        "host_check": "node -v",
+        "confirm_vuln": "Node.js < 22.23.4 / 24.22.1 / 26.12.1 หรือเวอร์ชัน EOL (<= 20.x, 25.x) เปิดรับ Brotli Decompression",
+        "confirm_safe": "อัปเดตเป็น Node.js 22.23.4+, 24.22.1+ หรือ 26.12.1+ เรียบร้อยแล้ว"
+    },
+    {
+        "id": "CVE-2026-109618",
+        "category": "PHP",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "name": "PHP Use-After-Free (OOM bailout multipart)",
+        "desc": "Memory corruption เมื่อ PHP ประมวลผล multipart + Out-of-Memory — ทำงานก่อนระดับแอปพลิเคชันโค้ด",
+        "patched": "PHP 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12+",
+        "host_check": "php -v && (php -i | grep 'Server API')",
+        "confirm_vuln": "php -v ต่ำกว่า 8.2.35 / 8.3.36 และ Server API เป็น FPM/FastCGI หรือ Apache Handler",
+        "confirm_safe": "อัปเกรด PHP เป็น 8.2.35+ หรือ 8.3.36+ เรียบร้อยแล้ว"
+    },
+    {
+        "id": "CVE-2026-109619",
+        "category": "PHP",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "name": "PHP Use-After-Free (stale global state in session)",
+        "desc": "Global state ไม่รีเซ็ตหลัง fatal error ทำให้ session.upload_progress อ้างอิงหน่วยความจำที่ถูก Free ไปแล้ว",
+        "patched": "PHP 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12+",
+        "host_check": "php -i | grep session.upload_progress",
+        "confirm_vuln": "session.upload_progress.enabled = On ร่วมกับ PHP ต่ำกว่า 8.2.35 / 8.3.36",
+        "confirm_safe": "ปิด session.upload_progress.enabled = 0 หรืออัปเกรด PHP"
+    },
+    {
+        "id": "CVE-2026-115560",
+        "category": "PHP",
+        "severity": "Medium-High",
+        "cvss": 8.1,
+        "name": "PHP Session Upload Progress Injection",
+        "desc": "การสลับ serialize_handler ข้ามรูปแบบตอน runtime ร่วมกับ upload_progress เปิดใช้งาน นำไปสู่ Session Injection และ RCE",
+        "patched": "ยังไม่มีแพตช์ตรง — ป้องกันด้วย session.upload_progress.enabled = Off",
+        "host_check": "php -i | grep -E 'session.serialize_handler|session.upload_progress'",
+        "confirm_vuln": "แอปสลับ serialize_handler เป็น php_serialize ขณะที่ upload_progress เปิด On",
+        "confirm_safe": "ตั้ง session.upload_progress.enabled = Off ใน php.ini"
+    },
+    {
+        "id": "CVE-2026-15176",
+        "category": "NGINX",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "name": "NGINX Heap Buffer Overflow (alias + rewrite)",
+        "desc": "การใช้ directive alias ร่วมกับ rewrite $request_filename ในบล็อก location ทำให้เกิด Heap Buffer Overflow นำไปสู่ RCE",
+        "patched": "NGINX 1.30.6+ / 1.31.7+",
+        "host_check": "nginx -T 2>/dev/null | grep -B5 -A15 'alias'",
+        "confirm_vuln": "พบบล็อก location มีทั้ง alias และ rewrite $request_filename บน nginx < 1.30.6 / 1.31.7",
+        "confirm_safe": "ไม่พบ alias คู่กับ rewrite หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    {
+        "id": "CVE-2026-93479",
+        "category": "NGINX",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "name": "NGINX Heap Buffer Overflow (map + regex)",
+        "desc": "การใช้ map regex ร่วมกับตัวแปร regex capture ($1, $2) ก่อนส่งเข้า output ทำให้เกิด Heap Corruption",
+        "patched": "NGINX 1.30.6+ / 1.31.7+",
+        "host_check": "nginx -T 2>/dev/null | grep -B3 -A10 'map.*~'",
+        "confirm_vuln": "พบคำสั่ง map regex capture ตัวแปรประกอบชื่อไฟล์บน nginx < 1.30.6 / 1.31.7",
+        "confirm_safe": "ไม่พบ map regex หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    {
+        "id": "CVE-2026-97205",
+        "category": "NGINX",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "name": "NGINX Use-After-Free (AIO + SSI)",
+        "desc": "การเปิดใช้งาน aio on ร่วมกับ ssi on และมีการใช้ SSI include virtual ทำให้เกิด Use-After-Free",
+        "patched": "NGINX 1.30.6+ / 1.31.7+",
+        "host_check": "nginx -T 2>/dev/null | grep -E 'aio\\s+on|ssi\\s+on'",
+        "confirm_vuln": "พบบรรทัด aio on และ ssi on เปิดพร้อมกันบน nginx < 1.30.6 / 1.31.7",
+        "confirm_safe": "ไม่เปิด aio และ ssi พร้อมกัน หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    {
+        "id": "CVE-2026-95101",
+        "category": "NGINX",
+        "severity": "Medium",
+        "cvss": 6.5,
+        "name": "NGINX Request Body Injection (HTTP/3)",
+        "desc": "ข้อบกพร่องใน HTTP/3 QUIC ทำให้ Request Body Injection สามารถข้ามข้อจำกัด client_max_body_size",
+        "patched": "NGINX 1.30.6+ / 1.31.7+",
+        "host_check": "nginx -T 2>/dev/null | grep -E 'listen.*quic|http3\\s+on'",
+        "confirm_vuln": "เปิดใช้งาน HTTP/3 QUIC บน NGINX 1.25.0–1.30.5 / 1.31.0–1.31.6",
+        "confirm_safe": "ไม่เปิด HTTP/3 หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    {
+        "id": "CVE-2026-97629",
+        "category": "NGINX",
+        "severity": "Medium",
+        "cvss": 6.5,
+        "name": "NGINX Session Forgery (TLS tickets)",
+        "desc": "TLS Session ticket key ไม่ initialize ร่วมกันข้าม worker ทำให้เกิด Session Forgery",
+        "patched": "NGINX 1.30.6+ / 1.31.7+",
+        "host_check": "nginx -T 2>/dev/null | grep ssl_session_ticket",
+        "confirm_vuln": "เปิดใช้ TLS Session Tickets บน NGINX 1.23.2–1.30.5 / 1.31.0–1.31.6",
+        "confirm_safe": "ระบุ ssl_session_tickets off หรือ NGINX ≥ 1.30.6 / 1.31.7"
+    },
+    {
+        "id": "CVE-2026-105482",
+        "category": "Node.js",
+        "severity": "High",
+        "cvss": 7.5,
+        "name": "Node.js DNS NUL Domain Validation Bypass",
+        "desc": "ชื่อโดเมนที่มีอักขระ NUL ทำให้การตรวจปลายทางผิดพลาด และข้ามข้อจำกัดการเข้าถึงในไลบรารี c-ares",
+        "patched": "Node.js 18.20.8 / 20.19.2 / 22.15.1 / 23.11.1+",
+        "host_check": "node -v",
+        "confirm_vuln": "Node.js ต่ำกว่า 18.20.8 / 20.19.2 / 22.15.1",
+        "confirm_safe": "อัปเดตเป็นรุ่นที่แก้ไขแล้ว"
+    },
+    {
+        "id": "CVE-2026-105483",
+        "category": "Node.js",
+        "severity": "High",
+        "cvss": 7.5,
+        "name": "Node.js TLS Cert Validation (Unicode IP)",
+        "desc": "การใช้ IP รูปแบบ Unicode ทำให้ระบบยอมรับใบรับรองเซิร์ฟเวอร์ที่ไม่ถูกต้อง",
+        "patched": "Node.js 20.19.2 / 22.15.1+",
+        "host_check": "node -v",
+        "confirm_vuln": "Node.js ต่ำกว่า 20.19.2 / 22.15.1",
+        "confirm_safe": "อัปเดตเป็นรุ่นที่แก้ไขแล้ว"
+    },
+    {
+        "id": "CVE-2026-106069",
+        "category": "Node.js",
+        "severity": "High",
+        "cvss": 7.5,
+        "name": "Node.js TLS Endpoint Identity Bypass",
+        "desc": "IP รูปแบบไม่มาตรฐานทำให้หลีกเลี่ยงการตรวจสอบตัวตนเซิร์ฟเวอร์ในโมดูล TLS",
+        "patched": "Node.js 20.19.2 / 22.15.1+",
+        "host_check": "node -v",
+        "confirm_vuln": "Node.js ต่ำกว่า 20.19.2 / 22.15.1",
+        "confirm_safe": "อัปเดตเป็นรุ่นที่แก้ไขแล้ว"
+    },
+    {
+        "id": "CVE-2019-11043",
+        "category": "PHP",
+        "severity": "Critical",
+        "cvss": 9.8,
+        "name": "PHP-FPM FastCGI Underflow RCE",
+        "desc": "Pointer underflow ใน fpm_main.c เมื่อใช้ร่วมกับ NGINX fastcgi_split_path_info นำไปสู่การรันคำสั่ง Arbitrary Code Execution",
+        "patched": "PHP 7.1.33 / 7.2.24 / 7.3.11 หรือ PHP 8.x+",
+        "host_check": "php-fpm -v && (nginx -T | grep fastcgi_split_path_info)",
+        "confirm_vuln": "PHP-FPM 7.1–7.3 ร่วมกับ NGINX ที่ใช้ fastcgi_split_path_info",
+        "confirm_safe": "PHP ≥ 7.3.11 หรือ PHP 8.x"
+    },
+    {
+        "id": "CVE-2021-23017",
+        "category": "NGINX",
+        "severity": "High",
+        "cvss": 8.1,
+        "name": "NGINX 1-byte Memory Overwrite in DNS resolver",
+        "desc": "ข้อผิดพลาด 1-byte memory overwrite ในโมดูล DNS resolver เมื่อประมวลผลคำตอบ DNS ที่ผิดปกติ",
+        "patched": "NGINX 1.20.1 / 1.21.0+",
+        "host_check": "nginx -v && (nginx -T | grep resolver)",
+        "confirm_vuln": "NGINX < 1.20.1 และมีการตั้งค่า directive resolver",
+        "confirm_safe": "NGINX ≥ 1.20.1 หรือไม่มี directive resolver"
+    },
+    {
+        "id": "CVE-2022-31626",
+        "category": "PHP",
+        "severity": "High",
+        "cvss": 7.5,
+        "name": "PHP mysqlnd Buffer Overflow",
+        "desc": "Buffer overflow ในไดรเวอร์ mysqlnd เมื่อรับแพ็กเก็ตตอบกลับที่ผิดปกติจากเซิร์ฟเวอร์ฐานข้อมูล",
+        "patched": "PHP 7.4.30 / 8.0.20 / 8.1.7+",
+        "host_check": "php -m | grep mysqlnd && php -v",
+        "confirm_vuln": "พบ mysqlnd บน PHP < 7.4.30 / 8.0.20 / 8.1.7",
+        "confirm_safe": "PHP ≥ 8.1.7 หรือ PHP 8.2+"
+    }
+]
+
+def evaluate_nginx_security(server_str: str, headers: dict = None):
+    """
+    Evaluates NGINX version against known CVEs using SemVer ranges.
+    Returns: (overall_severity, matched_cves, summary_note)
+    """
+    headers = headers or {}
+    s = (server_str or "").lower()
+    if "nginx" not in s:
+        return "Secure", [], "ไม่ใช่บริการ NGINX"
+    
+    # Extract version e.g. nginx/1.26.3
+    m = re.search(r'nginx/(\d+\.\d+(?:\.\d+)?)', s)
+    ver_str = m.group(1) if m else ""
+    vt = parse_semver(ver_str)
+    
+    matched = []
+    highest_sev = "Secure"
+    sev_weights = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Review Needed": 1, "Secure": 0}
+    
+    if vt:
+        for cve_id, ranges in NGINX_VULN.items():
+            in_vulnerable_range = any(in_range(vt, lo, hi) for lo, hi in ranges)
+            if in_vulnerable_range:
+                desc = NGINX_CVE_DESCS.get(cve_id, {})
+                cve_sev = desc.get("severity", "Medium")
+                matched.append({
+                    "id": cve_id,
+                    "cve": cve_id,
+                    "name": desc.get("name"),
+                    "category": "NGINX",
+                    "severity": cve_sev,
+                    "cvss": desc.get("cvss", 7.5),
+                    "trigger": desc.get("trigger"),
+                    "host_check": desc.get("host_check"),
+                    "confirm_vuln": desc.get("confirm_vuln"),
+                    "confirm_safe": desc.get("confirm_safe"),
+                    "reason": f"NGINX {ver_str} อยู่ในช่วงเวอร์ชันที่ได้รับผลกระทบ"
+                })
+                if sev_weights.get(cve_sev, 0) > sev_weights.get(highest_sev, 0):
+                    highest_sev = cve_sev
+        
+        if matched:
+            cve_names = ", ".join(c["cve"] for c in matched[:3])
+            note = f"NGINX {ver_str} ตรวจพบ {len(matched)} ช่องโหว่ ({cve_names}) ควรตรวจสอบคอนฟิกและอัปเดตเป็น 1.30.6+ หรือ 1.31.7+"
+        else:
+            note = f"NGINX {ver_str} ปลอดภัย (อยู่นอกช่วงความเสี่ยงของ CVE-2026)"
+    else:
+        highest_sev = "Review Needed"
+        note = "ตรวจพบบริการ NGINX (ซ่อนเลขเวอร์ชัน) ควรตรวจสอบคำสั่ง 'nginx -v' บนเครื่อง"
+        
+    return highest_sev, matched, note
+
+def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, php_ver: str, node_ver: str, has_brotli: bool, nginx_cves: list, has_lfi_active: bool = False, is_fpm: bool = False) -> list:
+    """
+    Aggregates all matched CVE findings across NGINX, PHP, and Node.js for a target.
+    """
+    cves = []
+    
+    # 1. Add NGINX CVEs if any
+    if nginx_cves:
+        cves.extend(nginx_cves)
+        
+    # 2. PHP CVE Mapping
+    if is_php:
+        # CVE-2024-4577 (Windows CGI Argument Injection - ThaiCERT Priority)
+        if v_php in ("Critical", "Outdated"):
+            cves.append({
+                "id": "CVE-2024-4577",
+                "cve": "CVE-2024-4577",
+                "name": "PHP CGI Argument Injection (php2shell)",
+                "category": "PHP",
+                "severity": "Critical",
+                "cvss": 9.8,
+                "reason": f"PHP ({php_ver}) ต่ำกว่าเกณฑ์แพตช์ 8.2.20+ / 8.3.8+ เสี่ยงต่อ CVE-2024-4577",
+                "host_check": "php -v && (php -i | grep 'Server API')",
+                "confirm_vuln": "PHP < 8.2.20 / 8.3.8 บน Windows CGI/FastCGI",
+                "confirm_safe": "PHP ≥ 8.2.20 / 8.3.8 หรือรันบน Linux"
+            })
+        
+        # CVE-2026-109618 & 109619 (PHP 8.2/8.3 UAF memory corruption)
+        if "8.2" in str(php_ver) or "8.3" in str(php_ver):
+            vt = parse_semver(php_ver)
+            if vt and ((vt[0] == 8 and vt[1] == 2 and vt[2] < 35) or (vt[0] == 8 and vt[1] == 3 and vt[2] < 36)):
+                cves.append({
+                    "id": "CVE-2026-109618",
+                    "cve": "CVE-2026-109618",
+                    "name": "PHP Use-After-Free (OOM multipart bailout)",
+                    "category": "PHP",
+                    "severity": "Critical",
+                    "cvss": 9.8,
+                    "reason": f"PHP {php_ver} ต่ำกว่าแพตช์ 8.2.35 / 8.3.36",
+                    "host_check": "php -v",
+                    "confirm_vuln": "php -v ต่ำกว่า 8.2.35 / 8.3.36 และ Server API เป็น FPM/Apache Handler",
+                    "confirm_safe": "php -v ≥ 8.2.35 / 8.3.36"
+                })
+                cves.append({
+                    "id": "CVE-2026-109619",
+                    "cve": "CVE-2026-109619",
+                    "name": "PHP Use-After-Free (stale global state in session)",
+                    "category": "PHP",
+                    "severity": "Critical",
+                    "cvss": 9.8,
+                    "reason": f"PHP {php_ver} ต่ำกว่าแพตช์ 8.2.35 / 8.3.36 ร่วมกับ upload_progress",
+                    "host_check": "php -i | grep session.upload_progress",
+                    "confirm_vuln": "session.upload_progress.enabled = On บน PHP < 8.2.35 / 8.3.36",
+                    "confirm_safe": "session.upload_progress.enabled = Off หรือ PHP ≥ 8.2.35"
+                })
+                
+        # CVE-2026-115560 (Session Upload Progress)
+        if has_lfi_active:
+            cves.append({
+                "id": "CVE-2026-115560",
+                "cve": "CVE-2026-115560",
+                "name": "PHP Session Upload Progress Injection",
+                "category": "PHP",
+                "severity": "Medium-High",
+                "cvss": 8.1,
+                "reason": "ตรวจพบเงื่อนไข Session Upload Progress เสี่ยงต่อการสลับ serialize_handler",
+                "host_check": "php -i | grep -E 'session.serialize_handler|session.upload_progress'",
+                "confirm_vuln": "แอปสลับ serialize_handler ข้ามรูปแบบตอน runtime",
+                "confirm_safe": "session.upload_progress.enabled = Off"
+            })
+            
+        # CVE-2019-11043 (PHP-FPM underflow)
+        if is_fpm and any(old in str(php_ver) for old in ["7.1", "7.2", "7.3"]):
+            cves.append({
+                "id": "CVE-2019-11043",
+                "cve": "CVE-2019-11043",
+                "name": "PHP-FPM FastCGI Underflow RCE",
+                "category": "PHP",
+                "severity": "Critical",
+                "cvss": 9.8,
+                "reason": f"PHP-FPM {php_ver} ต่ำกว่า 7.3.11 เสี่ยงต่อ fastcgi_split_path_info underflow",
+                "host_check": "php-fpm -v && (nginx -T 2>/dev/null | grep fastcgi_split_path_info)",
+                "confirm_vuln": "PHP-FPM 7.1–7.3 ร่วมกับ NGINX fastcgi_split_path_info",
+                "confirm_safe": "PHP ≥ 7.3.11 หรือ PHP 8.x"
+            })
+
+    # 3. Node.js CVE Mapping
+    if is_node:
+        if v_node == "Critical" or (has_brotli and v_node in ("Critical", "Warning")):
+            cves.append({
+                "id": "CVE-2026-111497",
+                "cve": "CVE-2026-111497",
+                "name": "Node.js Brotli Out-of-bounds Write (Node2Shell RCE)",
+                "category": "Node.js",
+                "severity": "Critical",
+                "cvss": 9.2,
+                "reason": f"Node.js ({node_ver}) เสี่ยงต่อ Node2Shell / CVE-2026-111497 (Brotli RCE)",
+                "host_check": "node -v",
+                "confirm_vuln": "Node.js < 22.23.4 / 24.22.1 / 26.12.1 หรือ EOL",
+                "confirm_safe": "Node.js ≥ 22.23.4 / 24.22.1 / 26.12.1"
+            })
+        nv = parse_semver(node_ver)
+        if nv and nv[0] <= 20:
+            cves.append({
+                "id": "CVE-2026-105482",
+                "cve": "CVE-2026-105482",
+                "name": "Node.js DNS NUL Domain Validation Bypass",
+                "category": "Node.js",
+                "severity": "High",
+                "cvss": 7.5,
+                "reason": f"Node.js {node_ver} ต่ำกว่า 20.19.2 (ช่องโหว่ DNS NUL c-ares)",
+                "host_check": "node -v",
+                "confirm_vuln": "Node.js < 20.19.2 / 22.15.1",
+                "confirm_safe": "Node.js ≥ 20.19.2"
+            })
+            cves.append({
+                "id": "CVE-2026-105483",
+                "cve": "CVE-2026-105483",
+                "name": "Node.js TLS Cert Validation (Unicode IP)",
+                "category": "Node.js",
+                "severity": "High",
+                "cvss": 7.5,
+                "reason": f"Node.js {node_ver} ต่ำกว่า 20.19.2 (ช่องโหว่ TLS Cert Validation)",
+                "host_check": "node -v",
+                "confirm_vuln": "Node.js < 20.19.2 / 22.15.1",
+                "confirm_safe": "Node.js ≥ 20.19.2"
+            })
+            
+    return cves
+
+
 def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_text: str, cookies_str: str, port: int, is_php: bool, is_node: bool, cms_name: str) -> dict:
     """
     Classifies the target host into the 8 ThaiCERT / NCSA target system groups:
@@ -2289,13 +2765,28 @@ async def probe_endpoint(
             "zend_c_telemetry": zend_c_telemetry
         }
 
+        # Multi-Stack CVE Mapping (NGINX, PHP, Node.js)
+        nginx_sev, nginx_cves, nginx_note = evaluate_nginx_security(server or "", headers)
+        deep_audit["nginx_audit"] = {
+            "server": server or "",
+            "severity": nginx_sev,
+            "note": nginx_note,
+            "cves": nginx_cves
+        }
+
         # Step 5: Evaluate & Return Classification
+        sev_order = {"Critical": 4, "High": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Secure": 0}
+
         if is_node and is_php:
             v_php, note_php = evaluate_php_security(php_version_str or "PHP")
             v_node, note_node = evaluate_node_security(node_version_str or "Node.js", has_brotli)
-            sev_order = {"Critical": 4, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Secure": 0}
             vuln = v_node if sev_order.get(v_node, 0) >= sev_order.get(v_php, 0) else v_php
+            if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
+                vuln = nginx_sev
+            matched_cves = collect_target_cves(is_php, is_node, v_php, v_node, php_version_str, node_version_str, has_brotli, nginx_cves, has_lfi_active, is_fpm)
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
+            if nginx_cves:
+                cve_note += f" | {nginx_note}"
             display_ver = f"PHP ({php_version_str}) + Node.js ({node_version_str})"
             return {
                 "target_id": f"{display_ip}:{port}",
@@ -2324,10 +2815,16 @@ async def probe_endpoint(
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
-                "cveNote": cve_note
+                "cveNote": cve_note,
+                "matched_cves": matched_cves
             }
         elif is_node:
             vuln, note = evaluate_node_security(node_version_str, has_brotli)
+            if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
+                vuln = nginx_sev
+            matched_cves = collect_target_cves(False, True, "Secure", vuln, "", node_version_str, has_brotli, nginx_cves, False, False)
+            if nginx_cves:
+                note += f" | {nginx_note}"
             display_ver = node_version_str
             if has_brotli and "[Brotli]" not in display_ver:
                 display_ver += " [Brotli]"
@@ -2358,12 +2855,18 @@ async def probe_endpoint(
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
-                "cveNote": note
+                "cveNote": note,
+                "matched_cves": matched_cves
             }
         elif is_php:
             if not php_version_str:
                 php_version_str = "PHP (expose_php=Off / Version Hidden)"
             vuln, note = evaluate_php_security(php_version_str)
+            if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
+                vuln = nginx_sev
+            matched_cves = collect_target_cves(True, False, vuln, "Secure", php_version_str, "", False, nginx_cves, has_lfi_active, is_fpm)
+            if nginx_cves:
+                note += f" | {nginx_note}"
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
@@ -2391,7 +2894,8 @@ async def probe_endpoint(
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
-                "cveNote": note
+                "cveNote": note,
+                "matched_cves": matched_cves
             }
         else:
             device_desc = server or f"Web Service (Port {port})"
@@ -2399,6 +2903,9 @@ async def probe_endpoint(
                 device_desc = "Network Printer"
             elif any(k in device_desc.lower() for k in ["camera", "dahua", "hikvision", "axis", "nvr", "dvr"]):
                 device_desc = "CCTV Camera"
+            matched_cves = collect_target_cves(False, False, "Secure", "Secure", "", "", False, nginx_cves, False, False)
+            vuln = nginx_sev if nginx_cves else "Secure"
+            cve_note = nginx_note if nginx_cves else "เปิดบริการเว็บทั่วไป (ไม่พบ PHP หรือ Node.js — ปลอดภัยจาก php2shell และ Node2Shell)"
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
@@ -2424,8 +2931,9 @@ async def probe_endpoint(
                 "probe_log": probe_log,
                 "ports": [port],
                 "latency": latency,
-                "vulnerability": "Secure",
-                "cveNote": "เปิดบริการเว็บทั่วไป (ไม่พบ PHP หรือ Node.js — ปลอดภัยจาก php2shell และ Node2Shell)"
+                "vulnerability": vuln,
+                "cveNote": cve_note,
+                "matched_cves": matched_cves
             }
     except Exception:
         return None
@@ -2463,9 +2971,9 @@ def scan():
                     valid_ports.append(p_int)
             except (ValueError, TypeError):
                 continue
-        ports = valid_ports if valid_ports else [80, 443, 8080, 8000, 8888, 8081, 8443, 3000, 5000, 5050, 4000, 5173]
+        ports = valid_ports if valid_ports else [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 8081, 9000, 9090, 9999]
     else:
-        ports = [80, 443, 8080, 8000, 8888, 8081, 8443, 3000, 5000, 5050, 4000, 5173]
+        ports = [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 8081, 9000, 9090, 9999]
     host_strings = set(str(h) for h in hosts)
 
     curr_is_docker = net_info.get("is_docker", False)
@@ -2757,6 +3265,15 @@ def test_node24_safe():
     resp.headers["X-Powered-By"] = "Express"
     resp.headers["X-Node-Version"] = "24.22.1"
     return resp
+
+@app.route("/api/cve-database")
+def get_cve_database():
+    """Returns the complete multi-stack CVE mapping database catalog (16 CVEs)."""
+    return jsonify({
+        "status": "ok",
+        "total": len(CVE_DATABASE),
+        "database": CVE_DATABASE
+    })
 
 @app.route("/api/verify-asan-memory", methods=["GET", "POST"])
 def verify_asan_memory():
