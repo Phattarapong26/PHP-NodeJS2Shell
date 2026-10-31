@@ -22,41 +22,59 @@ OPScaner เปลี่ยนกระบวนการตรวจสอบ�
 
 ```mermaid
 flowchart TD
-    subgraph S1["1. Network Scope & Discovery Phase"]
-        A["เป้าหมายการตรวจ<br/>(Local Subnet / External IP / Domain)"] --> B{"วิเคราะห์ระดับเครือข่าย"}
-        B -->|"ใน Subnet (L2/L3)"| C["Multi-Vector Discovery<br/>(Kernel ARP, NetBIOS, mDNS, Reverse DNS)"]
-        B -->|"นอก Subnet / WAN (L3/L4)"| D["Routed TCP Sweeper<br/>(High-Priority Production Ports)"]
-        C --> E["Active Hosts Matrix"]
+    subgraph S1 [1. Network Scope and Discovery]
+        A["เป้าหมายการตรวจ: Local Subnet / External IP / Domain"]
+        B{"วิเคราะห์ขอบเขตเครือข่าย"}
+        C["Multi-Vector Discovery: ARP / NetBIOS / mDNS / DNS"]
+        D["Routed TCP Sweeper: Standard Production Ports"]
+        E["Active Hosts Matrix"]
+        A --> B
+        B -->|ในวง Subnet เดียวกัน L2/L3| C
+        B -->|ข้ามวง Subnet หรือ WAN L3/L4| D
+        C --> E
         D --> E
     end
 
-    subgraph S2["2. Classification & CVE Matching"]
-        E --> F["Async HTTP/HTTPS Web Fingerprinting<br/>(Headers, Cookies, WAF, CMS Signatures)"]
-        F --> G["จำแนก 8 กลุ่มระบบมาตรฐาน ThaiCERT<br/>(องค์กร, API, Control Panel, IoT, Container, IIS, UAT, Cloud)"]
-        G --> H["Dynamic CVE Feeds Matcher<br/>(PHP, NGINX, Node.js, Spring, GitLab)"]
+    subgraph S2 [2. Classification and Fingerprinting]
+        F["Async HTTP and HTTPS Web Fingerprinting"]
+        G["จำแนก 8 กลุ่มระบบมาตรฐาน ThaiCERT"]
+        H["Dynamic CVE Feeds Matcher: Multi-Stack"]
+        E --> F
+        F --> G
+        G --> H
     end
 
-    subgraph S3["3. Safe Active Verification (Chains A-E)"]
-        H --> I{"ตรวจพบปัจจัยเสี่ยง LFI / Config"}
-        I -->|"เริ่มประเมิน 5 Attack Chains"| J["Canary Probing Engine<br/>(Non-destructive Test Vectors)"]
-        J --> K1["[A] Upload Progress Inode Mutation"]
-        J --> K2["[B] INI Leak & Environment Reflection"]
-        J --> K3["[C] Serializer Mismatch & Session Tampering"]
-        J --> K4["[D] OOM Cleanup & Temp File Persistence"]
-        J --> K5["[E] FastCGI / Worker Reuse Contamination"]
+    subgraph S3 [3. Safe Active Verification: Chains A to E]
+        I{"พบปัจจัยเสี่ยง LFI หรือ Configuration"}
+        J["Canary Probing Engine: Non-destructive"]
+        K1["Chain A: Upload Progress Inode Mutation"]
+        K2["Chain B: INI Leak and Environment Reflection"]
+        K3["Chain C: Serializer Mismatch and Tampering"]
+        K4["Chain D: OOM Cleanup and Temp File Persistence"]
+        K5["Chain E: FastCGI Worker Reuse Contamination"]
+        H --> I
+        I -->|เริ่มประเมิน 5 Attack Chains| J
+        J --> K1
+        J --> K2
+        J --> K3
+        J --> K4
+        J --> K5
     end
 
-    subgraph S4["4. Evidence & Executive Reporting"]
-        K1 & K2 & K3 & K4 & K5 --> L["Empirical Proof Evaluation<br/>(Confirmed / Likely / Conditional / Mitigated)"]
-        L --> M["TLP:AMBER Security Advisory (PDF)"]
-        L --> N["Interactive Neumorphic Web Dashboard"]
-        L --> O["CLI JSON Telemetry for SIEM/SOC"]
+    subgraph S4 [4. Evidence and Reporting]
+        L["Empirical Proof Evaluation: Confirmed / Likely / Conditional / Mitigated"]
+        M["TLP:AMBER Security Advisory PDF"]
+        N["Neumorphic Web Dashboard"]
+        O["CLI JSON Telemetry for SIEM and SOC"]
+        K1 --> L
+        K2 --> L
+        K3 --> L
+        K4 --> L
+        K5 --> L
+        L --> M
+        L --> N
+        L --> O
     end
-
-    style S1 fill:#f8fafc,stroke:#cbd5e1,stroke-width:2px
-    style S2 fill:#f1f5f9,stroke:#94a3b8,stroke-width:2px
-    style S3 fill:#eff6ff,stroke:#60a5fa,stroke-width:2px
-    style S4 fill:#f0fdf4,stroke:#4ade80,stroke-width:2px
 ```
 
 ---
@@ -115,7 +133,7 @@ flowchart TD
 
 ---
 
-## 💡 เข้าใจ "PHP2Shell": มุมมองของผู้ไม่หวังดี และระบบเราพิสูจน์ LFI $\rightarrow$ RCE ได้อย่างไร?
+## 💡 เข้าใจ "PHP2Shell": มุมมองของผู้ไม่หวังดี และระบบเราพิสูจน์ LFI → RCE ได้อย่างไร?
 
 ### 1. มุมมองของผู้ไม่หวังดี (Attacker's Perspective)
 
