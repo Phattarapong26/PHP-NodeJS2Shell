@@ -135,17 +135,22 @@ def resolve_device_details(ip_str: str, mac_str: str, is_gw: bool = False) -> Tu
 
 
 def get_fast_latency(ip_str: str, default_ms: str = "< 5 ms") -> str:
-    """Measure real round-trip latency in milliseconds for LAN host."""
-    try:
-        t0 = time.perf_counter()
-        r = subprocess.run(["ping", "-c", "1", "-W", "200", ip_str], capture_output=True, text=True, timeout=0.25)
-        if r.returncode == 0:
-            m = re.search(r'time=([\d\.]+)\s*ms', r.stdout)
-            if m:
-                return f"{float(m.group(1)):.1f} ms"
-            return f"{(time.perf_counter() - t0) * 1000:.1f} ms"
-    except Exception:
-        pass
+    """Measure real round-trip latency in milliseconds for LAN host using pure sockets (zero OS subprocess)."""
+    for test_port in (80, 443, 22, 53):
+        try:
+            t0 = time.perf_counter()
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.15)
+            s.connect((ip_str, test_port))
+            ms = (time.perf_counter() - t0) * 1000
+            s.close()
+            return f"{ms:.1f} ms"
+        except ConnectionRefusedError:
+            ms = (time.perf_counter() - t0) * 1000
+            if ms < 150:
+                return f"{ms:.1f} ms"
+        except Exception:
+            continue
     return default_ms
 
 

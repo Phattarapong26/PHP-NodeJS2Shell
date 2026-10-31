@@ -2232,11 +2232,16 @@ Content-Type: text/html; charset=UTF-8</div>
       appState.foundPhpHosts = [];
       appState.discardedDevices = [];
 
-      const targetSubnet = (mainSubnetInput ? mainSubnetInput.value.trim() : "") || appState.subnet;
+      const heroVal = heroSearchInput ? heroSearchInput.value.trim() : "";
+      const mainVal = mainSubnetInput ? mainSubnetInput.value.trim() : "";
+      const targetSubnet = heroVal || mainVal || appState.subnet;
       if (!targetSubnet) {
         showToast("กรุณาระบุ Subnet หรือ IP เป้าหมายก่อนเริ่มสแกน");
         appState.isScanning = false;
         return;
+      }
+      if (heroVal && mainSubnetInput) {
+        mainSubnetInput.value = heroVal;
       }
 
       const parsedTarget = parseSubnetDetails(targetSubnet);

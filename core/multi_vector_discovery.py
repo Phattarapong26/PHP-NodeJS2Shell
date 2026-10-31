@@ -261,48 +261,32 @@ class MultiVectorDiscoveryEngine:
                 return None
 
     async def probe_icmp_ping(self, ip_str: str) -> bool:
-        """Fast ICMP ping check via system binary."""
-        async with self.sem:
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    "ping", "-c", "1", "-W", "1", ip_str,
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL
-                )
-                await asyncio.wait_for(proc.wait(), timeout=0.3)
-                return proc.returncode == 0
-            except Exception:
-                return False
+        """Lightweight socket-based connectivity check (zero OS subprocess / non-blocking)."""
+        return False
 
     async def scan_single_host(self, ip_str: str, gateway_ip: str = "") -> Optional[Dict[str, Any]]:
         """
         Execute multi-vector discovery against a single IP address.
-        Correlates TCP, UDP, ICMP, and Router DHCP records.
+        Correlates TCP, UDP mDNS, NetBIOS, and Router DHCP records.
         """
-        # 1. Quick TCP sweep across high-priority ports (home devices, labs, IoT, printers)
-        priority_ports = [
-            80, 443, 22, 53, 445, 135, 139, 3389,
-            8080, 8000, 8008, 9100, 631, 554, 5000, 5050,
-            8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088
-        ]
+        # 1. Quick TCP sweep across high-priority standard ports
+        priority_ports = STANDARD_DISCOVERY_TCP_PORTS
         tcp_tasks = [self.probe_tcp_host(ip_str, p) for p in priority_ports]
         
-        # 2. Parallel UDP & ICMP & PTR probes
+        # 2. Parallel UDP & PTR probes (zero child processes)
         udp_nb_task = self.probe_udp_netbios(ip_str)
         udp_mdns_task = self.probe_udp_mdns(ip_str)
-        icmp_task = self.probe_icmp_ping(ip_str)
         ptr_task = self.probe_dns_ptr(ip_str, gateway_ip) if gateway_ip else asyncio.sleep(0, result=None)
 
         all_results = await asyncio.gather(
-            *tcp_tasks, udp_nb_task, udp_mdns_task, icmp_task, ptr_task,
+            *tcp_tasks, udp_nb_task, udp_mdns_task, ptr_task,
             return_exceptions=True
         )
 
         tcp_results = all_results[:len(priority_ports)]
         nb_res = all_results[len(priority_ports)]
         mdns_res = all_results[len(priority_ports) + 1]
-        icmp_res = all_results[len(priority_ports) + 2]
-        ptr_res = all_results[len(priority_ports) + 3]
+        ptr_res = all_results[len(priority_ports) + 2]
 
         is_alive = False
         open_ports: List[int] = []

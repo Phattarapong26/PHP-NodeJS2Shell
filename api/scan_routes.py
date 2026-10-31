@@ -451,7 +451,7 @@ def scan():
             host_str_list = [str(h) for h in hosts]
 
             # Initialize Multi-Vector Discovery Engine for silent / IoT / mobile / home devices
-            mv_engine = MultiVectorDiscoveryEngine(concurrency=min(concurrency, 150), timeout=0.35)
+            mv_engine = MultiVectorDiscoveryEngine(concurrency=min(concurrency, 150), timeout=0.15)
             discovery_task = mv_engine.scan_subnet_multivector(host_str_list, gateway_ip=gw_ip)
 
             tasks = []
