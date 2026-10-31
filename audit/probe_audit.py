@@ -21,6 +21,14 @@ from audit.php_audit import evaluate_php_security, evaluate_security_chains
 from audit.node_audit import evaluate_node_security
 from audit.nginx_audit import evaluate_nginx_security, collect_target_cves
 from audit.thaicert_rules import classify_thaicert_groups, evaluate_group_architecture_matrix
+from audit.sub_tools import (
+    probe_strict_session_mode,
+    probe_information_disclosure,
+    probe_node_security,
+    probe_python_wsgi_security,
+    probe_spring_java_security,
+    probe_embedded_appliance_security
+)
 
 async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_text: str, req_headers: dict) -> dict:
     """
@@ -282,7 +290,29 @@ async def probe_endpoint(
             cms_name=cms_name
         )
 
-        # Step 4.2: Dynamic Non-destructive LFI Prerequisite Verification
+        # Step 4.2: Dynamic Sub-Tools & Multi-Stack Active Probes
+        strict_mode_probe = None
+        if is_php or has_phpsessid or has_php_cookie:
+            strict_mode_probe = await probe_strict_session_mode(client, base_url, req_headers)
+
+        info_disclosure_probe = await probe_information_disclosure(client, base_url, body_text, req_headers)
+
+        # Multi-stack Active Verification (Beyond PHP)
+        node_probe = await probe_node_security(client, base_url, req_headers) if is_node else None
+        python_probe = await probe_python_wsgi_security(client, base_url, req_headers) if not (is_php or is_node) else None
+        spring_probe = await probe_spring_java_security(client, base_url, req_headers) if not (is_php or is_node) else None
+        appliance_probe = await probe_embedded_appliance_security(server)
+
+        sub_tools_data = {
+            "strict_mode_probe": strict_mode_probe,
+            "info_disclosure_probe": info_disclosure_probe,
+            "node_probe": node_probe,
+            "python_probe": python_probe,
+            "spring_probe": spring_probe,
+            "appliance_probe": appliance_probe
+        }
+
+        # Step 4.3: Dynamic Non-destructive LFI Prerequisite Verification
         lfi_check = None
         if is_php:
             lfi_check = await probe_lfi_prerequisite(client, base_url, body_text, req_headers)
@@ -318,7 +348,10 @@ async def probe_endpoint(
             has_serializer_mismatch=has_serializer_mismatch,
             has_object_deserialization=has_object_deserialization,
             uses_php_serialize=uses_php_serialize,
-            has_error_leak=has_error_leak
+            has_error_leak=has_error_leak,
+            strict_mode_probe=strict_mode_probe,
+            info_disclosure_probe=info_disclosure_probe,
+            sapi_evidence=server
         )
         
         # Dynamic Group Exploit Chain & Architecture Matrix Evaluation
@@ -461,23 +494,35 @@ async def probe_endpoint(
         is_fpm = "fpm" in server.lower() or "nginx" in server.lower()
         has_lfi_active = bool(lfi_check and lfi_check.get("has_lfi_prerequisite"))
 
+        strict_val = "ยังไม่สามารถยืนยันสถานะจากภายนอกได้ (ควรตรวจสอบ session.use_strict_mode บนโฮสต์)"
+        strict_risk = False
+        if strict_mode_probe and strict_mode_probe.get("tested"):
+            strict_val = strict_mode_probe.get("evidence", "")
+            strict_risk = (strict_mode_probe.get("is_strict_mode") is False)
+
+        save_path_val = "ไม่พบการเปิดเผยค่า session.save_path จากการตอบกลับภายนอก"
+        if info_disclosure_probe and info_disclosure_probe.get("session_path_disclosed"):
+            save_path_val = info_disclosure_probe.get("evidence", "")
+        elif info_disclosure_probe and info_disclosure_probe.get("leaked_paths"):
+            save_path_val = f"ตรวจพบเส้นทางระบบในข้อความตอบกลับ: {', '.join(info_disclosure_probe.get('leaked_paths', []))}"
+
         va_findings = {
             "chain_a": {
                 "chain_id": "chain_a",
                 "title": "Chain A: การจัดการเซสชันและ Upload Progress",
-                "status": "VULNERABLE (พบจุดเสี่ยง LFI)" if has_lfi_active else ("MITIGATED (ปัจจัยเสี่ยงไม่ครบ / ปลอดภัย)" if not has_lfi_active else "REVIEW_NEEDED"),
+                "status": "CONDITIONAL (พบจุดเสี่ยง LFI แต่ต้องอาศัยเงื่อนไข upload_progress บนโฮสต์จริง)" if has_lfi_active else "PREREQUISITE_ABSENT (ไม่พบจุดเรียกไฟล์ / ปลอดภัยจาก Chain A)",
                 "is_risky": has_lfi_active,
-                "badge": "VULN" if has_lfi_active else "MITIGATED",
+                "badge": "AUDIT" if has_lfi_active else "SECURE",
                 "items": [
                     {
                         "directive": "session.use_strict_mode",
-                        "discovered_val": "0 (Off - ตรวจพบการรับ Session Cookie PHPSESSID จากภายนอก)" if has_phpsessid else "1 (On - บังคับใช้ Strict Mode / ไม่พบคุกกี้ภายนอก)",
-                        "is_risky": bool(has_phpsessid and not is_patched)
+                        "discovered_val": strict_val,
+                        "is_risky": strict_risk
                     },
                     {
                         "directive": "session.upload_progress.enabled",
-                        "discovered_val": "1 (On - ค่าตั้งต้นของเอนจิน PHP)" if is_php else "N/A",
-                        "is_risky": bool(is_php and not is_patched)
+                        "discovered_val": "1 (On - ค่าตั้งต้นของเอนจิน PHP ควรปิดใน php.ini)" if is_php else "N/A",
+                        "is_risky": bool(is_php and not is_cve_2026_patched)
                     },
                     {
                         "directive": "LFI Prerequisite (จุดเรียกไฟล์จริง)",
@@ -489,9 +534,9 @@ async def probe_endpoint(
             "chain_b": {
                 "chain_id": "chain_b",
                 "title": "Chain B: Information Disclosure (ข้อมูลสภาพแวดล้อมและคอนฟิก)",
-                "status": "REVIEW_NEEDED (พบการเปิดเผยข้อมูลสภาพแวดล้อม: expose_php หรือ Error Leak — จัดเป็น CWE-200 ไม่ใช่ RCE)" if (powered or has_error_leak) else "SECURE (ปิดบังข้อมูลเรียบร้อย)",
+                "status": "INFO_DISCLOSURE (พบการเปิดเผยข้อมูลสภาพแวดล้อม: CWE-200/CWE-209 จัดเป็นความเสี่ยงด้านข้อมูล ไม่ใช่ RCE)" if (powered or has_error_leak or (info_disclosure_probe and info_disclosure_probe.get("session_path_disclosed"))) else "HARDENED (ปิดบังข้อมูลเรียบร้อย)",
                 "is_risky": False,
-                "badge": "INFO" if (powered or has_error_leak) else "PROTECTED",
+                "badge": "INFO" if (powered or has_error_leak or (info_disclosure_probe and info_disclosure_probe.get("session_path_disclosed"))) else "PROTECTED",
                 "items": [
                     {
                         "directive": "expose_php",
@@ -509,6 +554,11 @@ async def probe_endpoint(
                         "is_risky": has_error_leak
                     },
                     {
+                        "directive": "session.save_path exposure",
+                        "discovered_val": save_path_val,
+                        "is_risky": bool(info_disclosure_probe and info_disclosure_probe.get("session_path_disclosed"))
+                    },
+                    {
                         "directive": "HSTS Security Header",
                         "discovered_val": "Active (เปิดใช้งาน Preload)" if has_hsts else "Missing (ไม่ได้เปิดใช้งาน)",
                         "is_risky": not has_hsts
@@ -518,18 +568,18 @@ async def probe_endpoint(
             "chain_c": {
                 "chain_id": "chain_c",
                 "title": "Chain C: Serializer Handler & Object Deserialization",
-                "status": "VULNERABLE (ตรวจพบเงื่อนไข Serializer Mismatch ร่วมกับ Deserialization Sink)" if (has_serializer_mismatch and has_object_deserialization) else ("REVIEW_NEEDED (กำหนด php_serialize แต่ไม่พบ Deserialization Sink หรือ Mismatch)" if (has_serializer_mismatch or uses_php_serialize) else "SECURE (กำหนด Serializer สม่ำเสมอ)"),
+                "status": "CONDITIONAL (ตรวจพบเงื่อนไข Serializer Mismatch ร่วมกับ Deserialization Sink)" if (has_serializer_mismatch and has_object_deserialization) else ("REVIEW_NEEDED (กำหนด php_serialize แต่ไม่พบ Deserialization Sink หรือ Mismatch)" if (has_serializer_mismatch or uses_php_serialize) else "HARDENED (กำหนด Serializer สม่ำเสมอ)"),
                 "is_risky": bool(has_serializer_mismatch and has_object_deserialization),
-                "badge": "VULN" if (has_serializer_mismatch and has_object_deserialization) else ("REVIEW" if (has_serializer_mismatch or uses_php_serialize) else "SECURE"),
+                "badge": "AUDIT" if (has_serializer_mismatch and has_object_deserialization) else ("INFO" if (has_serializer_mismatch or uses_php_serialize) else "SECURE"),
                 "items": [
                     {
                         "directive": "session.serialize_handler",
-                        "discovered_val": "php_serialize (พบความไม่สอดคล้องกับมาตรฐาน php)" if has_serializer_mismatch else ("php_serialize (คอนฟิกมาตรฐาน ไม่พบ Mismatch ข้ามโมดูล)" if uses_php_serialize else "php (รูปแบบมาตรฐาน สม่ำเสมอ ไม่พบ Mismatch)"),
+                        "discovered_val": "php_serialize (พบความไม่สอดคล้องกับมาตรฐาน php ข้ามโมดูล)" if has_serializer_mismatch else ("php_serialize (คอนฟิกมาตรฐานที่ PHP รองรับตามปกติ ไม่พบ Mismatch ข้ามโมดูล)" if uses_php_serialize else "php (รูปแบบมาตรฐาน สม่ำเสมอ ไม่พบ Mismatch)"),
                         "is_risky": bool(has_serializer_mismatch)
                     },
                     {
                         "directive": "Object Injection Risk",
-                        "discovered_val": "VULNERABLE (ตรวจพบจุดรับค่าพารามิเตอร์ ?data= ส่งต่อฟังก์ชัน unserialize)" if has_object_deserialization else "SAFE (ไม่พบจุดรับค่าฟังก์ชัน unserialize ภายนอก)",
+                        "discovered_val": "DETECTED (ตรวจพบจุดรับค่าพารามิเตอร์ส่งต่อเข้าฟังก์ชัน unserialize)" if has_object_deserialization else "SAFE (ไม่พบจุดรับค่าฟังก์ชัน unserialize ภายนอก)",
                         "is_risky": bool(has_object_deserialization)
                     }
                 ]
@@ -537,19 +587,19 @@ async def probe_endpoint(
             "chain_d": {
                 "chain_id": "chain_d",
                 "title": "Chain D: ขีดจำกัดหน่วยความจำและพื้นที่จัดเก็บเซสชัน",
-                "status": "VULNERABLE (พบจุดเชื่อมโยง LFI ร่วมกับสภาพแวดล้อม Apache /tmp)" if (has_lfi_active and not is_patched and "apache" in server.lower()) else ("VULNERABLE (พบจุดเชื่อมโยง LFI)" if has_lfi_active else "SECURE (ไม่พบ Fatal Error และไม่พบจุดเชื่อมโยง LFI)"),
+                "status": "CONDITIONAL (พบจุดเสี่ยง LFI เข้าข่ายเงื่อนไข Chain D แต่ต้องอาศัย OOM Fatal Error บนโฮสต์จริง)" if has_lfi_active else "PREREQUISITE_ABSENT (ไม่พบจุดเชื่อมโยง LFI / ปลอดภัยจาก Chain D)",
                 "is_risky": bool(has_lfi_active),
-                "badge": "VULN" if has_lfi_active else "SECURE",
+                "badge": "AUDIT" if has_lfi_active else "SECURE",
                 "items": [
                     {
                         "directive": "memory_limit / OOM Condition",
-                        "discovered_val": "128M (ขีดจำกัดต่ำกว่าเกณฑ์ เสี่ยงต่อสภาวะหน่วยความจำล้น)" if (not is_patched and has_lfi_active) else "Normal (เซิร์ฟเวอร์ตอบสนองปกติ ไม่พบสภาวะหน่วยความจำล้น)",
-                        "is_risky": bool(not is_patched and has_lfi_active)
+                        "discovered_val": "ยังไม่มีหลักฐาน OOM memory exhaustion จากการทดสอบภายนอก (ควรตรวจสอบขีดจำกัด memory_limit บนโฮสต์)",
+                        "is_risky": False
                     },
                     {
                         "directive": "Cleanup Bypass Risk",
-                        "discovered_val": "VULNERABLE (ตรวจพบการจัดเก็บเซสชันใน /tmp ข้ามขั้นตอนการล้างไฟล์เมื่อเกิด OOM)" if (not is_patched and has_lfi_active) else "PREREQUISITE_ABSENT (ไม่มีสภาวะการข้ามล้างไฟล์ชั่วคราว)",
-                        "is_risky": bool(not is_patched and has_lfi_active)
+                        "discovered_val": "เงื่อนไขต้องยืนยันบนโฮสต์จริง (Cleanup bypass unverified without live OOM trigger)",
+                        "is_risky": False
                     },
                     {
                         "directive": "LFI Prerequisite",
@@ -561,24 +611,24 @@ async def probe_endpoint(
             "chain_e": {
                 "chain_id": "chain_e",
                 "title": "Chain E: สถาปัตยกรรม PHP-FPM และสถานะเวิร์กเกอร์ (GHSA-6wmf-4rv5-p3rp)",
-                "status": "ARCHITECTURAL_PRECONDITION (ตรวจพบ PHP-FPM เวอร์ชันก่อนแพตช์ เข้าข่ายเงื่อนไขก่อนหน้า แต่ยังไม่ได้ยืนยัน 3-stage exploitation)" if (is_fpm and not is_patched) else ("MONITORED (ตรวจสอบการรีไซเคิลเวิร์กเกอร์)" if is_fpm else "NOT_APPLICABLE (ไม่ใช่ PHP-FPM)"),
-                "is_risky": bool(is_fpm and not is_patched),
-                "badge": "REVIEW" if (is_fpm and not is_patched) else ("FPM" if is_fpm else "STANDALONE"),
+                "status": "ARCHITECTURAL_PRECONDITION (ตรวจพบ PHP-FPM เวอร์ชันก่อนแพตช์ เข้าข่ายเงื่อนไขก่อนหน้า แต่ยังไม่ได้ยืนยัน 3-stage exploitation)" if (is_fpm and not is_cve_2026_patched) else ("MONITORED (ตรวจสอบการรีไซเคิลเวิร์กเกอร์)" if is_fpm else "NOT_APPLICABLE (ไม่ใช่ PHP-FPM)"),
+                "is_risky": bool(is_fpm and not is_cve_2026_patched),
+                "badge": "AUDIT" if (is_fpm and not is_cve_2026_patched) else ("FPM" if is_fpm else "STANDALONE"),
                 "items": [
                     {
                         "directive": "SAPI Execution Model",
-                        "discovered_val": "PHP-FPM / FastCGI (ตรวจพบสถาปัตยกรรม Worker Pool)" if is_fpm else "Apache mod_php / Standard CGI",
+                        "discovered_val": "PHP-FPM / FastCGI (ตรวจพบสถาปัตยกรรม Worker Pool — ควรตรวจสอบ SAPI จริงบนโฮสต์)" if is_fpm else "Apache mod_php / Standard CGI",
                         "is_risky": False
                     },
                     {
                         "directive": "Worker Reuse (pm.max_requests)",
-                        "discovered_val": "Unrestricted / 0 (เวิร์กเกอร์ไม่รีไซเคิล เสี่ยงต่อสถานะบัฟเฟอร์ตกค้าง)" if (is_fpm and not is_patched) else ("Audit Pool Config (แนะนำตั้งค่า 500 เพื่อรีไซเคิลเวิร์กเกอร์)" if is_fpm else "N/A (ไม่ใช่ระบบ Worker Pool)"),
-                        "is_risky": bool(is_fpm and not is_patched)
+                        "discovered_val": "Audit Pool Config (ค่าตั้งต้นในหลายระบบมักเป็น 0 แนะนำตั้งค่า 500 เพื่อรีไซเคิลเวิร์กเกอร์สม่ำเสมอ)" if is_fpm else "N/A (ไม่ใช่ระบบ Worker Pool)",
+                        "is_risky": False
                     },
                     {
                         "directive": "Stale BG() Buffer Isolation (GHSA-6wmf-4rv5-p3rp)",
-                        "discovered_val": "ARCHITECTURAL_RISK (PHP-FPM รันไทม์ยังไม่ได้รับแพตช์ GHSA-6wmf-4rv5-p3rp — เข้าข่ายเงื่อนไขสะสม Stale State ใน FastCGI buffer)" if (is_fpm and not is_patched) else "PROTECTED (เวอร์ชันได้รับการแพตช์)",
-                        "is_risky": bool(is_fpm and not is_patched)
+                        "discovered_val": "ARCHITECTURAL_PRECONDITION (PHP-FPM รันไทม์ต่ำกว่าเกณฑ์แพตช์ 8.2.35+/8.3.36+ แต่ยังไม่ได้ยืนยัน 3-stage exploitation)" if (is_fpm and not is_cve_2026_patched) else "HARDENED (เวอร์ชันได้รับการแพตช์ GHSA-6wmf-4rv5-p3rp)",
+                        "is_risky": bool(is_fpm and not is_cve_2026_patched)
                     }
                 ]
             }
@@ -681,7 +731,7 @@ async def probe_endpoint(
             "csp": has_csp,
             "expose_php_status": "Off (ปิดบังเวอร์ชันตามมาตรฐาน CIS)" if is_php and not powered else ("On (เปิดเผยเวอร์ชันสู่สาธารณะ)" if is_php else "N/A"),
             "host_verify_cmd": "php -v && (dpkg -l | grep -E 'php[0-9]' || rpm -qa | grep php)",
-            "safe_criteria": "PHP 8.2.20+ หรือ PHP 8.3.8+ (ป้องกัน CVE-2024-4577 ตามเกณฑ์ ThaiCERT)",
+            "safe_criteria": "PHP 8.2.20+ / 8.3.8+ (CVE-2024-4577) และ PHP 8.2.35+ / 8.3.36+ / 8.4.27+ (2026 Engine Advisories)",
             "thaicert_groups": thaicert_info["groups"],
             "primary_group": thaicert_info["primary_group"],
             "group_labels": thaicert_info["group_labels"],
@@ -691,6 +741,7 @@ async def probe_endpoint(
             "security_chains": security_chains,
             "probe_log": probe_log,
             "va_findings": va_findings,
+            "sub_tools": sub_tools_data,
             "zend_c_telemetry": zend_c_telemetry
         }
 
@@ -834,23 +885,42 @@ async def probe_endpoint(
             }
         else:
             device_desc = server or f"Web Service (Port {port})"
-            if any(k in device_desc.lower() for k in ["printer", "jetdirect", "canon", "hp", "xerox", "brother"]):
+            runtime_name = "None"
+            runtime_ver = "ไม่มี Web Service"
+            vuln = nginx_sev if nginx_cves else "Secure"
+            cve_note = nginx_note if nginx_cves else "เปิดบริการเว็บทั่วไป (ไม่พบ PHP หรือ Node.js — ปลอดภัยจาก php2shell และ Node2Shell)"
+
+            if python_probe and python_probe.get("is_python"):
+                runtime_name = "Python WSGI"
+                runtime_ver = "Python Web Service"
+                cve_note = python_probe.get("evidence")
+                vuln = "Critical" if python_probe.get("werkzeug_console_exposed") else ("Review Needed" if python_probe.get("django_debug_leak") else "Secure")
+            elif spring_probe and spring_probe.get("is_java"):
+                runtime_name = "Java / Spring Boot"
+                runtime_ver = "Spring Boot Application"
+                cve_note = spring_probe.get("evidence")
+                vuln = "Review Needed" if spring_probe.get("actuator_exposed") else "Secure"
+            elif appliance_probe and appliance_probe.get("is_embedded_binary"):
+                runtime_name = "Embedded Appliance"
+                runtime_ver = appliance_probe.get("server_type", "Embedded Binary")
+                cve_note = appliance_probe.get("evidence")
+                vuln = "Secure"
+            elif any(k in device_desc.lower() for k in ["printer", "jetdirect", "canon", "hp", "xerox", "brother"]):
                 device_desc = "Network Printer"
             elif any(k in device_desc.lower() for k in ["camera", "dahua", "hikvision", "axis", "nvr", "dvr"]):
                 device_desc = "CCTV Camera"
+
             matched_cves = collect_target_cves(False, False, "Secure", "Secure", "", "", False, nginx_cves, False, False)
-            vuln = nginx_sev if nginx_cves else "Secure"
-            cve_note = nginx_note if nginx_cves else "เปิดบริการเว็บทั่วไป (ไม่พบ PHP หรือ Node.js — ปลอดภัยจาก php2shell และ Node2Shell)"
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
                 "target_url": reported_base_url,
                 "is_php": False,
                 "is_node": False,
-                "runtime": "None",
-                "runtime_version": "ไม่มี Web Service",
-                "phpVersion": "No PHP / Node.js",
-                "nodeVersion": "None",
+                "runtime": runtime_name,
+                "runtime_version": runtime_ver,
+                "phpVersion": "No PHP",
+                "nodeVersion": "No Node.js",
                 "has_brotli": has_brotli,
                 "is_online": True,
                 "ip": display_ip,
@@ -866,6 +936,7 @@ async def probe_endpoint(
                 "architecture_matrix": thaicert_info.get("architecture_matrix", []),
                 "security_chains": security_chains,
                 "probe_log": probe_log,
+                "va_findings": va_findings,
                 "ports": [port],
                 "latency": latency,
                 "vulnerability": vuln,
