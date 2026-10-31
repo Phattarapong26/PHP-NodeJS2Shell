@@ -14,6 +14,11 @@ from typing import Any, Dict, List, Optional
 
 from .assets import NCSA_LOGO_B64, SURVEY_QR_PNG_B64
 
+try:
+    from audit.thaicert_rules import THAICERT_GROUP_PROFILES
+except Exception:
+    THAICERT_GROUP_PROFILES = {}
+
 
 def get_ncsa_logo_png_data_uri() -> str:
     """Convert WebP Logo to PNG Data URI for 100% compatibility in Chromium and WebViews."""
@@ -856,55 +861,67 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         matched_cves = h.get("matched_cves") or []
         chains = da.get("security_chains", {}).get("chains", {}) or h.get("security_chains", {}).get("chains", {})
         
-        # Build Architectural Matrix per host if present
+        # Build Architectural Matrix & Deep Narrative per host if present
         matrix = h.get("architecture_matrix") or da.get("architecture_matrix") or []
         if matrix:
             arch_matrix_html += f"""
-            <div style="margin-top: 18px; margin-bottom: 22px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #ffffff;">
-              <div style="background: #0f172a; color: #f8fafc; padding: 10px 14px; font-weight: bold; font-size: 13.5pt;">
-                🏛️ การประเมินสถาปัตยกรรม Exploit Chain จำแนกตามกลุ่มระบบ ThaiCERT — ระบบ: <code>{html.escape(h_ip)}</code>
+            <div style="margin-top: 20px; margin-bottom: 24px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #ffffff;">
+              <div style="background: #0f172a; color: #f8fafc; padding: 12px 16px; font-weight: bold; font-size: 14pt;">
+                การประเมินสถาปัตยกรรมห่วงโซ่การโจมตีและความเป็นไปได้ในการโจมตีจริง — ระบบเป้าหมาย: <code>{html.escape(h_ip)}</code>
               </div>
-              <div style="padding: 8px 14px; background: #f8fafc; font-size: 11pt; color: #475569; border-bottom: 1px solid #e2e8f0;">
-                วิเคราะห์ความแตกต่างของ SAPI, Worker Model, เงื่อนไขจำเป็น (Prerequisites) และขอบเขตผลกระทบ เพื่อประเมินความเป็นไปได้ในการโจมตีจริง
+              <div style="padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <p class="adv-para" style="margin-bottom: 0;">
+                  การวิเคราะห์ความมั่นคงปลอดภัยเชิงลึกจำเป็นต้องพิจารณาความแตกต่างของสถาปัตยกรรมการให้บริการ (SAPI), รูปแบบการทำงานของเวิร์กเกอร์ (Worker Model), เงื่อนไขจำเป็นก่อนหน้า (Prerequisites) และขอบเขตผลกระทบต่อระบบงาน เพื่อประเมินความเป็นไปได้ในการถูกโจมตีจริงอย่างแม่นยำ มิใช่การตัดสินจากหมายเลขเวอร์ชันเพียงอย่างเดียว โดยผลการประเมินเชิงสถาปัตยกรรมจำแนกตามกลุ่มระบบของ ThaiCERT ปรากฏรายละเอียดดังต่อไปนี้:
+                </p>
               </div>
-              <table style="width: 100%; border-collapse: collapse; font-size: 10.5pt; text-align: left;">
-                <thead>
-                  <tr style="background: #f1f5f9; color: #334155; border-bottom: 2px solid #cbd5e1;">
-                    <th style="padding: 8px 10px; width: 22%;">กลุ่มระบบ / SAPI</th>
-                    <th style="padding: 8px 10px; width: 22%;">โมเดลเวิร์กเกอร์ (Worker Model)</th>
-                    <th style="padding: 8px 10px; width: 26%;">เงื่อนไขจำเป็น (Prerequisites)</th>
-                    <th style="padding: 8px 10px; width: 18%;">Exploit Chain ที่เข้าข่าย</th>
-                    <th style="padding: 8px 10px; width: 12%;">ความเชื่อมั่น</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div style="padding: 16px;">
             """
             for m in matrix:
-                conf_badge_color = "#e11d48" if m.get("exploitability") == "Confirmed" else ("#0284c7" if m.get("exploitability") == "Likely" else ("#d97706" if m.get("exploitability") == "Conditional" else "#64748b"))
-                chains_str = "<br>• ".join([html.escape(c) for c in m.get("chains_applicable", [])])
+                g_id = m.get("group_id")
+                profile = THAICERT_GROUP_PROFILES.get(g_id, {})
+                g_name = m.get("group_name") or profile.get("name") or f"กลุ่ม {g_id}"
+                sapi_val = m.get("sapi_detected") or profile.get("sapi_typical") or "ไม่ระบุ SAPI"
+                worker_val = m.get("worker_model") or profile.get("worker_model") or "Standard Process"
+                exploit_mech = m.get("exploit_chain_mechanism") or profile.get("exploit_chain_mechanism") or "ไม่มีข้อมูลกลไกในระบบ"
+                prereq_summary = m.get("prerequisite_summary") or "ไม่มีเงื่อนไขจำเป็นเพิ่มเติม"
+                impact_scope = m.get("impact_scope") or profile.get("impact_scope") or "ขอบเขตผลกระทบทั่วไป"
+                mitigation_val = m.get("mitigation") or profile.get("mitigation") or "ปรับปรุงเวอร์ชันและตรวจสอบการตั้งค่า"
+                exploitability = m.get("exploitability") or "Conditional"
+                chains_list = m.get("chains_applicable", [])
+                chains_text = ", ".join([html.escape(c) for c in chains_list]) if chains_list else "ไม่พบห่วงโซ่ที่เข้าข่าย"
+
+                conf_color = "#dc2626" if exploitability == "Confirmed" else ("#0284c7" if exploitability == "Likely" else ("#d97706" if exploitability == "Conditional" else "#64748b"))
+                conf_label = "ยืนยันเงื่อนไขครบถ้วน (Confirmed)" if exploitability == "Confirmed" else ("มีความเป็นไปได้สูง (Likely)" if exploitability == "Likely" else ("ขึ้นกับเงื่อนไขเฉพาะ (Conditional)" if exploitability == "Conditional" else ("ไม่มีผลกระทบ (Not Applicable)" if exploitability in ("Not Applicable", "Mitigated") else html.escape(exploitability))))
+
                 arch_matrix_html += f"""
-                  <tr style="border-bottom: 1px solid #e2e8f0;">
-                    <td style="padding: 8px 10px; vertical-align: top;">
-                      <strong>กลุ่ม {m.get('group_id')}:</strong> {html.escape(m.get('group_name', ''))}
-                      <br><span style="color: #64748b; font-size: 9.5pt;">SAPI: {html.escape(m.get('sapi_detected', ''))}</span>
-                    </td>
-                    <td style="padding: 8px 10px; vertical-align: top; color: #334155;">
-                      {html.escape(m.get('worker_model', ''))}
-                    </td>
-                    <td style="padding: 8px 10px; vertical-align: top; font-size: 10pt; color: #475569;">
-                      {html.escape(m.get('prerequisite_summary', ''))}
-                    </td>
-                    <td style="padding: 8px 10px; vertical-align: top; font-size: 9.5pt; color: #0f172a;">
-                      • {chains_str}
-                    </td>
-                    <td style="padding: 8px 10px; vertical-align: top;">
-                      <span style="font-weight: bold; color: {conf_badge_color};">{html.escape(m.get('exploitability', 'Conditional'))}</span>
-                    </td>
-                  </tr>
+                <div style="margin-bottom: 18px; padding: 14px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                    <div style="font-size: 15.5pt; font-weight: bold; color: #0f172a;">
+                      การวิเคราะห์สถาปัตยกรรมกลุ่ม: {html.escape(g_name)}
+                    </div>
+                    <div style="font-size: 10.5pt; font-weight: bold; padding: 2px 8px; border-radius: 4px; background: {conf_color}15; color: {conf_color}; border: 1px solid {conf_color};">
+                      ระดับความเป็นไปได้: {conf_label}
+                    </div>
+                  </div>
+
+                  <div style="font-size: 12.5pt; color: #475569; margin-bottom: 10px; background: #f8fafc; padding: 6px 10px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
+                    <strong>อินเตอร์เฟซ SAPI:</strong> <code>{html.escape(sapi_val)}</code> &nbsp;|&nbsp;
+                    <strong>รูปแบบเวิร์กเกอร์:</strong> <code>{html.escape(worker_val)}</code> &nbsp;|&nbsp;
+                    <strong>ห่วงโซ่ที่เข้าข่าย:</strong> <span style="color: #0f172a;">{chains_text}</span>
+                  </div>
+
+                  <p class="adv-para">
+                    จากการวิเคราะห์โครงสร้างระบบ พบว่าการเชื่อมโยงการประมวลผลทำงานผ่านอินเตอร์เฟซ <code>{html.escape(sapi_val)}</code> ภายใต้รูปแบบการบริหารจัดการเวิร์กเกอร์แบบ {html.escape(worker_val)} ซึ่งมีความสำคัญต่อวงรอบหน่วยความจำและขอบเขตการทำงานของโปรเซส ในแง่กลไกการทำงาน {html.escape(exploit_mech)}
+                  </p>
+
+                  <p class="adv-para">
+                    สำหรับการประเมินเงื่อนไขจำเป็นทางเทคนิค (Prerequisites) ที่จะทำให้การโจมตีสัมฤทธิ์ผล พบว่า {html.escape(prereq_summary)} ซึ่งหากขาดเงื่อนไขดังกล่าว การส่งคำขอโจมตีจะไม่สามารถขยายผลได้ ส่งผลให้ขอบเขตผลกระทบที่แท้จริงจำกัดอยู่ที่: {html.escape(impact_scope)} ทั้งนี้ แนวทางการยกระดับความมั่นคงปลอดภัยเชิงโครงสร้างที่แนะนำคือ {html.escape(mitigation_val)}
+                  </p>
+                </div>
                 """
+
             arch_matrix_html += """
-                </tbody>
-              </table>
+              </div>
             </div>
             """
         
@@ -941,10 +958,13 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 else:
                     cve_conf = "Conditional"
 
+            # Format finding title: Start with keyword "ค้นพบ" without numbers
+            finding_title = f"ค้นพบ {html.escape(cve_id)} {html.escape(cve_name)}"
+
             findings_html += f"""
             <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
-              <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px;">
-                ข้อค้นพบที่ ๒.{finding_idx}: {html.escape(cve_id)} — {html.escape(cve_name)}
+              <div style="font-size: 16.5pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
+                {finding_title}
               </div>
               <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                 <strong>ระบบเป้าหมายที่ได้รับผลกระทบ:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
@@ -1004,8 +1024,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
                     findings_html += f"""
                     <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
-                      <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px;">
-                        ข้อค้นพบที่ ๒.{finding_idx}: การตรวจสอบความมั่นคงปลอดภัยการจัดการเซสชัน — {html.escape(c_title)}
+                      <div style="font-size: 16.5pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
+                        ค้นพบ ข้อควรระวังด้านการจัดการเซสชัน: {html.escape(c_title)}
                       </div>
                       <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                         <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
@@ -1079,7 +1099,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         <strong>ข้อกำหนดการเผยแพร่ TLP:AMBER:</strong> เอกสารนี้ใช้สำหรับผู้รับและหน่วยงานที่เกี่ยวข้องตามความจำเป็นในการปฏิบัติงาน ผู้รับสามารถแบ่งปันต่อภายในหน่วยงานของตนและแก่ผู้เกี่ยวข้องที่จำเป็นต้องใช้ข้อมูลเพื่อป้องกัน แก้ไข หรือประเมินความเสี่ยง ทั้งนี้ต้องไม่เผยแพร่ต่อสาธารณะ และไม่ส่งต่อไปยังผู้ที่ไม่เกี่ยวข้องกับการดำเนินงาน
       </div>
 
-      <div class="adv-heading">ส่วนที่ ๑: สรุปผลการประเมินและภาพรวมความเสี่ยง (Executive Summary & Attack Surface)</div>
+      <div class="adv-heading">สรุปผลการประเมินและภาพรวมความเสี่ยงของพื้นผิวการโจมตี</div>
       <p class="adv-para">
         รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ฉบับนี้ จัดทำขึ้นเพื่อรายงานข้อค้นพบความเสี่ยงและแนวทางแก้ไขเชิงเทคนิค สำหรับผู้ดูแลระบบและผู้เกี่ยวข้องโดยตรง จากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในขอบเขต <code>{html.escape(target_scope)}</code> รวมทั้งสิ้น <strong>{total_scanned}</strong> ระบบ ได้ดำเนินการตรวจสอบตามขอบเขต วิธีการ และข้อมูลที่ระบุในเอกสารฉบับนี้ โดยอ้างอิงข้อมูลทางเทคนิคจากแหล่งที่เกี่ยวข้อง เช่น เอกสารผู้พัฒนา รายการ CVE และแนวปฏิบัติด้านความมั่นคงปลอดภัยที่เหมาะสมกับระบบ
       </p>
@@ -1087,7 +1107,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         ผลการประเมินพบข้อค้นพบจำนวน <strong>{crit_count + high_count + med_count}</strong> รายการ โดยแบ่งตามระดับความรุนแรงเป็นระดับวิกฤต (Critical) จำนวน <strong>{crit_count}</strong> รายการ, ระดับสูง (High) จำนวน <strong>{high_count}</strong> รายการ, ระดับปานกลาง (Medium) จำนวน <strong>{med_count}</strong> รายการ และรายการที่ยังไม่พบสัญญาณความเสี่ยงตามเงื่อนไขที่ตรวจสอบ จำนวน <strong>{safe_count}</strong> รายการ ทั้งนี้ ขอให้ผู้ดูแลระบบพิจารณาตรวจสอบข้อค้นพบตามลำดับความสำคัญ และดำเนินการแก้ไขหรือลดความเสี่ยงตามความเหมาะสม โดยให้ความสำคัญกับรายการที่มีหลักฐานยืนยันและเปิดให้เข้าถึงจากเครือข่ายก่อน
       </p>
 
-      <div class="adv-subhead">ตารางสรุปรายการอุปกรณ์และบริการที่ตรวจพบ (Asset & Service Inventory Ledger)</div>
+      <div class="adv-subhead">ตารางสรุปรายการทรัพย์สินสารสนเทศและบริการเครือข่ายที่ตรวจพบ</div>
       <div class="adv-table-wrap">
         <table class="adv-table">
           <thead>
@@ -1109,7 +1129,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
         <div class="sheet-footer-row">
-          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)</div>
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
           <div class="sheet-footer-center">TLP:AMBER ●</div>
           <div class="sheet-footer-right">1 | P a g e</div>
         </div>
@@ -1118,7 +1138,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
     <!-- PAGE 2+: Technical Findings & Hardening Blueprints -->
     <div class="a4-paper-sheet page-break-section" id="sheet-page-2">
-      <div class="adv-heading">ส่วนที่ ๒: การวิเคราะห์ข้อค้นพบเชิงลึกและพิมพ์เขียวการแก้ไข (In-Depth Technical Findings & Hardening Blueprints)</div>
+      <div class="adv-heading">การวิเคราะห์ข้อค้นพบทางเทคนิคเชิงลึกและแนวทางการยกระดับความมั่นคงปลอดภัย</div>
       <p class="adv-para">
         ส่วนนี้นำเสนอการวิเคราะห์เชิงลึกของข้อค้นพบด้านความมั่นคงปลอดภัย โดยระบุระดับความเชื่อมั่นของแต่ละข้อสรุปตามหลักฐานที่ตรวจพบ ได้แก่ ยืนยันแล้ว (Confirmed), มีแนวโน้ม (Likely), ต้องตรวจสอบเงื่อนไขเพิ่มเติม (Conditional) และยังยืนยันไม่ได้ (Unverified) พร้อมอธิบายกลไกและเงื่อนไขของความเสี่ยง คำสั่งสำหรับให้ผู้ดูแลระบบตรวจสอบบนเครื่องจริง และตัวอย่างการตั้งค่าที่ใช้เป็นแนวทางในการแก้ไขหรือลดความเสี่ยง
       </p>
@@ -1130,7 +1150,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
         <div class="sheet-footer-row">
-          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)</div>
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
           <div class="sheet-footer-center">TLP:AMBER ●</div>
           <div class="sheet-footer-right">2 | P a g e</div>
         </div>
@@ -1139,7 +1159,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
     <!-- PAGE 3: References & Sign-off -->
     <div class="a4-paper-sheet page-break-section" id="sheet-references">
-      <div class="adv-heading">ส่วนที่ ๓: เอกสารอ้างอิงและช่องทางประสานงาน (References & Incident Coordination)</div>
+      <div class="adv-heading">เอกสารอ้างอิงและช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัย</div>
       
       <p class="adv-para">
         การประเมินและการจัดทำเอกสารฉบับนี้ อ้างอิงตามกรอบมาตรฐานความมั่นคงปลอดภัยสารสนเทศและแนวปฏิบัติสากล ได้แก่:
@@ -1168,7 +1188,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
         <div class="sheet-footer-row">
-          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)</div>
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
           <div class="sheet-footer-center">TLP:AMBER ●</div>
           <div class="sheet-footer-right">3 | P a g e</div>
         </div>

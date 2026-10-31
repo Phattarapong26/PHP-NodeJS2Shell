@@ -78,7 +78,7 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
             cves.append({
                 "id": "CVE-2024-4577",
                 "cve": "CVE-2024-4577",
-                "name": "PHP CGI Argument Injection (php2shell)",
+                "name": "ช่องโหว่ระดับวิกฤตประเภท Argument Injection บนสถาปัตยกรรม PHP CGI",
                 "category": "PHP",
                 "severity": "Critical",
                 "cvss": 9.8,
@@ -95,7 +95,7 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
                 cves.append({
                     "id": "CVE-2026-109618",
                     "cve": "CVE-2026-109618",
-                    "name": "PHP Use-After-Free (OOM multipart bailout)",
+                    "name": "ช่องโหว่ระดับวิกฤตประเภท Use-After-Free จากเงื่อนไข OOM Multipart Bailout บน PHP",
                     "category": "PHP",
                     "severity": "Critical",
                     "cvss": 9.8,
@@ -107,7 +107,7 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
                 cves.append({
                     "id": "CVE-2026-109619",
                     "cve": "CVE-2026-109619",
-                    "name": "PHP Use-After-Free (stale global state in session)",
+                    "name": "ช่องโหว่ระดับวิกฤตประเภท Stale Global State ผ่าน Session Upload Progress บน PHP",
                     "category": "PHP",
                     "severity": "Critical",
                     "cvss": 9.8,
@@ -122,7 +122,7 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
             cves.append({
                 "id": "CVE-2026-115560",
                 "cve": "CVE-2026-115560",
-                "name": "PHP Session Upload Progress Injection",
+                "name": "ช่องโหว่การสลับรูปแบบ Serializer ผ่าน Session Upload Progress บน PHP",
                 "category": "PHP",
                 "severity": "Medium-High",
                 "cvss": 8.1,
@@ -137,7 +137,7 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
             cves.append({
                 "id": "CVE-2019-11043",
                 "cve": "CVE-2019-11043",
-                "name": "PHP-FPM FastCGI Underflow RCE",
+                "name": "ช่องโหว่ระดับวิกฤตประเภท Buffer Underflow บน PHP-FPM FastCGI ร่วมกับ NGINX",
                 "category": "PHP",
                 "severity": "Critical",
                 "cvss": 9.8,
@@ -153,7 +153,7 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
             cves.append({
                 "id": "CVE-2026-111497",
                 "cve": "CVE-2026-111497",
-                "name": "ช่องโหว่ Brotli decoder ใน Node.js (CVE-2026-111497)",
+                "name": "ช่องโหว่การประมวลผล Brotli Decoder บนสภาพแวดล้อม Node.js",
                 "alias": "Node2Shell",
                 "category": "Node.js",
                 "severity": "High",
