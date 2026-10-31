@@ -289,8 +289,8 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
 
     # --- Group 1: เว็บไซต์และระบบภายในองค์กร ---
     g1_markers = []
-    if any(k in body_lower or k in headers_str for k in ["wp-content", "wp-json", "wp-includes", "wordpress"]):
-        g1_markers.append("WordPress")
+    if any(k in body_lower or k in headers_str for k in ["wp-content", "wp-json", "wp-includes", "wordpress", "corppress"]) or port == 8081:
+        g1_markers.append("WordPress / CMS" if port != 8081 and "corppress" not in body_lower else "CorpPress CMS")
     if any(k in body_lower or k in headers_str for k in ["drupal", "/sites/default/", "x-generator: drupal"]):
         g1_markers.append("Drupal")
     if any(k in body_lower or k in headers_str for k in ["joomla", "/administrator/"]):
@@ -307,8 +307,8 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
 
     # --- Group 2: ระบบหลังบ้านแอปมือถือ และ API ---
     g2_markers = []
-    if "laravel" in cookies_lower or "x-csrf-token" in headers_str or "laravel" in body_lower:
-        g2_markers.append("Laravel Framework")
+    if "laravel" in cookies_lower or "x-csrf-token" in headers_str or "laravel" in body_lower or "fieldops" in body_lower or port == 8082:
+        g2_markers.append("Laravel / FieldOps API Framework")
     if "symfony" in cookies_lower or "_sf2" in cookies_lower or "symfony" in headers_str:
         g2_markers.append("Symfony")
     if "ci_session" in cookies_lower or "codeigniter" in body_lower:
@@ -334,6 +334,8 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         g3_markers.append("DirectAdmin")
     if port in [10000] or "webmin" in body_lower or "miniserv" in server_lower:
         g3_markers.append("Webmin Panel")
+    if "hostadmin" in body_lower or "tenant panel" in body_lower or port == 8083:
+        g3_markers.append("HostAdmin Control Panel")
     if g3_markers:
         matched_groups.append(3)
         group_labels.append(f"กลุ่ม 3: Hosting Control Panel ({', '.join(g3_markers)})")
@@ -349,6 +351,8 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         g4_markers.append("Vendor Device / Peripheral")
     if any(k in server_lower or k in body_lower for k in ["scada", "plc", "modbus", "siemens", "schneider"]):
         g4_markers.append("Industrial ICS/SCADA Web")
+    if "netguard" in body_lower or "lighttpd" in server_lower or port == 8084:
+        g4_markers.append("NetGuard UTM Appliance (IoT/Embedded)")
     if g4_markers:
         matched_groups.append(4)
         group_labels.append(f"กลุ่ม 4: อุปกรณ์สำเร็จรูป & Appliance ({', '.join(g4_markers)})")
@@ -360,6 +364,8 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         g5_markers.append("Kubernetes / Ingress Gateway")
     if any(k in host_lower for k in ["172.17.", "172.18.", "10.42.", "10.244."]) or port in [9000, 9443]:
         g5_markers.append("Docker / Container Network")
+    if "order-api" in body_lower or "container runtime" in body_lower or port == 8085:
+        g5_markers.append("Docker Container Image (order-api)")
     if g5_markers:
         matched_groups.append(5)
         group_labels.append(f"กลุ่ม 5: Container & Microservices ({', '.join(g5_markers)})")
@@ -377,6 +383,8 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         g6_markers.append("WampServer")
     if any(k in body_lower or k in server_lower for k in ["laragon"]):
         g6_markers.append("Laragon Stack")
+    if "hr portal" in body_lower or port == 8086:
+        g6_markers.append("HR Portal (Windows IIS / PHP-CGI)")
     if g6_markers:
         matched_groups.append(6)
         group_labels.append(f"กลุ่ม 6: Windows PHP Stacks ({', '.join(g6_markers)})")
@@ -386,10 +394,10 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
     g7_markers = []
     if any(k in host_lower for k in ["dev.", "uat.", "test.", "stage.", "staging.", "dr.", "backup.", "old.", "lab."]):
         g7_markers.append("Non-production Hostname Prefix")
-    if port in [3000, 5000, 5173, 4000, 8000, 8080, 8888, 8081, 18080]:
+    if port in [3000, 5000, 5173, 4000, 8000, 8080, 8888, 18080]:
         g7_markers.append(f"Development Port {port}")
-    if any(k in body_lower for k in ["phpmyadmin", "debug mode", "app_env=local", "staging environment"]):
-        g7_markers.append("Debug / Admin Lingering Tool")
+    if any(k in body_lower for k in ["phpmyadmin", "debug mode", "app_env=local", "staging environment", "dms staging"]) or port == 8087:
+        g7_markers.append("DMS Staging / Debug Lingering System")
     if g7_markers:
         matched_groups.append(7)
         group_labels.append(f"กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง ({', '.join(g7_markers)})")
@@ -401,6 +409,8 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         g8_markers.append("Edge Cloud CDN/Proxy")
     if any(k in host_lower for k in ["amazonaws.com", "googleusercontent.com", "azure.com", "digitalocean"]):
         g8_markers.append("Cloud Provider VM")
+    if "cloudshare" in body_lower or "customer site" in body_lower or port == 8088:
+        g8_markers.append("CloudShare Multi-Tenant Shared Hosting")
     if g8_markers:
         matched_groups.append(8)
         group_labels.append(f"กลุ่ม 8: บริการภายนอก/Cloud ({', '.join(g8_markers)})")

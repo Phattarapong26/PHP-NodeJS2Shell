@@ -109,6 +109,12 @@ def my_ip_route():
             "subnet": f"{user_ip}/32",
             "recommended": False
         })
+    presets.append({
+        "icon": "ph-flask",
+        "label": "จำลอง 8 ระบบ ThaiCERT Lab (127.0.0.1: พอร์ต 8081–8088)",
+        "subnet": "127.0.0.1",
+        "recommended": False
+    })
 
     return jsonify({
         "ip": user_ip,
@@ -417,9 +423,9 @@ def scan():
                     valid_ports.append(p_int)
             except (ValueError, TypeError):
                 continue
-        ports = valid_ports if valid_ports else [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 8081, 9000, 9090, 9999, 10000, 2222]
+        ports = valid_ports if valid_ports else [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
     else:
-        ports = [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 8081, 9000, 9090, 9999, 10000, 2222]
+        ports = [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
 
     host_strings = set(str(h) for h in hosts)
     curr_is_docker = net_info.get("is_docker", False)
