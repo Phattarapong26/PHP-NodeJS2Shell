@@ -14,6 +14,66 @@ Classifies targets into the 8 official ThaiCERT system groups:
 import re
 from typing import Dict, Any, List
 
+THAICERT_GROUP_PROFILES = {
+    1: {
+        "group_id": 1,
+        "name": "เว็บไซต์และระบบภายในองค์กร (CMS / Internal Web)",
+        "sapi_evaluation": "ประเมิน SAPI (Apache mod_php vs PHP-FPM) และ Request Buffering",
+        "risk_context": "ในหลายกรณี PHP จะ parse request body และ multipart upload ก่อนเรียก application entry point ทำให้ middleware อาจไม่มีโอกาสกรอง request ที่ทำให้เกิดปัญหาระดับ engine ได้ อย่างไรก็ตามต้องยืนยันตาม SAPI และ configuration จริง",
+        "confidence_default": "Conditional"
+    },
+    2: {
+        "group_id": 2,
+        "name": "ระบบหลังบ้านแอปมือถือ และ API (Frameworks & REST APIs)",
+        "sapi_evaluation": "ประเมินตาม SAPI และเส้นทาง Request ลำดับการประมวลผลก่อนเข้า Router",
+        "risk_context": "Framework Routing จัดการในระดับ Application Logic แต่ข้อผิดพลาดระดับ Engine Parsing เกิดก่อนเข้า Router จึงต้องประเมินพฤติกรรมการรับส่งข้อมูลจริง",
+        "confidence_default": "Conditional"
+    },
+    3: {
+        "group_id": 3,
+        "name": "Hosting Control Panel (cPanel, Plesk, DirectAdmin)",
+        "sapi_evaluation": "ตรวจสอบ process, SAPI, pool, socket และ privilege แยกกัน",
+        "risk_context": "บางระบบแยก PHP ระหว่างตัวจัดการกับเว็บไซต์ แต่บางระบบอาจแชร์ binary หรือ service ร่วมกัน ไม่ควรสมมติว่าแยกกันเสมอ แต่การแชร์ก็ไม่ได้แปลว่าจะเข้าถึง worker state ได้ทันที ต้องตรวจสอบสิทธิ์และ socket จริง",
+        "confidence_default": "Conditional"
+    },
+    4: {
+        "group_id": 4,
+        "name": "ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance, NAS, IoT)",
+        "sapi_evaluation": "ยืนยันความมีอยู่ของ PHP Runtime ก่อนประเมิน",
+        "risk_context": "อุปกรณ์ฮาร์ดแวร์มักใช้ Web Server แบบ Embedded (C/Lua/Go) ห้ามสรุปว่ามีช่องโหว่ PHP หากไม่พบ PHP Runtime จริงในระบบ",
+        "confidence_default": "Unverified"
+    },
+    5: {
+        "group_id": 5,
+        "name": "Container และ Docker Image (Docker, K8s, Podman)",
+        "sapi_evaluation": "ประเมิน Image Layer และ Deployment Configuration",
+        "risk_context": "การ restart container ช่วยล้าง worker state ชั่วคราว แต่ไม่ใช่การแก้ช่องโหว่ถาวร ต้องอัปเดต PHP package/runtime ให้เป็นรุ่นที่ patched ใน image หรือ deployment configuration",
+        "confidence_default": "Conditional"
+    },
+    6: {
+        "group_id": 6,
+        "name": "Windows ที่มี PHP ติดตั้งอยู่ (IIS, XAMPP, WampServer)",
+        "sapi_evaluation": "ประเมิน SAPI (FastCGI vs CGI vs mod_php) และเลขเวอร์ชันจริง",
+        "risk_context": "CVE-2024-4577 เป็นช่องโหว่สำคัญของ PHP-CGI บน Windows แต่การประเมินช่องโหว่ระดับ engine อื่นๆ ต้องพิจารณาตาม SAPI และเวอร์ชันจริง ไม่ควรใช้ OS เป็นตัวตัดสินเพียงอย่างเดียว",
+        "confidence_default": "Likely"
+    },
+    7: {
+        "group_id": 7,
+        "name": "ระบบทดสอบ ระบบเก่า และระบบสำรอง (Dev, UAT, Staging, DR, Snapshot)",
+        "sapi_evaluation": "ประเมิน Network Exposure สิทธิ์การเข้าถึง และการนำไปใช้งาน",
+        "risk_context": "ไฟล์สำรองหรือ snapshot หากเปิดเผยต่อเครือข่ายอาจเสี่ยงต่อข้อมูลรั่วไหล และหากถูก restore เป็นระบบที่เปิดใช้งานจริง จะกลับมาเป็น target ที่รัน PHP ได้",
+        "confidence_default": "Conditional"
+    },
+    8: {
+        "group_id": 8,
+        "name": "ระบบที่ผู้ให้บริการภายนอกดูแล (Shared Hosting, Cloud VM)",
+        "sapi_evaluation": "ประเมินระดับ Tenant Isolation, Pool Boundaries และ Worker Permissions",
+        "risk_context": "ระดับความเสี่ยงขึ้นกับ isolation ของผู้ให้บริการ การเข้าถึงข้ามบัญชีต้องพิสูจน์ว่า request ไปถึง PHP worker เดิมและมีสิทธิ์ใด",
+        "confidence_default": "Conditional"
+    }
+}
+
+
 def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_text: str, cookies_str: str, port: int, is_php: bool, is_node: bool, cms_name: str) -> dict:
     """
     Classifies the target host into the 8 ThaiCERT / NCSA target system groups:
@@ -167,10 +227,12 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
             group_evidence = ["General Network Service"]
 
     primary = group_labels[0]
+    unique_groups = sorted(list(set(matched_groups)))
     return {
-        "groups": sorted(list(set(matched_groups))),
+        "groups": unique_groups,
         "primary_group": primary,
         "group_labels": group_labels,
-        "evidence": list(set(group_evidence))
+        "evidence": list(set(group_evidence)),
+        "profiles": [THAICERT_GROUP_PROFILES[g] for g in unique_groups if g in THAICERT_GROUP_PROFILES]
     }
 

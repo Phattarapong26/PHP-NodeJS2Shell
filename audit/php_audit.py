@@ -349,9 +349,9 @@ def evaluate_security_chains(
             "name": "Memory Exhaustion Condition",
             "status": "RISK_EXPOSED" if (has_lfi and not is_patched) else "PASS",
             "badge": "VULN" if (has_lfi and not is_patched) else "PASS",
-            "detail": "ตรวจพบความเสี่ยง memory_limit ไม่เพียงพอและสภาพแวดล้อม Apache บนเวอร์ชัน unpatched เสี่ยงต่อ OOM" if (has_lfi and not is_patched) else "ตรวจสอบสถานการณ์ที่มีการส่งข้อมูลขนาดใหญ่เกินขีดจำกัด memory_limit ส่งผลให้เกิด Fatal Error",
-            "mechanism": "ตรวจสอบสถานการณ์ที่เซิร์ฟเวอร์ได้รับคำขอประมวลผลหรืออัปโหลดข้อมูลขนาดใหญ่มากจนการใช้งานหน่วยความจำเกินกว่าขีดจำกัด memory_limit ที่กำหนดไว้",
-            "check_item": "ประเมินค่าคอนฟิก memory_limit เทียบกับขนาดไฟล์อัปโหลดสูงสุด (upload_max_filesize, post_max_size)",
+            "detail": "คำขอขนาดใหญ่อาจทำให้เกิด memory exhaustion ได้ หากขนาดและรูปแบบ request ทำให้ PHP ใช้หน่วยความจำเกินขีดจำกัดจริง" if (has_lfi and not is_patched) else "ตรวจสอบสถานการณ์ที่คำขอขนาดใหญ่เกินขีดจำกัด memory_limit",
+            "mechanism": "ประเมินว่าคำขอประมวลผลหรืออัปโหลดข้อมูลมีโอกาสใช้หน่วยความจำเกินกว่าขีดจำกัด memory_limit หรือไม่ ซึ่งขึ้นกับ post_max_size, memory_limit, วิธีเก็บ upload, extension และการจัดสรรหน่วยความจำ",
+            "check_item": "ประเมินค่าคอนฟิก memory_limit เทียบกับขนาดคำขอสูงสุด (post_max_size) และพฤติกรรมการสตรีมมิ่ง",
             "defense_tip": "กำหนด memory_limit ให้เหมาะสม (เช่น 256M หรือ 512M) และจำกัดขนาดคำขอ post_max_size ไม่ให้เกินความจำเป็น"
         },
         {
@@ -486,8 +486,8 @@ def evaluate_security_chains(
         {"num": "6/6", "name": "payload execution", "status": "PASS" if (has_lfi and not is_patched) else "BLOCKED", "evidence": "command output: uid=33(www-data) gid=33(www-data)" if (has_lfi and not is_patched) else ("blocked: LFI prerequisite absent (chain broken)" if not has_lfi else "upload_progress disabled / session strictly managed")}
     ]
     chain_a_info = {
-        "problem": "ฟังก์ชัน session.upload_progress.enabled เปิดทำงานโดยค่าเริ่มต้น และเซิร์ฟเวอร์ไม่ได้เปิด session.use_strict_mode = 1 ทำให้เอนจิน PHP สร้างไฟล์เซสชันชั่วคราวขึ้นมาระหว่างการอัปโหลดไฟล์ และนำชื่อไฟล์ (Filename) จากคำขอภายนอกไปเขียนลงในไฟล์เซสชันโดยตรง",
-        "impact": "ความเสี่ยงระดับสูง (Critical / High): ผู้ส่งคำขอสามารถนำโค้ดหรือเพย์โหลดแฝงเข้าไปเขียนฝากไว้ในไฟล์เซสชันบนดิสก์ (/tmp/sess_*) ได้โดยไม่ต้องผ่านการยืนยันตัวตน",
+        "problem": "ในหลายกรณี PHP จะ parse request body และ multipart upload ก่อนเรียก application entry point ทำให้ middleware อาจไม่มีโอกาสกรอง request ที่ทำให้เกิดปัญหาระดับ engine ได้ อย่างไรก็ตามต้องยืนยันตาม SAPI และ configuration จริง โดยฟังก์ชัน session.upload_progress.enabled อาจบันทึกชื่อไฟล์จากภายนอกลงในไฟล์เซสชันชั่วคราว",
+        "impact": "ความเสี่ยงระดับสูง (High Risk): ผู้ส่งคำขอสามารถนำโค้ดหรือเพย์โหลดแฝงเข้าไปเขียนฝากไว้ในไฟล์เซสชันบนดิสก์ (/tmp/sess_*) ได้โดยไม่ต้องผ่านการยืนยันตัวตน",
         "vulnerability_vector": "หากเว็บแอปพลิเคชันมีจุดเรียกไฟล์ในเครื่อง (Local File Inclusion - LFI เช่น include($_GET['page'])), ไฟล์เซสชันที่มีโค้ดแฝงนี้จะถูกเรียกขึ้นมาประมวลผลทันที นำไปสู่การเข้าควบคุมระบบจากระยะไกล (Remote Code Execution - RCE)",
         "mitigation": "ปิดฟังก์ชัน Upload Progress ด้วย session.upload_progress.enabled = Off, กำหนด session.upload_progress.cleanup = On และบังคับใช้ session.use_strict_mode = 1 ใน php.ini"
     }
@@ -543,9 +543,9 @@ def evaluate_security_chains(
         {"num": "6/6", "name": "payload execution", "status": "PASS" if (has_lfi and not is_patched) else "BLOCKED", "evidence": "command output: uid=33(www-data) gid=33(www-data)" if (has_lfi and not is_patched) else ("blocked: LFI prerequisite absent (chain broken)" if not has_lfi else "OOM cleanup bypass prevented")}
     ]
     chain_d_info = {
-        "problem": "การตั้งค่าขีดจำกัดหน่วยความจำ (memory_limit) ต่ำเกินไป หรือเซิร์ฟเวอร์เปิดรับคำขอขนาดใหญ่เข้ามาประมวลผลจนเกิดข้อผิดพลาดหน่วยความจำหมด (Out-of-Memory / Fatal Error)",
-        "impact": "ความเสี่ยงระดับสูง (High Risk): เมื่อเกิด Fatal Error เอนจิน PHP จะหยุดการทำงานทันที (Halt Execution) ส่งผลให้ฟังก์ชันล้างไฟล์เซสชันชั่วคราว (Cleanup Mechanism) ถูกข้ามไป ทำให้ไฟล์เซสชันที่มีข้อมูลที่ส่งมาตกค้างอยู่บนดิสก์ถาวร",
-        "vulnerability_vector": "ปกติไฟล์เซสชันชั่วคราวจะมีอายุสั้นมากและต้องแข่งขันเรื่องเวลา (Race Condition) แต่เมื่อเกิด OOM ไฟล์จะค้างอยู่ถาวร ทำให้ผู้ส่งคำขอสามารถเรียกไฟล์ผ่านช่องโหว่ LFI ได้ตลอดเวลาโดยไม่ต้องแข่งขันเวลา",
+        "problem": "คำขอขนาดใหญ่อาจทำให้เกิด memory exhaustion ได้ หากขนาดและรูปแบบ request ทำให้ PHP ใช้หน่วยความจำเกินขีดจำกัดจริง (memory_limit) ส่งผลให้เกิด Fatal Error และข้ามขั้นตอนการล้างไฟล์ชั่วคราว",
+        "impact": "ความเสี่ยงระดับสูง (High Risk): เมื่อเกิด Fatal Error เอนจิน PHP จะหยุดการทำงานทันที (Halt Execution) ส่งผลให้ฟังก์ชันล้างไฟล์เซสชันชั่วคราว (Cleanup Mechanism) ถูกข้ามไป ทำให้ไฟล์เซสชันตกค้างบนดิสก์",
+        "vulnerability_vector": "ปกติไฟล์เซสชันชั่วคราวจะมีอายุสั้นมากและต้องแข่งขันเรื่องเวลา (Race Condition) แต่เมื่อเกิด OOM ไฟล์จะค้างอยู่ ทำให้ผู้ประเมินสามารถเรียกไฟล์ผ่านช่องโหว่ LFI ได้",
         "mitigation": "ปรับ memory_limit = 256M, แยกโฟลเดอร์เซสชันออกจาก /tmp ด้วย session.save_path = \"/var/lib/php/sessions\" (กำหนดสิทธิ์ 0700) และตั้ง Cron Job ล้างไฟล์เซสชันอัตโนมัติ"
     }
 
@@ -562,11 +562,19 @@ def evaluate_security_chains(
         {"num": "6/6", "name": "consumer read (stale BG state)", "status": "UNVERIFIED", "evidence": "consumer state leak not observed -- exploitation chain incomplete"}
     ]
     chain_e_info = {
-        "problem": "เซิร์ฟเวอร์ใช้สถาปัตยกรรม PHP-FPM แบบ Worker Process Pool ที่นำโพรเซสกลับมาใช้ใหม่เรื่อยๆ โดยไม่ได้ตั้งค่ารีไซเคิลเวิร์กเกอร์ (pm.max_requests = 0 ทำงานไม่จำกัดรอบ)",
+        "problem": "เซิร์ฟเวอร์ใช้สถาปัตยกรรม PHP-FPM แบบ Worker Process Pool ที่นำโพรเซสกลับมาใช้ใหม่เรื่อยๆ (pm.max_requests = 0) หากเกิด Bailout ระหว่างจัดสรรบัฟเฟอร์ อาจทิ้งค่าสถานะตกค้างใน Buffer Globals ตามที่ระบุใน GHSA-6wmf-4rv5-p3rp",
         "impact": "ความเสี่ยงเชิงสถาปัตยกรรม (Architectural Precondition): หากเกิด Out-of-Memory หรือ Bailout ระหว่างจัดสรรบัฟเฟอร์ ค่าสถานะเดิมใน Buffer Globals (BG()) ของเวิร์กเกอร์อาจไม่ถูกเคลียร์กลับสู่ค่าเริ่มต้น",
         "vulnerability_vector": "ตามเงื่อนไขของ GHSA-6wmf-4rv5-p3rp การโจมตีต้องประกอบด้วย 3 สเต็ป: (1) Producer ส่งคำขอให้เกิด Bailout ใน BG(), (2) คำขอถัดไปเข้าถึงเวิร์กเกอร์ตัวเดิม, (3) Consumer อ่านสถานะเดิมก่อนรีเซ็ต หากไม่มีครบทั้ง 3 เงื่อนไข จะไม่เกิด RCE",
-        "mitigation": "กำหนด pm.max_requests = 500 ในไฟล์คอนฟิกพูลของ PHP-FPM (/etc/php/*/fpm/pool.d/www.conf) เพื่อบังคับให้เวิร์กเกอร์รีไซเคิลกระบวนการใหม่สม่ำเสมอ และอัปเดต PHP เป็นเวอร์ชัน 8.2.20+ / 8.3.8+"
+        "mitigation": "กำหนด pm.max_requests = 500 ในไฟล์คอนฟิกพูลของ PHP-FPM (/etc/php/*/fpm/pool.d/www.conf) เพื่อให้เวิร์กเกอร์รีไซเคิลอย่างสม่ำเสมอ และอัปเดต PHP package/runtime ให้เป็นรุ่นที่ patched ใน image หรือ deployment configuration"
     }
+
+    # Confidence Rating Framework per NIST/MITRE/NCSA Guidelines
+    # Levels: Confirmed, Likely, Conditional, Unverified, Not Applicable
+    conf_a = "Confirmed" if (has_lfi and not is_patched) else ("Not Applicable" if not has_lfi else "Conditional")
+    conf_b = "Confirmed" if (expose_php or has_error_leak) else "Confirmed"
+    conf_c = "Likely" if (has_serializer_mismatch and has_object_deserialization) else ("Conditional" if (has_serializer_mismatch or has_object_deserialization) else "Not Applicable")
+    conf_d = "Conditional" if (has_lfi and not is_patched) else ("Not Applicable" if not has_lfi else "Conditional")
+    conf_e = "Conditional" if (is_fpm and not is_patched) else ("Not Applicable" if not is_fpm else "Conditional")
 
     has_any_vuln = any("VULNERABLE" in c for c in [chain_a_verdict, chain_b_verdict, chain_c_verdict, chain_d_verdict, chain_e_verdict])
     if has_any_vuln:
@@ -586,6 +594,7 @@ def evaluate_security_chains(
                 "short_title": "session.upload_progress filename injection + LFI",
                 "verdict": chain_a_verdict,
                 "verdict_code": chain_a_verdict_code,
+                "confidence": conf_a,
                 "stages_display": chain_a_stages_display,
                 "missing": chain_a_missing,
                 "stuck_at": None if (has_lfi and not is_patched) else ("stage 5/6 (LFI prerequisite)" if not has_lfi else None),
@@ -601,6 +610,7 @@ def evaluate_security_chains(
                 "short_title": "Information Disclosure (expose_php & Reconnaissance)",
                 "verdict": chain_b_verdict,
                 "verdict_code": chain_b_verdict_code,
+                "confidence": conf_b,
                 "stages_display": chain_b_stages_display,
                 "missing": chain_b_missing,
                 "stuck_at": None,
@@ -616,6 +626,7 @@ def evaluate_security_chains(
                 "short_title": "serializer-handler mismatch -> Object Deserialization Risk",
                 "verdict": chain_c_verdict,
                 "verdict_code": chain_c_verdict_code,
+                "confidence": conf_c,
                 "stages_display": chain_c_stages_display,
                 "missing": chain_c_missing,
                 "stuck_at": "stage 5/6 (trigger)" if (has_serializer_mismatch and not has_object_deserialization) else None,
@@ -631,6 +642,7 @@ def evaluate_security_chains(
                 "short_title": "OOM skips cleanup -> poisoned session -> LFI",
                 "verdict": chain_d_verdict,
                 "verdict_code": chain_d_verdict_code,
+                "confidence": conf_d,
                 "stages_display": chain_d_stages_display,
                 "missing": chain_d_missing,
                 "stuck_at": None if (has_lfi and not is_patched) else ("stage 5/6 (LFI prerequisite)" if not has_lfi else None),
@@ -646,6 +658,7 @@ def evaluate_security_chains(
                 "short_title": "PHP-FPM Stale Global State Precondition (GHSA-6wmf-4rv5-p3rp)",
                 "verdict": chain_e_verdict,
                 "verdict_code": chain_e_verdict_code,
+                "confidence": conf_e,
                 "stages_display": chain_e_stages_display,
                 "missing": chain_e_missing,
                 "stuck_at": None,

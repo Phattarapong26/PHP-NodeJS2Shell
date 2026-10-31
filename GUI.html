@@ -3565,9 +3565,10 @@ Content-Type: text/html; charset=UTF-8</div>
 
           <!-- Chain Verdict & Missing Footer -->
           <div class="pt-1.5 text-[11px] font-mono pl-2 sm:pl-4 text-slate-300 space-y-0.5">
-            <div>verdict : <b class="${(vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400' : ((vCode === 'INCONCLUSIVE' || vCode === 'REVIEW' || vCode === 'ARCHITECTURAL_RISK') ? 'text-amber-400' : 'text-emerald-400')}">${vCode}</b></div>
-            ${chain.stuck_at ? `<div class="text-amber-400">stuck at: ${escapeHtml(chain.stuck_at)}</div>` : ''}
-            <div class="text-slate-400">missing : ${escapeHtml(chain.missing || 'nothing -- every stage passed')}</div>
+            <div>verdict    : <b class="${(vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400' : ((vCode === 'INCONCLUSIVE' || vCode === 'REVIEW' || vCode === 'ARCHITECTURAL_RISK') ? 'text-amber-400' : 'text-emerald-400')}">${vCode}</b></div>
+            <div>confidence : <span class="font-bold text-sky-400">${escapeHtml(chain.confidence || 'Conditional')}</span></div>
+            ${chain.stuck_at ? `<div class="text-amber-400">stuck at  : ${escapeHtml(chain.stuck_at)}</div>` : ''}
+            <div class="text-slate-400">missing   : ${escapeHtml(chain.missing || 'nothing -- every stage passed')}</div>
           </div>
         </div>
       `;
@@ -3587,6 +3588,7 @@ Content-Type: text/html; charset=UTF-8</div>
             <td class="py-1.5 px-2.5 font-bold text-cyan-300">${tag}</td>
             <td class="py-1.5 px-2.5 text-slate-400">${ch.stages_display || '6/6'}</td>
             <td class="py-1.5 px-2.5 ${vColor}">${vCode}</td>
+            <td class="py-1.5 px-2.5 text-sky-400 font-semibold">${escapeHtml(ch.confidence || 'Conditional')}</td>
             <td class="py-1.5 px-2.5 text-slate-400 truncate max-w-xs">${escapeHtml(ch.missing || 'nothing')}</td>
           </tr>
         `;
@@ -3601,6 +3603,7 @@ Content-Type: text/html; charset=UTF-8</div>
                   <th class="py-1.5 px-2.5 font-bold">CHAIN</th>
                   <th class="py-1.5 px-2.5 font-bold">STAGE</th>
                   <th class="py-1.5 px-2.5 font-bold">VERDICT</th>
+                  <th class="py-1.5 px-2.5 font-bold">CONFIDENCE</th>
                   <th class="py-1.5 px-2.5 font-bold">MISSING</th>
                 </tr>
               </thead>

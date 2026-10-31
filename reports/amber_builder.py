@@ -831,6 +831,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             }
             cve_sev_th = sev_th_map.get(cve_sev, f"ระดับ {cve_sev}")
 
+            cve_conf = "Confirmed" if c.get("confidence") == "Confirmed" else ("Likely" if ("cve-2024-4577" in cve_id.lower() or "node" in cat.lower()) else "Conditional")
+
             findings_html += f"""
             <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
               <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px;">
@@ -840,7 +842,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 <strong>ระบบเป้าหมายที่ได้รับผลกระทบ:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
                 <strong>หมวดหมู่เทคโนโลยี:</strong> {html.escape(cat)} &nbsp;|&nbsp; 
                 <strong>ระดับความรุนแรง:</strong> {cve_sev_th} &nbsp;|&nbsp; 
-                <strong>คะแนนมาตรฐาน CVSS:</strong> {cvss}
+                <strong>คะแนนมาตรฐาน CVSS:</strong> {cvss} &nbsp;|&nbsp;
+                <strong>ระดับความเชื่อมั่น (Confidence):</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(cve_conf)}</span>
               </div>
 
               <p class="adv-para">
@@ -889,6 +892,8 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
                     else:
                         eval_status_desc = "ควรตรวจสอบและปรับปรุงการตั้งค่า (Review & Hardening)"
                     
+                    c_conf = c_val.get("confidence") or "Conditional"
+
                     findings_html += f"""
                     <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
                       <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px;">
@@ -896,7 +901,8 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
                       </div>
                       <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                         <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
-                        <strong>สถานะการประเมิน:</strong> {html.escape(eval_status_desc)}
+                        <strong>สถานะการประเมิน:</strong> {html.escape(eval_status_desc)} &nbsp;|&nbsp;
+                        <strong>ระดับความเชื่อมั่น (Confidence):</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(c_conf)}</span>
                       </div>
                       <p class="adv-para">
                         จากการตรวจสอบค่าคอนฟิกและพฤติกรรมการจัดการเซสชัน {html.escape(c_verdict)} ซึ่งขอแนะนำให้ผู้ดูแลระบบพิจารณาปรับปรุงค่ากำหนดในไฟล์คอนฟิก {html.escape(c_remedy)} เพื่อลดความเสี่ยงที่อาจเกิดขึ้น
@@ -1006,7 +1012,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
     <div class="a4-paper-sheet page-break-section" id="sheet-page-2">
       <div class="adv-heading">ส่วนที่ ๒: การวิเคราะห์ข้อค้นพบเชิงลึกและพิมพ์เขียวการแก้ไข (In-Depth Technical Findings & Hardening Blueprints)</div>
       <p class="adv-para">
-        ในส่วนนี้เป็นการวิเคราะห์เชิงลึกเกี่ยวกับข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยที่ตรวจพบ พร้อมทั้งระบุมาตรฐานอ้างอิงระดับสากล กลไกความเสี่ยง และชุดคำสั่งสำหรับให้ผู้ดูแลระบบนำไปรันตรวจสอบบนเครื่องเซิร์ฟเวอร์จริง (Host Verification CLI) เพื่อยืนยันสถานะความปลอดภัย ตลอดจนตัวอย่างไฟล์คอนฟิกสำหรับการแก้ไขปรับปรุงระบบให้มีความมั่นคงปลอดภัยสอดคล้องกับมาตรฐาน
+        ในส่วนนี้เป็นการวิเคราะห์เชิงลึกเกี่ยวกับข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยที่ตรวจพบ พร้อมทั้งระบุระดับความเชื่อมั่นตามกรอบการประเมินเชิงประจักษ์ (Evidence-based Confidence Levels: Confirmed, Likely, Conditional, Unverified) มาตรฐานอ้างอิงระดับสากล กลไกความเสี่ยง และชุดคำสั่งสำหรับให้ผู้ดูแลระบบนำไปรันตรวจสอบบนเครื่องเซิร์ฟเวอร์จริง (Host Verification CLI) เพื่อยืนยันสถานะความปลอดภัย ตลอดจนตัวอย่างไฟล์คอนฟิกสำหรับการแก้ไขปรับปรุงระบบให้มีความมั่นคงปลอดภัยสอดคล้องกับมาตรฐาน
       </p>
 
       {findings_html}
