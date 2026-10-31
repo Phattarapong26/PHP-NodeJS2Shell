@@ -225,5 +225,24 @@ class TestRceVerifierAndSafetyGate(unittest.TestCase):
         self.assertIsNone(res["audit_trail"])
 
 
+    def test_gui_html_javascript_syntax(self):
+        """Verify that GUI.html has valid JavaScript syntax with balanced braces and no parser errors."""
+        import os, re, subprocess
+        gui_path = os.path.join(os.path.dirname(__file__), "..", "GUI.html")
+        with open(gui_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        scripts = re.findall(r"<script>([\s\S]*?)</script>", html)
+        self.assertTrue(len(scripts) > 0, "No script tag found in GUI.html")
+        
+        # Test using jsc if available
+        jsc_bin = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
+        if os.path.exists(jsc_bin):
+            test_file = "/tmp/test_gui_syntax_check.js"
+            with open(test_file, "w", encoding="utf-8") as f:
+                f.write(scripts[0])
+            res = subprocess.run([jsc_bin, test_file], capture_output=True, text=True)
+            self.assertNotIn("SyntaxError", res.stderr + res.stdout, f"JavaScript SyntaxError in GUI.html: {res.stderr}")
+
+
 if __name__ == "__main__":
     unittest.main()
