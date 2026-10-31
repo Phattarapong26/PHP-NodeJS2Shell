@@ -1,6 +1,6 @@
 """
-ThaiCERT & NCSA Compliance Rules
-Classifies targets into the 8 official ThaiCERT system groups:
+Heuristic Archetype Classification Rules
+Classifies targets into 8 organizational archetype profiles tailored for typical Thai IT & web infrastructure:
 1. เว็บไซต์และระบบภายในองค์กร (CMS / Internal Web)
 2. ระบบหลังบ้านแอปมือถือ และ API
 3. Hosting Control Panel
@@ -9,6 +9,9 @@ Classifies targets into the 8 official ThaiCERT system groups:
 6. Windows ที่มี PHP ติดตั้งอยู่ (CVE-2024-4577 Priority)
 7. ระบบทดสอบ ระบบเก่า และระบบสำรอง
 8. ระบบที่ผู้ให้บริการภายนอกดูแล
+
+NOTE: These 8 profiles are heuristic architectural archetypes formulated by this tool's author
+to categorize observed web assets. They do not constitute an officially published government standard by ThaiCERT/NCSA.
 """
 
 import re

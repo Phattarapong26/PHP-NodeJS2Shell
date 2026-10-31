@@ -33,10 +33,10 @@ from audit.rce_prover import probe_active_rce_proof
 
 async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_text: str, req_headers: dict) -> dict:
     """
-    Non-destructive LFI Prerequisite Verification:
-    Tests whether the target web application has an active parameter that feeds into PHP file inclusion functions.
-    Dispatches a benign diagnostic canary probe and looks for real PHP stream/include errors.
-    Avoids false alarms and eliminates mock/hardcoded assumptions.
+    Heuristic LFI Prerequisite Probing:
+    Tests whether the target web application has common parameters (?page=, ?file=) that trigger PHP include/stream errors.
+    NOTE: This is a limited blackbox heuristic test. Absence of error indicators only means LFI was not observed
+    via tested basic parameters, and does NOT prove the absence of LFI vulnerabilities elsewhere in the application.
     """
     canary_token = "thaicert_audit_probe_canary_test"
     found_params = set()
@@ -80,9 +80,9 @@ async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_
         "has_lfi_prerequisite": False,
         "tested_url": f"{base_url}/?page={canary_token}",
         "param": None,
-        "status": "PREREQUISITE_ABSENT",
-        "evidence": "ไม่พบพารามิเตอร์เรียกไฟล์และไม่พบสัญญาณข้อผิดพลาด include stream",
-        "badge": "SECURE"
+        "status": "NOT_OBSERVED_VIA_PROBE",
+        "evidence": "ไม่พบข้อผิดพลาด include stream จากพารามิเตอร์ทดสอบพื้นฐาน (?page, ?file) — ไม่สามารถสรุปได้ว่าระบบปราศจาก LFI ในส่วนอื่น",
+        "badge": "INFO"
     }
 
 async def check_tcp_port(ip: str, port: int, timeout: float = 0.15) -> bool:
@@ -461,7 +461,7 @@ async def probe_endpoint(
             "status_code": resp.status_code,
             "status_text": f"{resp.status_code} {getattr(resp, 'reason_phrase', 'OK')}",
             "latency": latency,
-            "audit_strategy": "Non-destructive Passive Audit (การตรวจสอบเชิงรับ ไม่รบกวนการทำงาน)",
+            "audit_strategy": "Initial Passive Banner & Header Inspection (การตรวจสอบส่วนหัวเบื้องต้น)",
             "request_headers": req_headers,
             "response_headers": response_headers_display,
             "all_response_headers": dict(headers),
