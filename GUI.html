@@ -646,173 +646,212 @@
       <div class="neu-modal-surface w-full max-w-5xl max-h-[88vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300">
         
         <!-- Results Header matching Neumorphic Aesthetic -->
-        <div class="px-6 py-4 bg-gradient-to-r from-white/95 via-slate-50/90 to-blue-50/70 border-b border-slate-200/70 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div id="resultsHeaderIcon" class="w-10 h-10 rounded-2xl outer-dish flex items-center justify-center text-blue-600 shadow-sm">
-              <i class="ph-bold ph-shield-check text-xl"></i>
+        <div class="px-6 py-4 bg-gradient-to-r from-white via-slate-50/90 to-blue-50/50 border-b border-slate-200/70 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div id="resultsHeaderIcon" class="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
+              <i class="ph-bold ph-shield-check text-2xl"></i>
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h2 class="text-base sm:text-lg font-bold text-slate-800">ผลการสแกนและตรวจสอบอุปกรณ์ในเครือข่าย</h2>
-                <span id="badgeFilteredCount" class="text-xs bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200 font-semibold shadow-inner">พบ 0 เครื่อง</span>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <h2 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">ผลการสแกนและตรวจสอบอุปกรณ์ในเครือข่าย</h2>
+                <span id="badgeFilteredCount" class="text-xs bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200 font-semibold shadow-2xs inline-flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <span>พบ 0 เครื่อง</span>
+                </span>
               </div>
-              <p id="resultsSubHeader" class="text-xs text-slate-500 mt-0.5">ตรวจพบอุปกรณ์ออนไลน์จาก DHCP และคัดกรองความปลอดภัย PHP ตามเกณฑ์ ThaiCERT</p>
+              <p id="resultsSubHeader" class="text-xs text-slate-500 mt-0.5 truncate">ตรวจพบอุปกรณ์ออนไลน์จาก DHCP และคัดกรองความปลอดภัยตามเกณฑ์ ThaiCERT / สกมช.</p>
             </div>
           </div>
           
-          <div class="flex items-center gap-2.5">
-            <button id="btnExportAmberPdfModal" class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-500 border border-amber-500 shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="ออกรายงานความมั่นคงปลอดภัยตามมาตรฐาน สกมช. (TLP:AMBER PDF)">
-              <i class="ph-bold ph-file-pdf text-sm text-amber-950"></i>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button id="btnExportAmberPdfModal" class="px-3.5 py-2 rounded-xl text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 via-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 border border-amber-400/80 shadow-xs hover:shadow transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95" title="ออกรายงานความมั่นคงปลอดภัยตามมาตรฐาน สกมช. (TLP:AMBER PDF)">
+              <i class="ph-fill ph-file-pdf text-base text-amber-950"></i>
               <span>ออกรายงาน TLP:AMBER (PDF)</span>
             </button>
-            <button id="btnExportReport" class="px-3 py-1.5 rounded-xl neu-pill-btn text-xs font-semibold flex items-center gap-1.5 transition text-slate-700 hover:text-blue-600" title="ส่งออกรายงานเป็นไฟล์ CSV">
+            <button id="btnExportReport" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 transition text-slate-700 hover:text-blue-600 shadow-2xs active:scale-95 cursor-pointer" title="ส่งออกรายงานเป็นไฟล์ CSV">
               <i class="ph-bold ph-download-simple text-blue-600"></i>
-              <span>Export CSV</span>
+              <span class="hidden sm:inline">Export CSV</span>
             </button>
-            <button id="btnCloseResults" class="w-8 h-8 rounded-full neu-pill-btn text-slate-500 hover:text-slate-800 flex items-center justify-center transition">
+            <button id="btnCloseResults" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition active:scale-95 cursor-pointer" title="ปิดหน้าต่าง">
               <i class="ph-bold ph-x text-base"></i>
             </button>
           </div>
         </div>
 
         <!-- Dynamic Status Notification Banner -->
-        <div id="resultsStatusBanner" class="px-6 py-2.5 bg-emerald-50/90 border-b border-emerald-200/80 flex items-center justify-between text-xs text-emerald-900 backdrop-blur-sm">
-          <div class="flex items-center gap-2">
-            <i id="bannerStatusIcon" class="ph-bold ph-check-circle text-emerald-600 text-base flex-shrink-0"></i>
-            <span id="bannerStatusText" class="font-medium">ผลการสแกนเครือข่ายความปลอดภัย</span>
+        <div id="resultsStatusBanner" class="px-6 py-2.5 bg-gradient-to-r from-emerald-50/95 via-emerald-50/60 to-white/90 border-b border-emerald-200/70 flex items-center justify-between text-xs text-emerald-950 backdrop-blur-sm transition-all duration-200">
+          <div class="flex items-center gap-2.5 min-w-0 pr-3">
+            <div id="bannerStatusIconWrap" class="w-6 h-6 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center flex-shrink-0 text-emerald-600 shadow-2xs">
+              <i id="bannerStatusIcon" class="ph-bold ph-check-circle text-sm"></i>
+            </div>
+            <span id="bannerStatusText" class="font-medium truncate sm:whitespace-normal">ผลการสแกนเครือข่ายความปลอดภัย</span>
           </div>
-          <span class="text-[11px] font-semibold text-slate-500 font-mono" id="bannerScannedTargetText"></span>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-[11px] font-semibold text-slate-600 font-mono bg-white/90 px-2.5 py-0.5 rounded-lg border border-slate-200/80 shadow-2xs" id="bannerScannedTargetText"></span>
+          </div>
         </div>
 
         <!-- ThaiCERT 8 Groups Inspection Matrix (NCSA Guidelines) -->
-        <div class="px-6 py-2.5 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50/70 border-b border-slate-200/70">
-          <div class="flex items-center justify-between mb-1.5">
+        <div class="px-6 py-3 bg-gradient-to-r from-slate-50/90 via-blue-50/30 to-slate-50/90 border-b border-slate-200/70">
+          <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
-              <div class="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+              <div class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
                 <i class="ph-bold ph-squares-four"></i>
               </div>
-              <span class="font-bold text-slate-800 text-xs sm:text-sm">ตรวจสอบ PHP ให้ครบ 8 กลุ่มระบบ (เกณฑ์แนะนำ ThaiCERT / สกมช.)</span>
+              <span class="font-bold text-slate-800 text-xs sm:text-sm">การจำแนก 8 กลุ่มระบบความมั่นคงปลอดภัย (เกณฑ์ ThaiCERT / สกมช.)</span>
+              <span class="text-[11px] text-slate-400 hidden sm:inline">· คลิกการ์ดเพื่อกรองอุปกรณ์เฉพาะกลุ่ม</span>
             </div>
             <div class="flex items-center gap-2">
-              <span id="activeGroupFilterTag" class="hidden px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-300 items-center gap-1 cursor-pointer transition hover:bg-blue-200" onclick="clearGroupFilter()" title="คลิกเพื่อยกเลิกตัวกรอง">
+              <span id="activeGroupFilterTag" class="hidden px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-300 items-center gap-1.5 cursor-pointer transition hover:bg-blue-200 shadow-2xs" onclick="clearGroupFilter()" title="คลิกเพื่อยกเลิกตัวกรอง">
                 <span id="activeGroupFilterName">กลุ่ม 1</span>
                 <i class="ph-bold ph-x text-xs"></i>
               </span>
-              <span class="text-[10px] text-slate-400">คลิกการ์ดเพื่อกรองตามกลุ่มระบบ</span>
             </div>
           </div>
           
           <!-- 8 Interactive Cards Grid -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5" id="thaicertGroupGrid">
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2" id="thaicertGroupGrid">
             <!-- Group 1 -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-blue-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="1" onclick="toggleGroupFilter(1)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded border border-blue-200">กลุ่ม 1</span>
-                <i class="ph-bold ph-globe text-blue-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="1" onclick="toggleGroupFilter(1)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-blue-700 font-mono bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-200/80">ก.1</span>
+                <div class="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200/60">
+                  <i class="ph-bold ph-globe text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-700 leading-tight">เว็บไซต์ / CMS</div>
-              <div class="text-[9px] text-slate-400 truncate" title="WordPress, Drupal, Joomla, Moodle">WordPress, Moodle</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount1">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">เว็บไซต์ / CMS</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="WordPress, Drupal, Joomla, Moodle">WordPress, CMS</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount1"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
             <!-- Group 2 -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-indigo-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="2" onclick="toggleGroupFilter(2)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1 py-0.2 rounded border border-indigo-200">กลุ่ม 2</span>
-                <i class="ph-bold ph-code text-indigo-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-indigo-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="2" onclick="toggleGroupFilter(2)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-indigo-700 font-mono bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-200/80">ก.2</span>
+                <div class="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-200/60">
+                  <i class="ph-bold ph-code text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-700 leading-tight">แอป & API</div>
-              <div class="text-[9px] text-slate-400 truncate" title="Laravel, Symfony, REST API">Laravel, API</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount2">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">แอป & API</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="Laravel, Symfony, REST API">Laravel, API</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount2"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
             <!-- Group 3 -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-purple-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="3" onclick="toggleGroupFilter(3)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200">กลุ่ม 3</span>
-                <i class="ph-bold ph-gauge text-purple-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-purple-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="3" onclick="toggleGroupFilter(3)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-purple-700 font-mono bg-purple-50 px-1.5 py-0.5 rounded-md border border-purple-200/80">ก.3</span>
+                <div class="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-200/60">
+                  <i class="ph-bold ph-gauge text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-700 leading-tight">Control Panel</div>
-              <div class="text-[9px] text-slate-400 truncate" title="cPanel, Plesk, DirectAdmin">cPanel, Plesk</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount3">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">Control Panel</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="cPanel, Plesk, DirectAdmin">cPanel, Plesk</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount3"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
             <!-- Group 4 -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-amber-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="4" onclick="toggleGroupFilter(4)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">กลุ่ม 4</span>
-                <i class="ph-bold ph-hard-drives text-amber-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-amber-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="4" onclick="toggleGroupFilter(4)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-amber-700 font-mono bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/80">ก.4</span>
+                <div class="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200/60">
+                  <i class="ph-bold ph-hard-drives text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-700 leading-tight">อุปกรณ์ & NAS</div>
-              <div class="text-[9px] text-slate-400 truncate" title="Appliance, NAS Synology/QNAP">Appliance, NAS</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount4">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">อุปกรณ์ & NAS</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="Appliance, NAS Synology/QNAP">Appliance, NAS</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount4"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
             <!-- Group 5 -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-cyan-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="5" onclick="toggleGroupFilter(5)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-cyan-700 bg-cyan-50 px-1 py-0.2 rounded border border-cyan-200">กลุ่ม 5</span>
-                <i class="ph-bold ph-package text-cyan-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-cyan-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="5" onclick="toggleGroupFilter(5)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-cyan-700 font-mono bg-cyan-50 px-1.5 py-0.5 rounded-md border border-cyan-200/80">ก.5</span>
+                <div class="w-6 h-6 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center border border-cyan-200/60">
+                  <i class="ph-bold ph-package text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-700 leading-tight">Container / K8s</div>
-              <div class="text-[9px] text-slate-400 truncate" title="Docker, Podman, Kubernetes">Docker, K8s</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount5">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">Container / K8s</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="Docker, Podman, Kubernetes">Docker, K8s</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount5"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
             <!-- Group 6: Windows PHP (High Priority CVE-2024-4577) -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-rose-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="6" onclick="toggleGroupFilter(6)" title="จุดเฝ้าระวังสำคัญของ ThaiCERT: ตรวจสอบ Windows ที่ติดตั้ง PHP (IIS, XAMPP, Laragon)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded border border-rose-200">กลุ่ม 6 ⚠️</span>
-                <i class="ph-bold ph-microsoft-windows-logo text-rose-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-rose-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="6" onclick="toggleGroupFilter(6)" title="จุดเฝ้าระวังสำคัญของ ThaiCERT: ตรวจสอบ Windows ที่ติดตั้ง PHP (IIS, XAMPP, Laragon)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-rose-700 font-mono bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200/80">ก.6 ⚠️</span>
+                <div class="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-200/60">
+                  <i class="ph-bold ph-microsoft-windows-logo text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-800 leading-tight">Windows PHP</div>
-              <div class="text-[9px] text-slate-400 truncate" title="Windows IIS, XAMPP, Laragon">XAMPP, IIS</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount6">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">Windows PHP</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="Windows IIS, XAMPP, Laragon">XAMPP, IIS</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount6"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
             <!-- Group 7 -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-orange-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="7" onclick="toggleGroupFilter(7)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-orange-700 bg-orange-50 px-1 py-0.2 rounded border border-orange-200">กลุ่ม 7</span>
-                <i class="ph-bold ph-clock-counter-clockwise text-orange-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-orange-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="7" onclick="toggleGroupFilter(7)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-orange-700 font-mono bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-200/80">ก.7</span>
+                <div class="w-6 h-6 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-200/60">
+                  <i class="ph-bold ph-clock-counter-clockwise text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-700 leading-tight">Dev / UAT / สำรอง</div>
-              <div class="text-[9px] text-slate-400 truncate" title="Development, Staging, DR, Shadow IT">UAT, DR, เก่า</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount7">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">Dev / UAT / สำรอง</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="Development, Staging, DR, Shadow IT">UAT, DR, เก่า</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount7"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
             <!-- Group 8 -->
-            <div class="group-card neu-concave-card p-2 rounded-xl border border-slate-200/80 bg-white/80 hover:border-teal-400 hover:shadow-sm cursor-pointer transition flex flex-col justify-between" data-group="8" onclick="toggleGroupFilter(8)">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[9px] font-bold text-teal-700 bg-teal-50 px-1 py-0.2 rounded border border-teal-200">กลุ่ม 8</span>
-                <i class="ph-bold ph-cloud text-teal-600 text-xs"></i>
+            <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-teal-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="8" onclick="toggleGroupFilter(8)">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-teal-700 font-mono bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200/80">ก.8</span>
+                <div class="w-6 h-6 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-200/60">
+                  <i class="ph-bold ph-cloud text-xs"></i>
+                </div>
               </div>
-              <div class="text-[10px] font-bold text-slate-700 leading-tight">Cloud / ภายนอก</div>
-              <div class="text-[9px] text-slate-400 truncate" title="Shared Hosting, Cloud VM, Outsourced">Cloud, Shared</div>
-              <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                <span class="text-slate-400 text-[9px]">พบ</span>
-                <span class="font-bold text-slate-700" id="badgeGroupCount8">0</span>
+              <div>
+                <div class="text-[11px] font-bold text-slate-800 leading-tight">Cloud / ภายนอก</div>
+                <div class="text-[9px] text-slate-400 truncate mt-0.5" title="Shared Hosting, Cloud VM, Outsourced">Cloud, Shared</div>
+              </div>
+              <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-slate-400 text-[9px] font-medium">ตรวจพบ</span>
+                <div id="badgeGroupCount8"><span class="font-mono text-slate-300 font-bold text-xs">0</span></div>
               </div>
             </div>
 
@@ -2538,11 +2577,14 @@ Content-Type: text/html; charset=UTF-8</div>
       // Update badge in modal header
       if (badgeFilteredCount) {
         if (totalVuln > 0) {
-          badgeFilteredCount.textContent = `พบความเสี่ยง ${totalVuln} เครื่อง (PHP: ${totalPhp} / Node: ${totalNode})`;
+          badgeFilteredCount.className = "text-xs bg-rose-50 text-rose-700 px-3 py-1 rounded-full border border-rose-200 font-semibold shadow-2xs inline-flex items-center gap-1.5";
+          badgeFilteredCount.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse flex-shrink-0"></span><span>พบความเสี่ยง ${totalVuln} เครื่อง</span> <span class="opacity-75 font-normal font-mono">(PHP ${totalPhp} · Node ${totalNode})</span>`;
         } else if (totalPhp > 0 || totalNode > 0) {
-          badgeFilteredCount.textContent = `พบ PHP ${totalPhp} | Node ${totalNode} (ปลอดภัย)`;
+          badgeFilteredCount.className = "text-xs bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full border border-emerald-200 font-semibold shadow-2xs inline-flex items-center gap-1.5";
+          badgeFilteredCount.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span><span>ปลอดภัยตามเกณฑ์</span> <span class="opacity-75 font-normal font-mono">(PHP ${totalPhp} · Node ${totalNode})</span>`;
         } else {
-          badgeFilteredCount.textContent = `ออนไลน์ ${totalAllOnline} เครื่อง`;
+          badgeFilteredCount.className = "text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200 font-semibold shadow-2xs inline-flex items-center gap-1.5";
+          badgeFilteredCount.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span><span>ออนไลน์ ${totalAllOnline} เครื่อง</span>`;
         }
       }
 
@@ -2563,6 +2605,7 @@ Content-Type: text/html; charset=UTF-8</div>
 
       // Update Notification Banner
       const banner = document.getElementById('resultsStatusBanner');
+      const bannerIconWrap = document.getElementById('bannerStatusIconWrap');
       const bannerIcon = document.getElementById('bannerStatusIcon');
       const bannerText = document.getElementById('bannerStatusText');
 
@@ -2572,20 +2615,24 @@ Content-Type: text/html; charset=UTF-8</div>
         if (targetBadge && targetSub) targetBadge.textContent = `เป้าหมาย: ${targetSub}`;
 
         if (totalVuln > 0) {
-          banner.className = "px-6 py-2.5 bg-rose-50/90 border-b border-rose-200/80 flex items-center justify-between text-xs text-rose-900 backdrop-blur-sm";
-          if (bannerIcon) bannerIcon.className = "ph-bold ph-shield-warning text-rose-600 text-base flex-shrink-0";
-          bannerText.innerHTML = `<b>ตรวจพบเซิร์ฟเวอร์มีความเสี่ยง ${totalVuln} เครื่อง:</b> มีช่องโหว่ความปลอดภัยระดับสูง (php2shell / CVE-2024-4577 หรือ Node2Shell / CVE-2026-111497 Brotli RCE)`;
+          banner.className = "px-6 py-2.5 bg-gradient-to-r from-rose-50/95 via-rose-50/60 to-white/90 border-b border-rose-200/70 flex items-center justify-between text-xs text-rose-950 backdrop-blur-sm transition-all duration-200";
+          if (bannerIconWrap) bannerIconWrap.className = "w-6 h-6 rounded-lg bg-rose-100 border border-rose-200 flex items-center justify-center flex-shrink-0 text-rose-600 shadow-2xs";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-shield-warning text-sm";
+          bannerText.innerHTML = `<span class="font-bold text-rose-900">ตรวจพบข้อควรระวังความปลอดภัย ${totalVuln} เครื่อง:</span> <span class="text-rose-700 font-normal">มีรันไทม์ที่ต้องปรับปรุงแพตช์ (CVE-2024-4577 หรือ Node2Shell) ควรตรวจสอบการตั้งค่า</span>`;
         } else if (totalPhp > 0 || totalNode > 0) {
-          banner.className = "px-6 py-2.5 bg-blue-50/90 border-b border-blue-200/80 flex items-center justify-between text-xs text-blue-900 backdrop-blur-sm";
-          if (bannerIcon) bannerIcon.className = "ph-bold ph-shield-check text-blue-600 text-base flex-shrink-0";
-          bannerText.innerHTML = `<b>ตรวจพบเซิร์ฟเวอร์ PHP ${totalPhp} เครื่อง และ Node.js ${totalNode} เครื่อง:</b> ได้รับการแพตช์อัปเดตความปลอดภัยเรียบร้อย ปลอดภัยตามเกณฑ์ ThaiCERT`;
+          banner.className = "px-6 py-2.5 bg-gradient-to-r from-blue-50/95 via-blue-50/60 to-white/90 border-b border-blue-200/70 flex items-center justify-between text-xs text-blue-950 backdrop-blur-sm transition-all duration-200";
+          if (bannerIconWrap) bannerIconWrap.className = "w-6 h-6 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center flex-shrink-0 text-blue-600 shadow-2xs";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-shield-check text-sm";
+          bannerText.innerHTML = `<span class="font-bold text-blue-900">ตรวจพบเซิร์ฟเวอร์ PHP (${totalPhp}) / Node.js (${totalNode}):</span> <span class="text-blue-700 font-normal">ได้รับการปรับปรุงแพตช์ความปลอดภัยเรียบร้อยแล้ว ปลอดภัยตามเกณฑ์ ThaiCERT</span>`;
         } else if (totalAllOnline > 0) {
-          banner.className = "px-6 py-2.5 bg-emerald-50/90 border-b border-emerald-200/80 flex items-center justify-between text-xs text-emerald-900 backdrop-blur-sm";
-          if (bannerIcon) bannerIcon.className = "ph-bold ph-check-circle text-emerald-600 text-base flex-shrink-0";
-          bannerText.innerHTML = `<b>ตรวจพบอุปกรณ์ออนไลน์ในวง LAN ${totalAllOnline} เครื่อง:</b> เป็นเครื่องลูกข่าย Wi-Fi / Workstations ทั่วไป ไม่พบบริการเว็บที่เสี่ยงภัย (ปลอดภัย 100%)`;
+          banner.className = "px-6 py-2.5 bg-gradient-to-r from-emerald-50/95 via-emerald-50/60 to-white/90 border-b border-emerald-200/70 flex items-center justify-between text-xs text-emerald-950 backdrop-blur-sm transition-all duration-200";
+          if (bannerIconWrap) bannerIconWrap.className = "w-6 h-6 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center flex-shrink-0 text-emerald-600 shadow-2xs";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-check-circle text-sm";
+          bannerText.innerHTML = `<span class="font-bold text-emerald-900">ระบบในเครือข่ายปลอดภัย:</span> <span class="text-emerald-700 font-normal">ตรวจพบอุปกรณ์ออนไลน์ ${totalAllOnline} เครื่อง เป็นเครื่องลูกข่ายทั่วไป ปลอดภัย 100%</span>`;
         } else {
-          banner.className = "px-6 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-700 backdrop-blur-sm";
-          if (bannerIcon) bannerIcon.className = "ph-bold ph-info text-slate-500 text-base flex-shrink-0";
+          banner.className = "px-6 py-2.5 bg-gradient-to-r from-slate-100 via-slate-50 to-white border-b border-slate-200 flex items-center justify-between text-xs text-slate-700 backdrop-blur-sm transition-all duration-200";
+          if (bannerIconWrap) bannerIconWrap.className = "w-6 h-6 rounded-lg bg-slate-200 border border-slate-300 flex items-center justify-center flex-shrink-0 text-slate-600 shadow-2xs";
+          if (bannerIcon) bannerIcon.className = "ph-bold ph-info text-sm";
           bannerText.textContent = `สแกนเสร็จสิ้น — ไม่พบเครื่องที่ตอบสนองในวง ${targetSub || ''}`;
         }
       }
@@ -2599,12 +2646,11 @@ Content-Type: text/html; charset=UTF-8</div>
         const countBadge = document.getElementById(`badgeGroupCount${g}`);
         if (countBadge) {
           if (gTotal === 0) {
-            countBadge.textContent = '0';
-            countBadge.className = 'font-bold text-slate-400 text-[10px]';
+            countBadge.innerHTML = `<span class="font-mono text-slate-300 font-bold text-xs">0</span>`;
           } else if (gVuln > 0) {
-            countBadge.innerHTML = `<span class="text-rose-600 font-bold">${gTotal}</span> <span class="text-[9px] text-rose-500 font-semibold">(${gVuln} เสี่ยง)</span>`;
+            countBadge.innerHTML = `<span class="text-rose-600 font-bold font-mono text-xs bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 shadow-2xs">${gTotal} <span class="text-[9px] font-semibold text-rose-500">(${gVuln} เสี่ยง)</span></span>`;
           } else {
-            countBadge.innerHTML = `<span class="text-emerald-600 font-bold">${gTotal}</span>`;
+            countBadge.innerHTML = `<span class="text-emerald-700 font-bold font-mono text-xs bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shadow-2xs">${gTotal}</span>`;
           }
         }
 
@@ -2612,10 +2658,10 @@ Content-Type: text/html; charset=UTF-8</div>
         if (card) {
           if (appState.activeGroupFilter === g) {
             card.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50/90', 'border-blue-400', 'shadow-sm');
-            card.classList.remove('bg-white/80', 'border-slate-200/80');
+            card.classList.remove('bg-white/90', 'border-slate-200/80');
           } else {
             card.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50/90', 'border-blue-400', 'shadow-sm');
-            card.classList.add('bg-white/80', 'border-slate-200/80');
+            card.classList.add('bg-white/90', 'border-slate-200/80');
           }
         }
       }
