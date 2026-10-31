@@ -807,7 +807,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         h_ip = h.get("ip") or h.get("target_id") or "-"
         da = h.get("deep_audit") or {}
         matched_cves = h.get("matched_cves") or []
-        chains = da.get("security_chains", {}).get("chains", {})
+        chains = da.get("security_chains", {}).get("chains", {}) or h.get("security_chains", {}).get("chains", {})
         
         # 1. Matched CVEs for this host
         for c in matched_cves:
@@ -874,11 +874,20 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
         if chains:
             for c_key, c_val in chains.items():
                 c_verdict_code = c_val.get("verdict_code")
-                if c_verdict_code in ("VULN", "REVIEW", "AUDIT"):
+                if c_verdict_code in ("VULN", "REVIEW", "AUDIT", "ARCHITECTURAL_RISK", "INFO_DISCLOSURE"):
                     c_title = c_val.get("title") or "PHP Session Security Chain"
                     c_verdict = c_val.get("verdict") or "ตรวจพบข้อควรระวังในการตั้งค่า"
                     c_remedy = c_val.get("remediation") or "ปรับปรุงค่า php.ini ตามแนวทาง CIS Benchmark"
                     c_ini = c_val.get("hardening_ini") or "; ปรับแต่ง php.ini เพื่อความมั่นคงปลอดภัย"
+                    
+                    if c_verdict_code == "VULN":
+                        eval_status_desc = "ตรวจพบความเสี่ยงที่ยืนยันได้ (Confirmed Risk)"
+                    elif c_verdict_code == "ARCHITECTURAL_RISK":
+                        eval_status_desc = "ข้อพิจารณาเชิงสถาปัตยกรรม (Architectural Precondition / GHSA-6wmf-4rv5-p3rp)"
+                    elif c_verdict_code == "INFO_DISCLOSURE":
+                        eval_status_desc = "การเปิดเผยข้อมูลสภาพแวดล้อม (Information Disclosure / CWE-200)"
+                    else:
+                        eval_status_desc = "ควรตรวจสอบและปรับปรุงการตั้งค่า (Review & Hardening)"
                     
                     findings_html += f"""
                     <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
@@ -887,7 +896,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
                       </div>
                       <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                         <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
-                        <strong>สถานะการประเมิน:</strong> ควรตรวจสอบและปรับปรุงการตั้งค่า (Review & Hardening)
+                        <strong>สถานะการประเมิน:</strong> {html.escape(eval_status_desc)}
                       </div>
                       <p class="adv-para">
                         จากการตรวจสอบค่าคอนฟิกและพฤติกรรมการจัดการเซสชัน {html.escape(c_verdict)} ซึ่งขอแนะนำให้ผู้ดูแลระบบพิจารณาปรับปรุงค่ากำหนดในไฟล์คอนฟิก {html.escape(c_remedy)} เพื่อลดความเสี่ยงที่อาจเกิดขึ้น

@@ -3565,7 +3565,7 @@ Content-Type: text/html; charset=UTF-8</div>
 
           <!-- Chain Verdict & Missing Footer -->
           <div class="pt-1.5 text-[11px] font-mono pl-2 sm:pl-4 text-slate-300 space-y-0.5">
-            <div>verdict : <b class="${(vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400' : 'text-emerald-400'}">${vCode}</b></div>
+            <div>verdict : <b class="${(vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400' : ((vCode === 'INCONCLUSIVE' || vCode === 'REVIEW' || vCode === 'ARCHITECTURAL_RISK') ? 'text-amber-400' : 'text-emerald-400')}">${vCode}</b></div>
             ${chain.stuck_at ? `<div class="text-amber-400">stuck at: ${escapeHtml(chain.stuck_at)}</div>` : ''}
             <div class="text-slate-400">missing : ${escapeHtml(chain.missing || 'nothing -- every stage passed')}</div>
           </div>
@@ -3580,7 +3580,7 @@ Content-Type: text/html; charset=UTF-8</div>
         if (!ch) return '';
         const tag = ch.tag || k.replace('chain_', '').toUpperCase();
         const vCode = ch.verdict_code || (ch.verdict && ch.verdict.includes('VULNERABLE') ? 'CONFIRMED' : (ch.verdict && ch.verdict.includes('SECURE') ? 'SECURE' : 'MITIGATED'));
-        let vColor = (vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400 font-bold' : ((vCode === 'INCONCLUSIVE' || vCode === 'REVIEW') ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold');
+        let vColor = (vCode === 'CONFIRMED' || vCode === 'VULNERABLE') ? 'text-rose-400 font-bold' : ((vCode === 'INCONCLUSIVE' || vCode === 'REVIEW' || vCode === 'ARCHITECTURAL_RISK') ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold');
         
         return `
           <tr class="hover:bg-slate-900/60 cursor-pointer transition border-b border-slate-900/80" onclick="switchAuditChain('${k}')" title="คลิกเพื่อเลือกดู Chain ${tag}">

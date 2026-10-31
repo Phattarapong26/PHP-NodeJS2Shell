@@ -287,11 +287,18 @@ async def probe_endpoint(
         if is_php:
             lfi_check = await probe_lfi_prerequisite(client, base_url, body_text, req_headers)
 
+        # Check Error Leak for Chain B (display_errors audit)
+        has_error_leak = any(k in body_text.lower() for k in ["fatal error:", "parse error:", "warning:", "uncaught exception:"])
+
         # Check Serializer Mismatch & Object Deserialization indicators for Chain C
-        has_serializer_mismatch = (
+        uses_php_serialize = (
             headers.get("x-session-serialize-handler", "").lower() == "php_serialize"
             or headers.get("x-session-serializer", "").lower() == "php_serialize"
             or "session.serialize_handler = php_serialize" in body_text.lower()
+        )
+        has_serializer_mismatch = (
+            headers.get("x-serializer-mismatch", "").lower() == "true"
+            or (uses_php_serialize and "session.serialize_handler = php" in body_text.lower())
         )
         has_object_deserialization = (
             "?data=" in body_text.lower()
@@ -309,7 +316,9 @@ async def probe_endpoint(
             expose_php=(powered != ""),
             lfi_check=lfi_check,
             has_serializer_mismatch=has_serializer_mismatch,
-            has_object_deserialization=has_object_deserialization
+            has_object_deserialization=has_object_deserialization,
+            uses_php_serialize=uses_php_serialize,
+            has_error_leak=has_error_leak
         )
         
         # Collect signatures matched for verification evidence
@@ -457,10 +466,10 @@ async def probe_endpoint(
             },
             "chain_b": {
                 "chain_id": "chain_b",
-                "title": "Chain B: ข้อมูลสภาพแวดล้อมและค่า INI รั่วไหล",
-                "status": "VULNERABLE (ตรวจพบการเปิดเผยข้อมูล)" if powered else "SECURE (ปิดบังข้อมูลเรียบร้อย)",
-                "is_risky": bool(powered),
-                "badge": "EXPOSED" if powered else "PROTECTED",
+                "title": "Chain B: Information Disclosure (ข้อมูลสภาพแวดล้อมและคอนฟิก)",
+                "status": "REVIEW_NEEDED (พบการเปิดเผยข้อมูลสภาพแวดล้อม: expose_php หรือ Error Leak — จัดเป็น CWE-200 ไม่ใช่ RCE)" if (powered or has_error_leak) else "SECURE (ปิดบังข้อมูลเรียบร้อย)",
+                "is_risky": False,
+                "badge": "INFO" if (powered or has_error_leak) else "PROTECTED",
                 "items": [
                     {
                         "directive": "expose_php",
@@ -470,12 +479,12 @@ async def probe_endpoint(
                     {
                         "directive": "Server Banner",
                         "discovered_val": server or "Apache / Nginx",
-                        "is_risky": bool("php" in server.lower() or "apache" in server.lower())
+                        "is_risky": False
                     },
                     {
                         "directive": "display_errors",
-                        "discovered_val": "On (พบข้อความข้อผิดพลาดปรากฏบนหน้าเว็บ)" if any(k in body_text.lower() for k in ["fatal error:", "parse error:", "warning:"]) else "Off / Not Displayed (ไม่พบข้อความ Error รั่วไหล)",
-                        "is_risky": any(k in body_text.lower() for k in ["fatal error:", "parse error:", "warning:"])
+                        "discovered_val": "On (พบข้อความข้อผิดพลาดปรากฏบนหน้าเว็บ)" if has_error_leak else "Off / Not Displayed (ไม่พบข้อความ Error รั่วไหล)",
+                        "is_risky": has_error_leak
                     },
                     {
                         "directive": "HSTS Security Header",
@@ -487,13 +496,13 @@ async def probe_endpoint(
             "chain_c": {
                 "chain_id": "chain_c",
                 "title": "Chain C: Serializer Handler & Object Deserialization",
-                "status": "VULNERABLE (ตรวจพบความไม่สอดคล้องของ Serializer)" if (has_serializer_mismatch or has_object_deserialization) else "SECURE (กำหนด Serializer สม่ำเสมอ)",
-                "is_risky": bool(has_serializer_mismatch or has_object_deserialization),
-                "badge": "VULN" if (has_serializer_mismatch or has_object_deserialization) else "SECURE",
+                "status": "VULNERABLE (ตรวจพบเงื่อนไข Serializer Mismatch ร่วมกับ Deserialization Sink)" if (has_serializer_mismatch and has_object_deserialization) else ("REVIEW_NEEDED (กำหนด php_serialize แต่ไม่พบ Deserialization Sink หรือ Mismatch)" if (has_serializer_mismatch or uses_php_serialize) else "SECURE (กำหนด Serializer สม่ำเสมอ)"),
+                "is_risky": bool(has_serializer_mismatch and has_object_deserialization),
+                "badge": "VULN" if (has_serializer_mismatch and has_object_deserialization) else ("REVIEW" if (has_serializer_mismatch or uses_php_serialize) else "SECURE"),
                 "items": [
                     {
                         "directive": "session.serialize_handler",
-                        "discovered_val": "php_serialize (พบความไม่สอดคล้องกับมาตรฐาน php)" if has_serializer_mismatch else "php (รูปแบบมาตรฐาน สม่ำเสมอ ไม่พบ Mismatch)",
+                        "discovered_val": "php_serialize (พบความไม่สอดคล้องกับมาตรฐาน php)" if has_serializer_mismatch else ("php_serialize (คอนฟิกมาตรฐาน ไม่พบ Mismatch ข้ามโมดูล)" if uses_php_serialize else "php (รูปแบบมาตรฐาน สม่ำเสมอ ไม่พบ Mismatch)"),
                         "is_risky": bool(has_serializer_mismatch)
                     },
                     {
@@ -506,7 +515,7 @@ async def probe_endpoint(
             "chain_d": {
                 "chain_id": "chain_d",
                 "title": "Chain D: ขีดจำกัดหน่วยความจำและพื้นที่จัดเก็บเซสชัน",
-                "status": "VULNERABLE (พบจุดเชื่อมโยง LFI ร่วมกับสภาพแวดล้อม Apache /tmp)" if (has_lfi_active and not is_patched and "apache" in server.lower()) else ("VULNERABLE (พบจุดเชื่อมโยง LFI)" if has_lfi_active else "SECURE (ไม่พบ Fatal Error และไม่พบจุดเชื่อมโยง)"),
+                "status": "VULNERABLE (พบจุดเชื่อมโยง LFI ร่วมกับสภาพแวดล้อม Apache /tmp)" if (has_lfi_active and not is_patched and "apache" in server.lower()) else ("VULNERABLE (พบจุดเชื่อมโยง LFI)" if has_lfi_active else "SECURE (ไม่พบ Fatal Error และไม่พบจุดเชื่อมโยง LFI)"),
                 "is_risky": bool(has_lfi_active),
                 "badge": "VULN" if has_lfi_active else "SECURE",
                 "items": [
@@ -529,10 +538,10 @@ async def probe_endpoint(
             },
             "chain_e": {
                 "chain_id": "chain_e",
-                "title": "Chain E: สถาปัตยกรรม PHP-FPM และสถานะเวิร์กเกอร์",
-                "status": "VULNERABLE (สถาปัตยกรรม PHP-FPM ยังไม่แพตช์ และเวิร์กเกอร์ไม่รีไซเคิล)" if (is_fpm and not is_patched) else ("MONITORED (ตรวจสอบการรีไซเคิลเวิร์กเกอร์)" if is_fpm else "NOT_APPLICABLE (ไม่ใช่ PHP-FPM)"),
+                "title": "Chain E: สถาปัตยกรรม PHP-FPM และสถานะเวิร์กเกอร์ (GHSA-6wmf-4rv5-p3rp)",
+                "status": "ARCHITECTURAL_PRECONDITION (ตรวจพบ PHP-FPM เวอร์ชันก่อนแพตช์ เข้าข่ายเงื่อนไขก่อนหน้า แต่ยังไม่ได้ยืนยัน 3-stage exploitation)" if (is_fpm and not is_patched) else ("MONITORED (ตรวจสอบการรีไซเคิลเวิร์กเกอร์)" if is_fpm else "NOT_APPLICABLE (ไม่ใช่ PHP-FPM)"),
                 "is_risky": bool(is_fpm and not is_patched),
-                "badge": "VULN" if (is_fpm and not is_patched) else ("FPM" if is_fpm else "STANDALONE"),
+                "badge": "REVIEW" if (is_fpm and not is_patched) else ("FPM" if is_fpm else "STANDALONE"),
                 "items": [
                     {
                         "directive": "SAPI Execution Model",
@@ -545,8 +554,8 @@ async def probe_endpoint(
                         "is_risky": bool(is_fpm and not is_patched)
                     },
                     {
-                        "directive": "Stale BG() Buffer Isolation",
-                        "discovered_val": "VULNERABLE (PHP 8.2.19 ยังไม่ได้รับการแพตช์ขอบเขตบัฟเฟอร์ FastCGI BG)" if (is_fpm and not is_patched) else "PROTECTED (เวอร์ชันได้รับการแพตช์)",
+                        "directive": "Stale BG() Buffer Isolation (GHSA-6wmf-4rv5-p3rp)",
+                        "discovered_val": "ARCHITECTURAL_RISK (PHP-FPM รันไทม์ยังไม่ได้รับแพตช์ GHSA-6wmf-4rv5-p3rp — เข้าข่ายเงื่อนไขสะสม Stale State ใน FastCGI buffer)" if (is_fpm and not is_patched) else "PROTECTED (เวอร์ชันได้รับการแพตช์)",
                         "is_risky": bool(is_fpm and not is_patched)
                     }
                 ]

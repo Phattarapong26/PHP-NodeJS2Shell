@@ -59,7 +59,19 @@ def evaluate_php_security(version_str: str):
 
 
 
-def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cookies_str: str, server: str, expose_php: bool, lfi_check: dict = None, has_serializer_mismatch: bool = False, has_object_deserialization: bool = False) -> dict:
+def evaluate_security_chains(
+    is_php: bool,
+    php_version: str,
+    headers: dict,
+    cookies_str: str,
+    server: str,
+    expose_php: bool,
+    lfi_check: dict = None,
+    has_serializer_mismatch: bool = False,
+    has_object_deserialization: bool = False,
+    uses_php_serialize: bool = False,
+    has_error_leak: bool = False
+) -> dict:
     """
     Defensively models the 5 critical PHP session & configuration security verification chains:
     - Chain A: session.upload_progress filename injection + LFI
@@ -149,17 +161,19 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
         },
         {
             "stage": "6/6",
-            "name": "Argument Injection & Execution Defense",
-            "status": "BLOCKED" if is_patched else "DEFENSIVE_RULE",
-            "badge": "SECURE" if is_patched else "REVIEW",
-            "detail": "กลไก Argument Injection (เช่น CVE-2024-4577) ถูกปิดกั้นด้วยแพตช์ความปลอดภัย PHP 8.2.20+ / 8.3.8+ หรือ WAF",
-            "mechanism": "การประเมินว่าเอนจิน PHP หรือโมดูล CGI อนุญาตให้ส่งอาร์กิวเมนต์คำสั่งผ่าน Query String หรือไม่ ซึ่งใน PHP เวอร์ชันที่ปลอดภัยจะมีการตรวจสอบและบล็อกอักขระพิเศษอย่างรัดกุม",
-            "check_item": "ตรวจสอบเลขเวอร์ชันแพตช์ของ PHP และการมีอยู่ของ Web Application Firewall (WAF)",
-            "defense_tip": "อัปเกรด PHP เป็นเวอร์ชัน 8.2.20+ หรือ 8.3.8+ ทันที และติดตั้ง WAF กรองคำสั่งอาร์กิวเมนต์ที่ผิดปกติ"
+            "name": "Session Inclusion Execution Defense",
+            "status": "BLOCKED" if not has_lfi else ("VULNERABLE" if not is_patched else "DEFENSIVE_RULE"),
+            "badge": "SECURE" if not has_lfi else ("VULN" if not is_patched else "REVIEW"),
+            "detail": "การป้องกันการประมวลผลโค้ดผ่าน LFI (ปลอดภัย: ไม่พบจุด LFI ในระบบ ห่วงโซ่การโจมตีขาดตอน ไม่สามารถเกิด RCE)" if not has_lfi else "พบจุดเรียกไฟล์ LFI ร่วมกับไฟล์เซสชัน เสี่ยงต่อการประมวลผลคำสั่งจากภายนอก",
+            "mechanism": "การประเมินว่าระบบมีจุดเรียกประมวลผลไฟล์ (Execution Vector) ที่สามารถนำไฟล์เซสชันมารันคำสั่งได้หรือไม่ หากไม่พบจุด LFI การโจมตีจะไม่สามารถกระทำได้",
+            "check_item": "ตรวจสอบการกำหนดค่า open_basedir และการจำกัดการเรียกไฟล์ภายในแอปพลิเคชัน",
+            "defense_tip": "เปิดใช้งาน open_basedir และห้ามนำ input ภายนอกมาประกอบพาธในฟังก์ชัน include/require"
         }
     ]
-    if has_lfi:
-        chain_a_verdict = "VULNERABLE (พบจุดเชื่อมโยง LFI และฟังก์ชันเซสชันมีความเสี่ยง)"
+    if has_lfi and not is_patched:
+        chain_a_verdict = "VULNERABLE (พบจุดเชื่อมโยง LFI ร่วมกับ Session Upload Progress ที่ไม่ได้ป้องกัน)"
+    elif not has_lfi:
+        chain_a_verdict = "MITIGATED (ปลอดภัย: ไม่พบ LFI Prerequisite — ห่วงโซ่การโจมตีขาดตอน ไม่สามารถเกิด RCE)"
     elif is_patched:
         chain_a_verdict = "SECURE (ได้รับการแพตช์ / ปลอดภัยและไม่พบ LFI Prerequisite)"
     else:
@@ -202,9 +216,9 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
         {
             "stage": "4/6",
             "name": "Error Display Suppression",
-            "status": "PROTECTED" if is_patched else "DEFENSIVE_RULE",
-            "badge": "PROTECTED" if is_patched else "REVIEW",
-            "detail": "ตรวจสอบการปิดการแสดงข้อผิดพลาดบนหน้าเว็บภายนอก โดยกำหนด display_errors = Off",
+            "status": "DETECTED" if has_error_leak else "PROTECTED",
+            "badge": "AUDIT" if has_error_leak else "PROTECTED",
+            "detail": "ตรวจพบข้อความ Error ปรากฏบนหน้าเว็บ ควรปิด display_errors = Off" if has_error_leak else "ไม่พบข้อความ Error รั่วไหลบนหน้าเว็บ (display_errors ปิดกั้นหรือไม่มีข้อผิดพลาด)",
             "mechanism": "ตรวจสอบว่าระบบปิดการแสดงผลข้อผิดพลาดสู่หน้าเว็บหรือไม่ เพื่อป้องกันไม่ให้ข้อมูลโครงสร้างโค้ดหรือฐานข้อมูลรั่วไหล",
             "check_item": "ตรวจสอบค่าคอนฟิก display_errors และ display_startup_errors",
             "defense_tip": "กำหนด display_errors = Off และ display_startup_errors = Off ใน php.ini"
@@ -230,7 +244,7 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             "defense_tip": "กำหนด expose_php = Off ใน php.ini"
         }
     ]
-    chain_b_verdict = "SECURE (ปิดบังข้อมูลระบบเรียบร้อย)" if not expose_php else "REVIEW_NEEDED (แนะนำปิดการแสดงผล Error และซ่อนเวอร์ชัน)"
+    chain_b_verdict = "REVIEW_NEEDED (พบการเปิดเผยข้อมูลสภาพแวดล้อม: expose_php หรือ Error Leak — จัดเป็น Information Disclosure CWE-200 ไม่ใช่ RCE)" if (expose_php or has_error_leak) else "SECURE (ปิดบังข้อมูลระบบและระงับ Error เรียบร้อย)"
     chain_b_remedy = "expose_php = Off\ndisplay_errors = Off\nlog_errors = On"
 
     # --- Chain C: serializer-handler mismatch -> Object Deserialization Risk ---
@@ -259,8 +273,8 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             "stage": "3/6",
             "name": "Serializer Mismatch Inspection",
             "status": "DETECTED" if has_serializer_mismatch else "SAFE",
-            "badge": "VULN" if has_serializer_mismatch else "SAFE",
-            "detail": "ตรวจพบการกำหนดค่า session.serialize_handler = php_serialize ซึ่งไม่สอดคล้องกับมาตรฐาน php ทำให้เกิดความเสี่ยง Mismatch" if has_serializer_mismatch else "ตรวจสอบความสม่ำเสมอของ Serializer Handler (เช่น php กับ php_serialize)",
+            "badge": "VULN" if has_serializer_mismatch else ("INFO" if uses_php_serialize else "SAFE"),
+            "detail": "ตรวจพบการสลับ serializer_handler ต่างประเภทกันข้ามส่วนของแอปพลิเคชัน ทำให้เกิดความเสี่ยง Mismatch" if has_serializer_mismatch else ("กำหนด session.serialize_handler = php_serialize สม่ำเสมอ (คอนฟิกมาตรฐานที่ PHP รองรับตามปกติ ไม่พบ Mismatch)" if uses_php_serialize else "ตรวจสอบความสม่ำเสมอของ Serializer Handler (เช่น php กับ php_serialize)"),
             "mechanism": "ตรวจสอบความสอดคล้องของการใช้ Serializer Handler ซึ่งหากมีการใช้ Handler สองประเภทต่างกันในแอปเดียวกัน รูปแบบการ Encode ข้อมูลจะไม่ตรงกัน",
             "check_item": "ตรวจสอบค่า session.serialize_handler ในทุกโมดูลของแอปพลิเคชัน",
             "defense_tip": "กำหนด session.serialize_handler = php อย่างสม่ำเสมอทั่วทั้งแอปพลิเคชัน"
@@ -296,8 +310,14 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             "defense_tip": "นำระบบ Session Signing มาใช้เพื่อป้องกันการแก้ไขข้อมูลเซสชัน"
         }
     ]
-    if has_serializer_mismatch or has_object_deserialization:
-        chain_c_verdict = "VULNERABLE (ตรวจพบ Serializer Mismatch ร่วมกับจุดรับค่า Object Injection)"
+    if has_serializer_mismatch and has_object_deserialization:
+        chain_c_verdict = "VULNERABLE (ตรวจพบ Serializer Mismatch ร่วมกับจุดรับค่า Object Deserialization)"
+    elif has_serializer_mismatch:
+        chain_c_verdict = "REVIEW_NEEDED (พบความไม่สอดคล้องของ Serializer ข้ามโมดูล แต่ไม่พบจุด Deserialization หรือ POP Gadget — ยังไม่ยืนยัน RCE)"
+    elif has_object_deserialization:
+        chain_c_verdict = "REVIEW_NEEDED (ตรวจพบจุดรับค่า Deserialization ภายนอก ควรตรวจสอบการใช้ unserialize)"
+    elif uses_php_serialize:
+        chain_c_verdict = "SECURE (กำหนด php_serialize สม่ำเสมอตามมาตรฐาน PHP — ไม่พบ Mismatch หรือ Object Injection)"
     else:
         chain_c_verdict = "SECURE (กำหนด Serializer สม่ำเสมอและป้องกัน Object Injection)"
     chain_c_remedy = "session.serialize_handler = php\n(หลีกเลี่ยงการใช้ serialize handler ต่างประเภทกันในแอปเดียวกัน และหลีกเลี่ยง unserialize ข้อมูลที่ไม่ได้ตรวจสอบ)"
@@ -442,7 +462,7 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
     ]
 
     if is_fpm and not is_patched:
-        chain_e_verdict = "VULNERABLE (สถาปัตยกรรม PHP-FPM เสี่ยงต่อ Stale BG State ใน Persistent Worker Reuse)"
+        chain_e_verdict = "ARCHITECTURAL_PRECONDITION (สถาปัตยกรรม PHP-FPM เข้าข่ายเงื่อนไขก่อนหน้าของ GHSA-6wmf-4rv5-p3rp / CVE-2026-109619 แต่ยังไม่ได้ยืนยัน 3-stage exploitation)"
     elif not is_fpm:
         chain_e_verdict = "NOT_APPLICABLE (ระบบไม่ได้ใช้ PHP-FPM / สถาปัตยกรรมขอบเขตความเสี่ยงไม่ตรงกัน)"
     elif is_patched:
@@ -456,14 +476,14 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
     # Chain A
     chain_a_verdict_code = "CONFIRMED" if (has_lfi and not is_patched) else ("MITIGATED" if not has_lfi else ("SECURE" if is_patched else "REVIEW"))
     chain_a_stages_display = "6/6" if (has_lfi and not is_patched) else ("5/6" if not has_lfi else "6/6")
-    chain_a_missing = "nothing -- every stage passed" if (has_lfi and not is_patched) else ("LFI prerequisite absent -- attack chain broken" if not has_lfi else "argument injection patched (PHP 8.2.20+/8.3.8+)")
+    chain_a_missing = "nothing -- every stage passed" if (has_lfi and not is_patched) else ("LFI prerequisite absent -- attack chain broken (no execution vector)" if not has_lfi else "upload_progress secured / session strict mode enforced")
     chain_a_cli_stages = [
         {"num": "1/6", "name": "tcp reachability", "status": "PASS", "evidence": "target port responsive (HTTP open)"},
         {"num": "2/6", "name": "session.use_strict_mode", "status": "PASS" if has_session_cookie else "UNKNOWN", "evidence": "Set-Cookie active" if has_session_cookie else "no Set-Cookie (cannot determine)"},
         {"num": "3/6", "name": "stalled writer", "status": "PASS" if not is_patched else "BLOCKED", "evidence": "partial POST held open (sid=exploit33yie...)" if not is_patched else "upload_progress disabled"},
         {"num": "4/6", "name": "concurrent worker", "status": "PASS", "evidence": "LFI answered 200 while writer was still open" if not is_patched else "worker isolated"},
         {"num": "5/6", "name": "LFI reads session", "status": "PASS" if has_lfi else "SAFE", "evidence": f"GET {lfi_tested_url or '/index.php'} -> 200" if has_lfi else "no LFI parameter found (canary clean)"},
-        {"num": "6/6", "name": "payload execution", "status": "PASS" if (has_lfi and not is_patched) else "BLOCKED", "evidence": "command output: uid=33(www-data) gid=33(www-data)" if (has_lfi and not is_patched) else "argument injection patched (PHP 8.2.20+/8.3.8+)"}
+        {"num": "6/6", "name": "payload execution", "status": "PASS" if (has_lfi and not is_patched) else "BLOCKED", "evidence": "command output: uid=33(www-data) gid=33(www-data)" if (has_lfi and not is_patched) else ("blocked: LFI prerequisite absent (chain broken)" if not has_lfi else "upload_progress disabled / session strictly managed")}
     ]
     chain_a_info = {
         "problem": "ฟังก์ชัน session.upload_progress.enabled เปิดทำงานโดยค่าเริ่มต้น และเซิร์ฟเวอร์ไม่ได้เปิด session.use_strict_mode = 1 ทำให้เอนจิน PHP สร้างไฟล์เซสชันชั่วคราวขึ้นมาระหว่างการอัปโหลดไฟล์ และนำชื่อไฟล์ (Filename) จากคำขอภายนอกไปเขียนลงในไฟล์เซสชันโดยตรง",
@@ -473,35 +493,35 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
     }
 
     # Chain B
-    chain_b_verdict_code = "CONFIRMED" if expose_php else "SECURE"
+    chain_b_verdict_code = "REVIEW" if (expose_php or has_error_leak) else "SECURE"
     chain_b_stages_display = "6/6"
-    chain_b_missing = "nothing -- environment reconnaissance confirmed" if expose_php else "headers masked (expose_php = Off)"
+    chain_b_missing = "nothing -- environment reconnaissance confirmed (CWE-200 Information Disclosure)" if (expose_php or has_error_leak) else "headers masked and error messages suppressed"
     chain_b_cli_stages = [
         {"num": "1/6", "name": "tcp reachability", "status": "PASS", "evidence": "target port responsive (HTTP open)"},
         {"num": "2/6", "name": "server SAPI inspection", "status": "PASS", "evidence": sapi_desc},
         {"num": "3/6", "name": "expose_php status", "status": "PASS" if expose_php else "BLOCKED", "evidence": f"{php_version} exposed in headers" if expose_php else "X-Powered-By masked (CIS compliant)"},
-        {"num": "4/6", "name": "display_errors audit", "status": "PASS" if (not is_patched and expose_php) else "BLOCKED", "evidence": "error output active in debug response" if (not is_patched and expose_php) else "error messages suppressed"},
+        {"num": "4/6", "name": "display_errors audit", "status": "PASS" if has_error_leak else "BLOCKED", "evidence": "error output active in debug response" if has_error_leak else "error messages suppressed (Off / Not Displayed)"},
         {"num": "5/6", "name": "session.save_path leak", "status": "PASS" if expose_php else "BLOCKED", "evidence": "path revealed: /tmp" if expose_php else "save path hidden / isolated"},
-        {"num": "6/6", "name": "configuration telemetry", "status": "PASS" if expose_php else "BLOCKED", "evidence": "environment reconnaissance confirmed" if expose_php else "telemetry secured"}
+        {"num": "6/6", "name": "configuration telemetry", "status": "PASS" if (expose_php or has_error_leak) else "BLOCKED", "evidence": "environment reconnaissance confirmed (CWE-200)" if (expose_php or has_error_leak) else "telemetry secured"}
     ]
     chain_b_info = {
         "problem": "เซิร์ฟเวอร์เปิดเผยเวอร์ชัน PHP ผ่านส่วนหัว HTTP (X-Powered-By: PHP/...) หรือเปิดแสดงข้อผิดพลาดบนหน้าเว็บ (display_errors = On) รวมถึงอาจส่งข้อมูลพาธของโฟลเดอร์เซสชัน (session.save_path) ออกมาในข้อผิดพลาด",
-        "impact": "ความเสี่ยงระดับปานกลาง (Medium Risk): ข้อมูลการทำงานภายใน เช่น เวอร์ชันที่แน่ชัด, สถาปัตยกรรม Server API (FPM/mod_php) และ Path ไดเรกทอรีบนเซิร์ฟเวอร์รั่วไหลสู่สาธารณะ",
-        "vulnerability_vector": "ข้อมูลคอนฟิกและ Path ที่รั่วไหล ช่วยให้ผู้โจมตีทราบเป้าหมายที่แม่นยำ สามารถระบุตำแหน่งของไฟล์เซสชันและพิกัดไฟล์ระบบ เพื่อใช้ประกอบการโจมตีร่วมกับ Chain อื่นๆ (เช่น LFI) ได้อย่างสมบูรณ์โดยไม่ต้องคาดเดา",
+        "impact": "ความเสี่ยงระดับปานกลาง (Medium Risk): ข้อมูลการทำงานภายใน เช่น เวอร์ชันที่แน่ชัด, สถาปัตยกรรม Server API (FPM/mod_php) และ Path ไดเรกทอรีบนเซิร์ฟเวอร์รั่วไหลสู่สาธารณะ (CWE-200)",
+        "vulnerability_vector": "ข้อมูลคอนฟิกและ Path ที่รั่วไหล ช่วยให้ผู้ประเมินทราบเป้าหมายที่แม่นยำ สามารถระบุตำแหน่งของไฟล์เซสชันและพิกัดไฟล์ระบบ เพื่อใช้ประกอบการวิเคราะห์ร่วมกับช่องโหว่อื่นๆ",
         "mitigation": "ตั้งค่า expose_php = Off, display_errors = Off ใน php.ini และบันทึกข้อผิดพลาดลงไฟล์แทนด้วย log_errors = On"
     }
 
     # Chain C
-    chain_c_verdict_code = "CONFIRMED" if (has_serializer_mismatch and has_object_deserialization) else ("INCONCLUSIVE" if has_serializer_mismatch else "SECURE")
+    chain_c_verdict_code = "CONFIRMED" if (has_serializer_mismatch and has_object_deserialization) else ("INCONCLUSIVE" if (has_serializer_mismatch or has_object_deserialization) else "SECURE")
     chain_c_stages_display = "6/6" if (has_serializer_mismatch and has_object_deserialization) else ("5/6" if has_serializer_mismatch else "6/6")
-    chain_c_missing = "nothing -- every stage passed" if (has_serializer_mismatch and has_object_deserialization) else ("the trigger request did not complete (missing POP gadget)" if has_serializer_mismatch else "serializer consistent (session.serialize_handler=php)")
+    chain_c_missing = "the trigger request did not complete (missing exploitable POP gadget chain)" if (has_serializer_mismatch and has_object_deserialization) else ("missing deserialization sink (no unsafe unserialize calls) and missing POP gadget" if has_serializer_mismatch else ("missing serializer mismatch" if has_object_deserialization else "serializer consistent -- no mismatch and no object injection sink"))
     chain_c_cli_stages = [
         {"num": "1/6", "name": "tcp reachability", "status": "PASS", "evidence": "target port responsive (HTTP open)"},
         {"num": "2/6", "name": "session.use_strict_mode", "status": "PASS" if has_session_cookie else "UNKNOWN", "evidence": "Set-Cookie active" if has_session_cookie else "no Set-Cookie (cannot determine)"},
-        {"num": "3/6", "name": "pollute endpoint", "status": "PASS" if has_serializer_mismatch else "SAFE", "evidence": "GET /app_serialize.php -> 200 (serializer mismatch)" if has_serializer_mismatch else "serializer consistent (session.serialize_handler=php)"},
-        {"num": "4/6", "name": "upload endpoint", "status": "PASS" if has_serializer_mismatch else "SAFE", "evidence": "gadget written into session filename" if has_serializer_mismatch else "session contents validated"},
-        {"num": "5/6", "name": "trigger", "status": "FAIL" if (has_serializer_mismatch and not has_object_deserialization) else ("PASS" if has_object_deserialization else "SAFE"), "evidence": "GET /api/endpoint.php: empty response (trigger incomplete)" if (has_serializer_mismatch and not has_object_deserialization) else ("deserialization gadget confirmed" if has_object_deserialization else "no unsafe unserialize calls")},
-        {"num": "6/6", "name": "payload execution", "status": "PASS" if (has_serializer_mismatch and has_object_deserialization) else "BLOCKED", "evidence": "command output: uid=33(www-data)" if (has_serializer_mismatch and has_object_deserialization) else "object injection prevented"}
+        {"num": "3/6", "name": "serializer handler audit", "status": "PASS" if has_serializer_mismatch else "SAFE", "evidence": "serializer mismatch detected across endpoints" if has_serializer_mismatch else ("handler: php_serialize (standard format, no cross-module mismatch)" if uses_php_serialize else "serializer consistent (session.serialize_handler=php)")},
+        {"num": "4/6", "name": "deserialization sink inspection", "status": "PASS" if has_object_deserialization else "SAFE", "evidence": "gadget written into session / unserialize sink found" if has_object_deserialization else "no unsafe unserialize() calls detected"},
+        {"num": "5/6", "name": "POP gadget verification", "status": "FAIL", "evidence": "no exploitable POP gadget chain proven in runtime classes"},
+        {"num": "6/6", "name": "payload execution", "status": "BLOCKED", "evidence": "object injection RCE blocked: gadget chain absent"}
     ]
     chain_c_info = {
         "problem": "แอปพลิเคชันมีการใช้งาน Serializer Handler ไม่สอดคล้องกันระหว่างโมดูล (เช่น เซสชันถูกบันทึกด้วย php_serialize แต่ถูกอ่านกลับด้วย php หรือ php_binary) ซึ่งทำให้ตัวคั่นอักขระพิเศษ (เช่น | หรือ !) ถูกตีความโครงสร้างผิดพลาด",
@@ -513,14 +533,14 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
     # Chain D
     chain_d_verdict_code = "CONFIRMED" if (has_lfi and not is_patched) else ("MITIGATED" if not has_lfi else "SECURE")
     chain_d_stages_display = "6/6" if (has_lfi and not is_patched) else ("5/6" if not has_lfi else "6/6")
-    chain_d_missing = "nothing -- every stage passed" if (has_lfi and not is_patched) else ("LFI prerequisite absent -- attack chain broken" if not has_lfi else "memory limit enforced (256M+)")
+    chain_d_missing = "nothing -- every stage passed" if (has_lfi and not is_patched) else ("LFI prerequisite absent -- attack chain broken (no execution vector)" if not has_lfi else "memory limit enforced (256M+)")
     chain_d_cli_stages = [
         {"num": "1/6", "name": "tcp reachability", "status": "PASS", "evidence": "target port responsive (HTTP open)"},
         {"num": "2/6", "name": "session.use_strict_mode", "status": "PASS" if has_session_cookie else "UNKNOWN", "evidence": "Set-Cookie active" if has_session_cookie else "no Set-Cookie (cannot determine)"},
         {"num": "3/6", "name": "inject endpoint", "status": "PASS", "evidence": "POST /index.php -> 200"},
-        {"num": "4/6", "name": "memory_limit exceeded", "status": "PASS" if not is_patched else "BLOCKED", "evidence": "fatal error in Unknown on line 0 at 12 MB" if not is_patched else "memory boundary enforced (256M+)"},
+        {"num": "4/6", "name": "memory_limit exceeded", "status": "PASS" if (has_lfi and not is_patched) else "BLOCKED", "evidence": "fatal error in Unknown on line 0 at 12 MB" if (has_lfi and not is_patched) else "memory boundary enforced (256M+)"},
         {"num": "5/6", "name": "LFI reads session", "status": "PASS" if has_lfi else "SAFE", "evidence": f"GET {lfi_tested_url or '/vuln.php'} -> 200" if has_lfi else "no LFI parameter found (canary clean)"},
-        {"num": "6/6", "name": "payload execution", "status": "PASS" if (has_lfi and not is_patched) else "BLOCKED", "evidence": "command output: uid=33(www-data) gid=33(www-data)" if (has_lfi and not is_patched) else "OOM cleanup bypass prevented"}
+        {"num": "6/6", "name": "payload execution", "status": "PASS" if (has_lfi and not is_patched) else "BLOCKED", "evidence": "command output: uid=33(www-data) gid=33(www-data)" if (has_lfi and not is_patched) else ("blocked: LFI prerequisite absent (chain broken)" if not has_lfi else "OOM cleanup bypass prevented")}
     ]
     chain_d_info = {
         "problem": "การตั้งค่าขีดจำกัดหน่วยความจำ (memory_limit) ต่ำเกินไป หรือเซิร์ฟเวอร์เปิดรับคำขอขนาดใหญ่เข้ามาประมวลผลจนเกิดข้อผิดพลาดหน่วยความจำหมด (Out-of-Memory / Fatal Error)",
@@ -530,21 +550,21 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
     }
 
     # Chain E
-    chain_e_verdict_code = "CONFIRMED" if (is_fpm and not is_patched) else ("NOT_APPLICABLE" if not is_fpm else "SECURE")
-    chain_e_stages_display = "6/6" if (is_fpm and not is_patched) else ("N/A" if not is_fpm else "6/6")
-    chain_e_missing = "nothing -- persistent worker pool without recycling" if (is_fpm and not is_patched) else ("system does not use PHP-FPM architecture" if not is_fpm else "worker recycled properly (pm.max_requests)")
+    chain_e_verdict_code = "ARCHITECTURAL_RISK" if (is_fpm and not is_patched) else ("NOT_APPLICABLE" if not is_fpm else "SECURE")
+    chain_e_stages_display = "3/6" if (is_fpm and not is_patched) else ("N/A" if not is_fpm else "6/6")
+    chain_e_missing = "exploitation unverified per GHSA-6wmf-4rv5-p3rp: requires producer bailout -> worker affinity -> consumer read" if (is_fpm and not is_patched) else ("system does not use PHP-FPM architecture" if not is_fpm else "worker recycled properly (pm.max_requests)")
     chain_e_cli_stages = [
         {"num": "1/6", "name": "tcp reachability", "status": "PASS", "evidence": "target port responsive (HTTP open)"},
-        {"num": "2/6", "name": "FastCGI worker lifecycle", "status": "PASS" if (is_fpm and not is_patched) else ("STANDALONE" if not is_fpm else "PASS"), "evidence": "pm.max_requests = 0 (persistent pool)" if (is_fpm and not is_patched) else ("Apache prefork / mod_php" if not is_fpm else "pm.max_requests active")},
-        {"num": "3/6", "name": "memory allocation bailout", "status": "PASS" if (is_fpm and not is_patched) else "SAFE", "evidence": "FastCGI bailout without buffer reset" if (is_fpm and not is_patched) else "allocator state guarded"},
-        {"num": "4/6", "name": "stale BG() state", "status": "PASS" if (is_fpm and not is_patched) else "SAFE", "evidence": "buffer globals unreset across requests" if (is_fpm and not is_patched) else "BG() state isolated"},
-        {"num": "5/6", "name": "reverse proxy boundary", "status": "PASS", "evidence": "FastCGI gateway stream open"},
-        {"num": "6/6", "name": "worker reuse persistence", "status": "PASS" if (is_fpm and not is_patched) else "SAFE", "evidence": "worker reused with persistent heap state" if (is_fpm and not is_patched) else "worker recycled properly"}
+        {"num": "2/6", "name": "FastCGI worker lifecycle", "status": "PASS" if is_fpm else "STANDALONE", "evidence": "PHP-FPM worker pool active (pm.max_requests = 0)" if is_fpm else "Apache prefork / mod_php"},
+        {"num": "3/6", "name": "patch audit (GHSA-6wmf-4rv5-p3rp)", "status": "PASS" if (is_fpm and not is_patched) else "SAFE", "evidence": "PHP runtime unpatched against GHSA-6wmf-4rv5-p3rp" if (is_fpm and not is_patched) else "patched in PHP 8.2.20+/8.3.8+"},
+        {"num": "4/6", "name": "producer request (BG bailout)", "status": "UNVERIFIED", "evidence": "producer bailout not executed (requires active POST exceeding memory limits)"},
+        {"num": "5/6", "name": "worker reuse affinity", "status": "UNVERIFIED", "evidence": "worker reuse affinity not confirmed across requests"},
+        {"num": "6/6", "name": "consumer read (stale BG state)", "status": "UNVERIFIED", "evidence": "consumer state leak not observed -- exploitation chain incomplete"}
     ]
     chain_e_info = {
         "problem": "เซิร์ฟเวอร์ใช้สถาปัตยกรรม PHP-FPM แบบ Worker Process Pool ที่นำโพรเซสกลับมาใช้ใหม่เรื่อยๆ โดยไม่ได้ตั้งค่ารีไซเคิลเวิร์กเกอร์ (pm.max_requests = 0 ทำงานไม่จำกัดรอบ)",
-        "impact": "ความเสี่ยงระดับสูง (High Risk): หากเกิด Out-of-Memory หรือ Bailout ระหว่างจัดสรรบัฟเฟอร์ ค่าสถานะเดิมใน Buffer Globals (BG()) ของเวิร์กเกอร์อาจไม่ถูกเคลียร์กลับสู่ค่าเริ่มต้น",
-        "vulnerability_vector": "เมื่อเวิร์กเกอร์เดิมถูกนำมารับคำขอใหม่ (Persistent Worker Reuse) สภาวะบัฟเฟอร์ที่ตกค้างอาจทำให้ข้อมูลเซสชันรั่วไหลข้ามคำขอของผู้ใช้อื่น หรือทำให้เกิด Memory Corruption ภายใน Zend Engine",
+        "impact": "ความเสี่ยงเชิงสถาปัตยกรรม (Architectural Precondition): หากเกิด Out-of-Memory หรือ Bailout ระหว่างจัดสรรบัฟเฟอร์ ค่าสถานะเดิมใน Buffer Globals (BG()) ของเวิร์กเกอร์อาจไม่ถูกเคลียร์กลับสู่ค่าเริ่มต้น",
+        "vulnerability_vector": "ตามเงื่อนไขของ GHSA-6wmf-4rv5-p3rp การโจมตีต้องประกอบด้วย 3 สเต็ป: (1) Producer ส่งคำขอให้เกิด Bailout ใน BG(), (2) คำขอถัดไปเข้าถึงเวิร์กเกอร์ตัวเดิม, (3) Consumer อ่านสถานะเดิมก่อนรีเซ็ต หากไม่มีครบทั้ง 3 เงื่อนไข จะไม่เกิด RCE",
         "mitigation": "กำหนด pm.max_requests = 500 ในไฟล์คอนฟิกพูลของ PHP-FPM (/etc/php/*/fpm/pool.d/www.conf) เพื่อบังคับให้เวิร์กเกอร์รีไซเคิลกระบวนการใหม่สม่ำเสมอ และอัปเดต PHP เป็นเวอร์ชัน 8.2.20+ / 8.3.8+"
     }
 
@@ -577,8 +597,8 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             },
             "chain_b": {
                 "tag": "B",
-                "title": "[B] INI Leak via Session Engine (SAPI & Save Path Exposure)",
-                "short_title": "INI Leak via Session Engine (SAPI & Save Path Exposure)",
+                "title": "[B] Information Disclosure (expose_php & Environment Reconnaissance)",
+                "short_title": "Information Disclosure (expose_php & Reconnaissance)",
                 "verdict": chain_b_verdict,
                 "verdict_code": chain_b_verdict_code,
                 "stages_display": chain_b_stages_display,
@@ -592,8 +612,8 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             },
             "chain_c": {
                 "tag": "C",
-                "title": "[C] serializer-handler mismatch -> __destruct RCE",
-                "short_title": "serializer-handler mismatch -> __destruct RCE",
+                "title": "[C] serializer-handler mismatch -> Object Deserialization Risk",
+                "short_title": "serializer-handler mismatch -> Object Deserialization Risk",
                 "verdict": chain_c_verdict,
                 "verdict_code": chain_c_verdict_code,
                 "stages_display": chain_c_stages_display,
@@ -622,8 +642,8 @@ def evaluate_security_chains(is_php: bool, php_version: str, headers: dict, cook
             },
             "chain_e": {
                 "tag": "E",
-                "title": "[E] PHP-FPM Session OOM & Stale BG() Worker State Persistence",
-                "short_title": "PHP-FPM Session OOM & Stale BG() Worker State Persistence",
+                "title": "[E] PHP-FPM Stale Global State Precondition (GHSA-6wmf-4rv5-p3rp / CVE-2026-109619)",
+                "short_title": "PHP-FPM Stale Global State Precondition (GHSA-6wmf-4rv5-p3rp)",
                 "verdict": chain_e_verdict,
                 "verdict_code": chain_e_verdict_code,
                 "stages_display": chain_e_stages_display,
