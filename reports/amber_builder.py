@@ -888,7 +888,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             if trail:
                 trail_html = f"""
                 <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #334155; font-size: 8.5pt; color: #94a3b8;">
-                  <div><b>Cryptographic Audit Trail:</b> Operator: {html.escape(trail.get('operator', '-'))} | UTC: {html.escape(trail.get('timestamp_utc', '-'))}</div>
+                  <div><b>Tamper-Evident Evidence Digest (SHA-256):</b> Operator: {html.escape(trail.get('operator', '-'))} | UTC: {html.escape(trail.get('timestamp_utc', '-'))}</div>
                   <div style="word-break: break-all;"><b>Evidence SHA-256:</b> <span style="color: #4ade80;">{html.escape(trail.get('evidence_sha256', '-'))}</span></div>
                 </div>
                 """

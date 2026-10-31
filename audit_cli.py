@@ -235,7 +235,7 @@ async def run_cli_audit(
         print(f"  {C_GREEN}✓ NOT CONFIRMED: ไม่พบหลักฐานการเกิด RCE หรือช่องทางส่งต่อคำสั่งควบคุม{C_RESET}")
 
     if rce_trail:
-        print(f"\n  {C_CYAN}{C_BOLD}[Cryptographic Audit Trail & Evidence Hash]{C_RESET}")
+        print(f"\n  {C_CYAN}{C_BOLD}[Tamper-Evident Evidence Digest & Integrity Hash (SHA-256)]{C_RESET}")
         print(f"  • {C_WHITE}ผู้ทดสอบ (Operator):{C_RESET}  {rce_trail.get('operator')}")
         print(f"  • {C_WHITE}เวลา (Timestamp UTC):{C_RESET} {rce_trail.get('timestamp_utc')}")
         print(f"  • {C_WHITE}Payload SHA-256:{C_RESET}     {C_YELLOW}{rce_trail.get('payload_sha256')}{C_RESET}")

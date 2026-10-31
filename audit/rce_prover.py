@@ -1,15 +1,15 @@
 """
 Active RCE Proof & PoC Verification Engine for OPScaner
-Enterprise-Grade LFI-to-RCE Chain Verifier with Cryptographic Audit Trail and Safety Gate.
+LFI-to-RCE Chain Verifier with Tamper-Evident SHA-256 Digest and Safety Gate.
 
-Complies with industry standard testing methodology:
-1. Detect LFI vulnerability
+Implements structured verification methodology:
+1. Detect LFI indicators
 2. Discover / Initialize PHP session endpoint
-3. Dispatch non-destructive mathematical canary payload into session
-4. Attempt triggering canary execution via LFI inclusion
+3. Dispatch active arithmetic verification payload into session
+4. Attempt triggering payload execution via LFI inclusion
 5. Tri-state categorization: RCE_CONFIRMED, CANARY_CONFIRMED, NOT_CONFIRMED
-6. Record cryptographic audit trail (ISO timestamp, operator, transcript, SHA-256)
-7. Enforce Safety Gate: Active RCE probes run only when explicitly authorized.
+6. Record tamper-evident integrity digest (ISO timestamp, operator, transcript, SHA-256 checksum)
+7. Enforce Safety Gate: Live active exploit probes run only when explicitly authorized.
 """
 
 import hashlib
@@ -32,7 +32,7 @@ def generate_audit_trail(
     resp_headers: dict,
     resp_text: str
 ) -> dict:
-    """Creates a cryptographic, non-repudiable audit trail for security evidence."""
+    """Creates a tamper-evident audit record using SHA-256 integrity checksums."""
     ts_utc = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     ts_local = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

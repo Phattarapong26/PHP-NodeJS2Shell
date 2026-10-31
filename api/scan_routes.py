@@ -21,6 +21,7 @@ from core.network import (
     get_docker_gateway,
     resolve_device_details,
     get_fast_latency,
+    is_public_target,
 )
 from core.multi_vector_discovery import MultiVectorDiscoveryEngine
 from core.database import CVE_DATABASE
@@ -379,6 +380,8 @@ def scan():
     concurrency = min(max(int(data.get("concurrency", 120)), 20), 200)
     custom_ports = data.get("ports", None)
     allow_active_rce = bool(data.get("allow_active_rce", False))
+    i_own_this_target = bool(data.get("i_own_this_target", False))
+    consent_phrase = str(data.get("consent_phrase", "")).strip()
     operator = data.get("operator", "web-operator")
 
     net_info = get_host_network_info()
@@ -417,6 +420,15 @@ def scan():
     curr_is_docker = net_info.get("is_docker", False)
     curr_host_ip = net_info.get("ip", "")
     curr_docker_gw = get_docker_gateway() if curr_is_docker else None
+
+    # Safety Gate for Web API: verify consent and ownership for public targets
+    safety_gate_notice = None
+    if allow_active_rce:
+        is_target_public = is_public_target(target_domain or subnet_str)
+        if is_target_public:
+            if not i_own_this_target or consent_phrase != "I_CONFIRM_TARGET_OWNERSHIP":
+                allow_active_rce = False
+                safety_gate_notice = "Safety Gate: Active RCE disabled for public/external target without explicit ownership affirmation (i_own_this_target=True, consent_phrase='I_CONFIRM_TARGET_OWNERSHIP')."
 
     async def run_probes():
         limits = httpx.Limits(max_connections=concurrency, max_keepalive_connections=20)
@@ -752,6 +764,7 @@ def scan():
         "total_vuln_found": len(vuln_list),
         "thaicert_summary": thaicert_summary,
         "elapsed_seconds": elapsed,
+        "safety_gate_notice": safety_gate_notice,
         "results": php_list,
         "node_results": node_list,
         "all_hosts": all_active_list

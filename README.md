@@ -127,9 +127,9 @@ flowchart TD
    * **`RCE_CONFIRMED`:** ผลลัพธ์ตัวเลขคณิตศาสตร์ถูกคำนวณจริง (ยืนยันว่าโค้ดถูกประมวลผลโดย PHP Engine สำเร็จ)
    * **`CANARY_CONFIRMED`:** พบค่าวาจาของ Canary สะท้อนกลับมาเป็นข้อความล้วน แต่ไม่มีการ Execute (ยืนยันว่ามี LFI อ่านไฟล์เซสชันได้จริง แต่ไม่เกิดการรันโค้ด)
    * **`NOT_CONFIRMED`:** ไม่พบการตอบสนอง หรือระบบไม่สามารถเปิดอ่านไฟล์เซสชันได้
-6. **บันทึกหลักฐานดิจิทัล (Cryptographic Evidence Trail):**
-   * บันทึกวันเวลา (ISO 8601 UTC), ชื่อผู้ตรวจสอบ (Operator), Full HTTP Transcript (Request/Response)
-   * คำนวณค่า **SHA-256 Hash** ของ Payload และ Evidence Transcript เพื่อรับประกันความถูกต้องของหลักฐานทางนิติวิทยาศาสตร์ (Non-repudiation)
+6. **บันทึกหลักฐานดิจิทัลพร้อมค่าแฮชตรวจสอบความถูกต้อง (Tamper-Evident Evidence Digest):**
+   * บันทึกวันเวลา (ISO 8601 UTC), ชื่อผู้ตรวจสอบ (Operator), และ Full HTTP Transcript (Request/Response)
+   * คำนวณค่า **SHA-256 Checksum** ของ Payload และ Transcript เพื่อใช้ตรวจสอบการแก้ไขดัดแปลงข้อมูล (Tamper Detection)
 7. **กลไกความปลอดภัย (Safety Gate Protection):**
    * **ระงับการยิง Active RCE โดยค่าเริ่มต้น:** การสแกนปกติจะทำงานในโหมด Safe Passive & Heuristic Inspection เท่านั้น
    * **การเปิดใช้ Active Verification:** ผู้ใช้ต้องระบุพารามิเตอร์ `--active-rce` เจาะจง
