@@ -1,0 +1,81 @@
+# OPScaner PHP2Shell Lab - 8 simulated systems on 8 ports
+#   docker compose up -d --build
+#   portal: http://<lab-ip>:8080
+# ใช้เมื่อต้องให้โปรแกรม VA สแกนจากเครื่อง/วงเน็ตอื่น (sandbox ของ Base44 ไม่เปิดพอร์ตออกภายนอก)
+x-lab: &lab
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  image: php2shell-lab:1.0
+  restart: unless-stopped
+  networks: [labnet]
+
+services:
+  portal:
+    <<: *lab
+    container_name: lab-portal
+    hostname: lab-portal
+    environment:
+      LAB_APP: portal
+      LAB_PORT: "8080"
+    ports: ["8080:8080"]
+
+  app1:
+    <<: *lab
+    container_name: lab-1-cms
+    hostname: cms-corp
+    environment: { LAB_APP: app1, LAB_PORT: "8081" }
+    ports: ["8081:8081"]
+
+  app2:
+    <<: *lab
+    container_name: lab-2-api
+    hostname: mobile-api
+    environment: { LAB_APP: app2, LAB_PORT: "8082" }
+    ports: ["8082:8082"]
+
+  app3:
+    <<: *lab
+    container_name: lab-3-panel
+    hostname: hosting-panel
+    environment: { LAB_APP: app3, LAB_PORT: "8083" }
+    ports: ["8083:8083"]
+
+  app4:
+    <<: *lab
+    container_name: lab-4-appliance
+    hostname: netguard-utm
+    environment: { LAB_APP: app4, LAB_PORT: "8084" }
+    ports: ["8084:8084"]
+
+  app5:
+    <<: *lab
+    container_name: lab-5-container
+    hostname: order-api
+    environment: { LAB_APP: app5, LAB_PORT: "8085" }
+    ports: ["8085:8085"]
+
+  app6:
+    <<: *lab
+    container_name: lab-6-windows
+    hostname: hr-portal
+    environment: { LAB_APP: app6, LAB_PORT: "8086" }
+    ports: ["8086:8086"]
+
+  app7:
+    <<: *lab
+    container_name: lab-7-staging
+    hostname: dms-staging
+    environment: { LAB_APP: app7, LAB_PORT: "8087" }
+    ports: ["8087:8087"]
+
+  app8:
+    <<: *lab
+    container_name: lab-8-shared
+    hostname: cloudshare
+    environment: { LAB_APP: app8, LAB_PORT: "8088" }
+    ports: ["8088:8088"]
+
+networks:
+  labnet:
+    driver: bridge

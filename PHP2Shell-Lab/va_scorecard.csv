@@ -1,0 +1,10 @@
+﻿port,system_group,expected_findings,detected,coverage_percent,notes
+8081,1 CMS / corporate websites,2,0,"=IFERROR(D2/C2,0)",
+8082,2 Mobile backend / API framework,4,0,"=IFERROR(D3/C3,0)",
+8083,3 Hosting control panel,3,0,"=IFERROR(D4/C4,0)",
+8084,4 Appliance / IoT web admin,4,0,"=IFERROR(D5/C5,0)",
+8085,5 Container / Docker image,4,0,"=IFERROR(D6/C6,0)",
+8086,6 Windows + PHP (IIS/XAMPP),3,0,"=IFERROR(D7/C7,0)",
+8087,7 Dev / UAT / Staging / DR,6,0,"=IFERROR(D8/C8,0)",
+8088,8 Shared / managed hosting,4,0,"=IFERROR(D9/C9,0)",
+TOTAL,all systems,30,0,"=IFERROR(SUM(D2:D9)/SUM(C2:C9),0)",
