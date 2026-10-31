@@ -861,20 +861,11 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         matched_cves = h.get("matched_cves") or []
         chains = da.get("security_chains", {}).get("chains", {}) or h.get("security_chains", {}).get("chains", {})
         
-        # Build Architectural Matrix & Deep Narrative per host if present
+        # Build Architectural Narrative per host if present (Official Paper Format: No borders, no dark boxes, indented paragraphs)
         matrix = h.get("architecture_matrix") or da.get("architecture_matrix") or []
         if matrix:
             arch_matrix_html += f"""
-            <div style="margin-top: 20px; margin-bottom: 24px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #ffffff;">
-              <div style="background: #0f172a; color: #f8fafc; padding: 12px 16px; font-weight: bold; font-size: 14pt;">
-                การประเมินสถาปัตยกรรมห่วงโซ่การโจมตีและความเป็นไปได้ในการโจมตีจริง — ระบบเป้าหมาย: <code>{html.escape(h_ip)}</code>
-              </div>
-              <div style="padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                <p class="adv-para" style="margin-bottom: 0;">
-                  การวิเคราะห์ความมั่นคงปลอดภัยเชิงลึกจำเป็นต้องพิจารณาความแตกต่างของสถาปัตยกรรมการให้บริการ (SAPI), รูปแบบการทำงานของเวิร์กเกอร์ (Worker Model), เงื่อนไขจำเป็นก่อนหน้า (Prerequisites) และขอบเขตผลกระทบต่อระบบงาน เพื่อประเมินความเป็นไปได้ในการถูกโจมตีจริงอย่างแม่นยำ มิใช่การตัดสินจากหมายเลขเวอร์ชันเพียงอย่างเดียว โดยผลการประเมินเชิงสถาปัตยกรรมจำแนกตามกลุ่มระบบของ ThaiCERT ปรากฏรายละเอียดดังต่อไปนี้:
-                </p>
-              </div>
-              <div style="padding: 16px;">
+            <div style="margin-top: 14px; margin-bottom: 20px;">
             """
             for m in matrix:
                 g_id = m.get("group_id")
@@ -890,38 +881,27 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 chains_list = m.get("chains_applicable", [])
                 chains_text = ", ".join([html.escape(c) for c in chains_list]) if chains_list else "ไม่พบห่วงโซ่ที่เข้าข่าย"
 
-                conf_color = "#dc2626" if exploitability == "Confirmed" else ("#0284c7" if exploitability == "Likely" else ("#d97706" if exploitability == "Conditional" else "#64748b"))
                 conf_label = "ยืนยันเงื่อนไขครบถ้วน (Confirmed)" if exploitability == "Confirmed" else ("มีความเป็นไปได้สูง (Likely)" if exploitability == "Likely" else ("ขึ้นกับเงื่อนไขเฉพาะ (Conditional)" if exploitability == "Conditional" else ("ไม่มีผลกระทบ (Not Applicable)" if exploitability in ("Not Applicable", "Mitigated") else html.escape(exploitability))))
 
-                arch_matrix_html += f"""
-                <div style="margin-bottom: 18px; padding: 14px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
-                    <div style="font-size: 15.5pt; font-weight: bold; color: #0f172a;">
-                      การวิเคราะห์สถาปัตยกรรมกลุ่ม: {html.escape(g_name)}
-                    </div>
-                    <div style="font-size: 10.5pt; font-weight: bold; padding: 2px 8px; border-radius: 4px; background: {conf_color}15; color: {conf_color}; border: 1px solid {conf_color};">
-                      ระดับความเป็นไปได้: {conf_label}
-                    </div>
-                  </div>
+                chains_desc = f" ซึ่งมีความเชื่อมโยงกับห่วงโซ่ความเสี่ยง {chains_text}" if chains_list else ""
 
-                  <div style="font-size: 12.5pt; color: #475569; margin-bottom: 10px; background: #f8fafc; padding: 6px 10px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
-                    <strong>อินเตอร์เฟซ SAPI:</strong> <code>{html.escape(sapi_val)}</code> &nbsp;|&nbsp;
-                    <strong>รูปแบบเวิร์กเกอร์:</strong> <code>{html.escape(worker_val)}</code> &nbsp;|&nbsp;
-                    <strong>ห่วงโซ่ที่เข้าข่าย:</strong> <span style="color: #0f172a;">{chains_text}</span>
+                arch_matrix_html += f"""
+                <div style="margin-top: 14px; margin-bottom: 16px;">
+                  <div style="font-size: 16.5pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
+                    การวิเคราะห์สถาปัตยกรรมกลุ่ม{html.escape(g_name)} บนระบบเป้าหมาย {html.escape(h_ip)}
                   </div>
 
                   <p class="adv-para">
-                    จากการวิเคราะห์โครงสร้างระบบ พบว่าการเชื่อมโยงการประมวลผลทำงานผ่านอินเตอร์เฟซ <code>{html.escape(sapi_val)}</code> ภายใต้รูปแบบการบริหารจัดการเวิร์กเกอร์แบบ {html.escape(worker_val)} ซึ่งมีความสำคัญต่อวงรอบหน่วยความจำและขอบเขตการทำงานของโปรเซส ในแง่กลไกการทำงาน {html.escape(exploit_mech)}
+                    จากการวิเคราะห์โครงสร้างสถาปัตยกรรมของระบบเป้าหมาย <code>{html.escape(h_ip)}</code> พบว่าระบบทำงานผ่านอินเตอร์เฟซ {html.escape(sapi_val)} ภายใต้รูปแบบการบริหารจัดการเวิร์กเกอร์แบบ {html.escape(worker_val)}{chains_desc} ซึ่งมีความสำคัญต่อวงรอบหน่วยความจำและขอบเขตการทำงานของโปรเซส ในแง่กลไกการทำงาน {html.escape(exploit_mech)}
                   </p>
 
                   <p class="adv-para">
-                    สำหรับการประเมินเงื่อนไขจำเป็นทางเทคนิค (Prerequisites) ที่จะทำให้การโจมตีสัมฤทธิ์ผล พบว่า {html.escape(prereq_summary)} ซึ่งหากขาดเงื่อนไขดังกล่าว การส่งคำขอโจมตีจะไม่สามารถขยายผลได้ ส่งผลให้ขอบเขตผลกระทบที่แท้จริงจำกัดอยู่ที่: {html.escape(impact_scope)} ทั้งนี้ แนวทางการยกระดับความมั่นคงปลอดภัยเชิงโครงสร้างที่แนะนำคือ {html.escape(mitigation_val)}
+                    สำหรับการประเมินเงื่อนไขจำเป็นทางเทคนิค (Prerequisites) ที่จะทำให้การโจมตีสัมฤทธิ์ผล พบว่า {html.escape(prereq_summary)} ซึ่งหากขาดเงื่อนไขดังกล่าว การส่งคำขอโจมตีจะไม่สามารถขยายผลได้ ส่งผลให้ขอบเขตผลกระทบที่แท้จริงจำกัดอยู่ที่ {html.escape(impact_scope)} โดยมีระดับความเป็นไปได้ในการโจมตีจริงอยู่ในเกณฑ์: {conf_label} ทั้งนี้ แนวทางการยกระดับความมั่นคงปลอดภัยเชิงโครงสร้างที่แนะนำคือ {html.escape(mitigation_val)}
                   </p>
                 </div>
                 """
 
             arch_matrix_html += """
-              </div>
             </div>
             """
         
