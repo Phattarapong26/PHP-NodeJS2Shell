@@ -20,7 +20,7 @@ from core.network import resolve_device_details, get_fast_latency
 from audit.php_audit import evaluate_php_security, evaluate_security_chains
 from audit.node_audit import evaluate_node_security
 from audit.nginx_audit import evaluate_nginx_security, collect_target_cves
-from audit.thaicert_rules import classify_thaicert_groups
+from audit.thaicert_rules import classify_thaicert_groups, evaluate_group_architecture_matrix
 
 async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_text: str, req_headers: dict) -> dict:
     """
@@ -321,6 +321,28 @@ async def probe_endpoint(
             has_error_leak=has_error_leak
         )
         
+        # Dynamic Group Exploit Chain & Architecture Matrix Evaluation
+        has_lfi_active = bool(lfi_check and lfi_check.get("has_lfi_prerequisite"))
+        is_patched_val = False
+        if php_version_str:
+            v_clean = php_version_str.replace("PHP", "").replace("/", "").strip()
+            m_v = re.search(r'(\d+)\.(\d+)\.(\d+)', v_clean)
+            if m_v:
+                maj, mino, pat = int(m_v.group(1)), int(m_v.group(2)), int(m_v.group(3))
+                if (maj == 8 and mino == 2 and pat >= 20) or (maj == 8 and mino == 3 and pat >= 8) or (maj == 8 and mino >= 4) or (maj > 8):
+                    is_patched_val = True
+
+        arch_matrix = evaluate_group_architecture_matrix(
+            groups=thaicert_info["groups"],
+            is_php=is_php,
+            php_version=php_version_str or "",
+            server=server,
+            has_lfi=has_lfi_active,
+            is_patched=is_patched_val,
+            is_fpm=("fpm" in server.lower() or "nginx" in server.lower())
+        )
+        thaicert_info["architecture_matrix"] = arch_matrix
+
         # Collect signatures matched for verification evidence
         signatures_matched = []
         if is_php:
@@ -664,6 +686,8 @@ async def probe_endpoint(
             "primary_group": thaicert_info["primary_group"],
             "group_labels": thaicert_info["group_labels"],
             "group_evidence": thaicert_info["evidence"],
+            "thaicert_profiles": thaicert_info.get("profiles", []),
+            "architecture_matrix": thaicert_info.get("architecture_matrix", []),
             "security_chains": security_chains,
             "probe_log": probe_log,
             "va_findings": va_findings,
@@ -714,6 +738,8 @@ async def probe_endpoint(
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
+                "thaicert_profiles": thaicert_info.get("profiles", []),
+                "architecture_matrix": thaicert_info.get("architecture_matrix", []),
                 "security_chains": security_chains,
                 "probe_log": probe_log,
                 "va_findings": va_findings,
@@ -754,6 +780,8 @@ async def probe_endpoint(
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
+                "thaicert_profiles": thaicert_info.get("profiles", []),
+                "architecture_matrix": thaicert_info.get("architecture_matrix", []),
                 "security_chains": security_chains,
                 "probe_log": probe_log,
                 "va_findings": va_findings,
@@ -793,6 +821,8 @@ async def probe_endpoint(
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
+                "thaicert_profiles": thaicert_info.get("profiles", []),
+                "architecture_matrix": thaicert_info.get("architecture_matrix", []),
                 "security_chains": security_chains,
                 "probe_log": probe_log,
                 "va_findings": va_findings,
@@ -832,6 +862,8 @@ async def probe_endpoint(
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
+                "thaicert_profiles": thaicert_info.get("profiles", []),
+                "architecture_matrix": thaicert_info.get("architecture_matrix", []),
                 "security_chains": security_chains,
                 "probe_log": probe_log,
                 "ports": [port],

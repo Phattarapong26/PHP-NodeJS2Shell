@@ -1133,6 +1133,16 @@
             <div id="auditGroupList" class="flex flex-wrap gap-1.5 pt-1">
               <!-- Injected group badges -->
             </div>
+            <!-- Architectural Exploit Chain Matrix container -->
+            <div id="auditArchMatrixWrapper" class="hidden mt-2 pt-2 border-t border-blue-200/60 text-[11px]">
+              <div class="font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <span><i class="ph-bold ph-git-branch text-indigo-600"></i> สถาปัตยกรรม & Exploit Chain Matrix (8 กลุ่ม ThaiCERT):</span>
+                <span class="text-[10px] text-slate-400 font-normal">SAPI · Worker Model · Prerequisites</span>
+              </div>
+              <div id="auditArchMatrixList" class="space-y-1.5 overflow-x-auto">
+                <!-- Injected architectural cards -->
+              </div>
+            </div>
           </div>
 
           <!-- Mapped CVE Vulnerability Warnings (from CybersRMUTL & ThaiCERT Catalog) -->
@@ -3152,6 +3162,38 @@ Content-Type: text/html; charset=UTF-8</div>
           pill.innerHTML = `<i class="ph-bold ${groupIcons[g] || 'ph-squares-four'}"></i> <span>${label}</span>`;
           groupListEl.appendChild(pill);
         });
+      }
+
+      // Render Architectural Exploit Chain Matrix
+      const archWrapper = document.getElementById('auditArchMatrixWrapper');
+      const archList = document.getElementById('auditArchMatrixList');
+      const matrix = host.architecture_matrix || deep.architecture_matrix || [];
+      if (archWrapper && archList) {
+        if (matrix.length > 0) {
+          archWrapper.classList.remove('hidden');
+          archList.innerHTML = matrix.map(m => {
+            const confColor = m.exploitability === 'Confirmed' ? 'text-rose-600 bg-rose-50 border-rose-200' : (m.exploitability === 'Likely' ? 'text-sky-600 bg-sky-50 border-sky-200' : (m.exploitability === 'Conditional' ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-slate-500 bg-slate-50 border-slate-200'));
+            const chainsHtml = (m.chains_applicable || []).map(ch => `<span class="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[9.5px] font-mono mr-1">${escapeHtml(ch)}</span>`).join('');
+            return `
+              <div class="p-2.5 rounded-xl bg-white/90 border border-slate-200/90 shadow-2xs space-y-1">
+                <div class="flex items-center justify-between flex-wrap gap-1">
+                  <div class="font-bold text-slate-800 text-xs">กลุ่ม ${m.group_id}: ${escapeHtml(m.group_name)}</div>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${confColor}">${escapeHtml(m.exploitability)}</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[10.5px] text-slate-600 pt-0.5">
+                  <div><span class="text-slate-400">SAPI:</span> <b>${escapeHtml(m.sapi_detected || '-')}</b></div>
+                  <div><span class="text-slate-400">Worker Model:</span> <b>${escapeHtml(m.worker_model || '-')}</b></div>
+                </div>
+                <div class="text-[10.5px] text-slate-500 pt-0.5"><span class="text-slate-400">เงื่อนไขจำเป็น (Prerequisites):</span> ${escapeHtml(m.prerequisite_summary || '-')}</div>
+                <div class="pt-0.5 flex items-center flex-wrap gap-1">
+                  <span class="text-[10px] text-slate-400">Chains:</span> ${chainsHtml}
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          archWrapper.classList.add('hidden');
+        }
       }
 
       // Render Matched CVEs (CybersRMUTL Multi-Stack Mapping)

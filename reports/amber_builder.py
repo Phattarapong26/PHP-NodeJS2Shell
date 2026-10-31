@@ -803,11 +803,64 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
     # In-Depth Findings Sections
     findings_html = ""
     finding_idx = 1
+    arch_matrix_html = ""
     for h in hosts_list:
         h_ip = h.get("ip") or h.get("target_id") or "-"
         da = h.get("deep_audit") or {}
         matched_cves = h.get("matched_cves") or []
         chains = da.get("security_chains", {}).get("chains", {}) or h.get("security_chains", {}).get("chains", {})
+        
+        # Build Architectural Matrix per host if present
+        matrix = h.get("architecture_matrix") or da.get("architecture_matrix") or []
+        if matrix:
+            arch_matrix_html += f"""
+            <div style="margin-top: 18px; margin-bottom: 22px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; background: #ffffff;">
+              <div style="background: #0f172a; color: #f8fafc; padding: 10px 14px; font-weight: bold; font-size: 13.5pt;">
+                🏛️ การประเมินสถาปัตยกรรม Exploit Chain จำแนกตามกลุ่มระบบ ThaiCERT — ระบบ: <code>{html.escape(h_ip)}</code>
+              </div>
+              <div style="padding: 8px 14px; background: #f8fafc; font-size: 11pt; color: #475569; border-bottom: 1px solid #e2e8f0;">
+                วิเคราะห์ความแตกต่างของ SAPI, Worker Model, เงื่อนไขจำเป็น (Prerequisites) และขอบเขตผลกระทบ เพื่อประเมินความเป็นไปได้ในการโจมตีจริง
+              </div>
+              <table style="width: 100%; border-collapse: collapse; font-size: 10.5pt; text-align: left;">
+                <thead>
+                  <tr style="background: #f1f5f9; color: #334155; border-bottom: 2px solid #cbd5e1;">
+                    <th style="padding: 8px 10px; width: 22%;">กลุ่มระบบ / SAPI</th>
+                    <th style="padding: 8px 10px; width: 22%;">โมเดลเวิร์กเกอร์ (Worker Model)</th>
+                    <th style="padding: 8px 10px; width: 26%;">เงื่อนไขจำเป็น (Prerequisites)</th>
+                    <th style="padding: 8px 10px; width: 18%;">Exploit Chain ที่เข้าข่าย</th>
+                    <th style="padding: 8px 10px; width: 12%;">ความเชื่อมั่น</th>
+                  </tr>
+                </thead>
+                <tbody>
+            """
+            for m in matrix:
+                conf_badge_color = "#e11d48" if m.get("exploitability") == "Confirmed" else ("#0284c7" if m.get("exploitability") == "Likely" else ("#d97706" if m.get("exploitability") == "Conditional" else "#64748b"))
+                chains_str = "<br>• ".join([html.escape(c) for c in m.get("chains_applicable", [])])
+                arch_matrix_html += f"""
+                  <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 8px 10px; vertical-align: top;">
+                      <strong>กลุ่ม {m.get('group_id')}:</strong> {html.escape(m.get('group_name', ''))}
+                      <br><span style="color: #64748b; font-size: 9.5pt;">SAPI: {html.escape(m.get('sapi_detected', ''))}</span>
+                    </td>
+                    <td style="padding: 8px 10px; vertical-align: top; color: #334155;">
+                      {html.escape(m.get('worker_model', ''))}
+                    </td>
+                    <td style="padding: 8px 10px; vertical-align: top; font-size: 10pt; color: #475569;">
+                      {html.escape(m.get('prerequisite_summary', ''))}
+                    </td>
+                    <td style="padding: 8px 10px; vertical-align: top; font-size: 9.5pt; color: #0f172a;">
+                      • {chains_str}
+                    </td>
+                    <td style="padding: 8px 10px; vertical-align: top;">
+                      <span style="font-weight: bold; color: {conf_badge_color};">{html.escape(m.get('exploitability', 'Conditional'))}</span>
+                    </td>
+                  </tr>
+                """
+            arch_matrix_html += """
+                </tbody>
+              </table>
+            </div>
+            """
         
         # 1. Matched CVEs for this host
         for c in matched_cves:
@@ -1014,6 +1067,8 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
       <p class="adv-para">
         ในส่วนนี้เป็นการวิเคราะห์เชิงลึกเกี่ยวกับข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยที่ตรวจพบ พร้อมทั้งระบุระดับความเชื่อมั่นตามกรอบการประเมินเชิงประจักษ์ (Evidence-based Confidence Levels: Confirmed, Likely, Conditional, Unverified) มาตรฐานอ้างอิงระดับสากล กลไกความเสี่ยง และชุดคำสั่งสำหรับให้ผู้ดูแลระบบนำไปรันตรวจสอบบนเครื่องเซิร์ฟเวอร์จริง (Host Verification CLI) เพื่อยืนยันสถานะความปลอดภัย ตลอดจนตัวอย่างไฟล์คอนฟิกสำหรับการแก้ไขปรับปรุงระบบให้มีความมั่นคงปลอดภัยสอดคล้องกับมาตรฐาน
       </p>
+
+      {arch_matrix_html}
 
       {findings_html}
 

@@ -18,60 +18,251 @@ THAICERT_GROUP_PROFILES = {
     1: {
         "group_id": 1,
         "name": "เว็บไซต์และระบบภายในองค์กร (CMS / Internal Web)",
-        "sapi_evaluation": "ประเมิน SAPI (Apache mod_php vs PHP-FPM) และ Request Buffering",
-        "risk_context": "ในหลายกรณี PHP จะ parse request body และ multipart upload ก่อนเรียก application entry point ทำให้ middleware อาจไม่มีโอกาสกรอง request ที่ทำให้เกิดปัญหาระดับ engine ได้ อย่างไรก็ตามต้องยืนยันตาม SAPI และ configuration จริง",
+        "sapi_typical": "Apache mod_php หรือ PHP-FPM หลัง Reverse Proxy (Nginx/Apache)",
+        "worker_model": "Pre-fork Multi-Process (Apache) หรือ FastCGI Worker Process Pool (FPM)",
+        "engine_shared_vulnerabilities": [
+            "PHP Engine OOM Memory Exhaustion",
+            "Session Upload Progress Poisoning (Chain A)",
+            "Stale Global State via Worker Reuse (GHSA-6wmf-4rv5-p3rp)"
+        ],
+        "exploit_chain_mechanism": "PHP ประมวลผล request body และ multipart upload ที่ระดับ SAPI/Engine ก่อนเรียก application entry point ทำให้ middleware ไม่มีโอกาสกรอง request หากเกิด OOM หรือ stale state จะทำให้เกิดเงื่อนไขที่ worker ตกค้าง แต่การทำ RCE ต้องอาศัย upload route และ LFI ภายใน CMS",
+        "prerequisites": [
+            {"name": "Engine Body/Multipart Parsing", "condition": "ส่งผ่านก่อน CMS Router/Middleware", "status": "Met at Engine Level"},
+            {"name": "Upload Route / Large Body Delivery", "condition": "ไม่ถูก Proxy Buffer สกัดกั้น", "status": "Conditional on Proxy"},
+            {"name": "LFI Prerequisite", "condition": "ต้องมีจุด include/require ไฟล์เซสชัน", "status": "Required for RCE"}
+        ],
+        "impact_scope": "ความเสี่ยง RCE หากมี LFI ประกอบ หรือเกิดการปนเปื้อนข้อมูลเซสชัน (Session Poisoning) ใน /tmp",
+        "mitigation": "ปิด session.upload_progress.enabled = Off, จำกัด post_max_size / memory_limit และอัปเดต PHP เป็นเวอร์ชันที่ได้รับการแพตช์",
         "confidence_default": "Conditional"
     },
     2: {
         "group_id": 2,
         "name": "ระบบหลังบ้านแอปมือถือ และ API (Frameworks & REST APIs)",
-        "sapi_evaluation": "ประเมินตาม SAPI และเส้นทาง Request ลำดับการประมวลผลก่อนเข้า Router",
-        "risk_context": "Framework Routing จัดการในระดับ Application Logic แต่ข้อผิดพลาดระดับ Engine Parsing เกิดก่อนเข้า Router จึงต้องประเมินพฤติกรรมการรับส่งข้อมูลจริง",
+        "sapi_typical": "PHP-FPM, Nginx FastCGI, หรือ CLI Persistent Server (Swoole / RoadRunner)",
+        "worker_model": "FastCGI Worker Pool Reuse (pm.max_requests=0) หรือ Persistent Memory State",
+        "engine_shared_vulnerabilities": [
+            "PHP Engine OOM via Large Request Body",
+            "Stale Global State Persistence (GHSA-6wmf-4rv5-p3rp)",
+            "Serializer Mismatch in Cache/Session Store"
+        ],
+        "exploit_chain_mechanism": "แอปพลิเคชัน Framework มี Middleware และ Routing แต่การ parse request body และ multipart เกิดขึ้นก่อนโค้ด Userland อย่างไรก็ตาม การโจมตี stale-state จำเป็นต้องมี endpoint ทำหน้าที่เป็น producer ทิ้งสถานะค้าง และ request ถัดไปต้องเข้า worker เดิมที่มี consumer อ่านสถานะก่อนถูกรีเซ็ต",
+        "prerequisites": [
+            {"name": "Pre-routing Body Parsing", "condition": "Engine ประมวลผล body ก่อน Framework Middleware", "status": "Met at Engine Level"},
+            {"name": "Producer/Consumer Endpoints", "condition": "มี endpoint ที่ทิ้ง state และ endpoint ที่อ่าน state", "status": "Application-Dependent"},
+            {"name": "Worker Reuse Hit", "condition": "Request ถัดไปเข้าถึง worker ตัวเดิมก่อนถูก recycle", "status": "Probabilistic / High Concurrency"}
+        ],
+        "impact_scope": "การปนเปื้อนข้อมูลข้ามคำขอ (Cross-request Data Contamination) หรือสิทธิ์หลุดในระดับเวิร์กเกอร์เดียวกัน",
+        "mitigation": "กำหนด pm.max_requests = 500, แยก stateless API pool และไม่เก็บ mutable global state ข้ามคำขอ",
         "confidence_default": "Conditional"
     },
     3: {
         "group_id": 3,
         "name": "Hosting Control Panel (cPanel, Plesk, DirectAdmin)",
-        "sapi_evaluation": "ตรวจสอบ process, SAPI, pool, socket และ privilege แยกกัน",
-        "risk_context": "บางระบบแยก PHP ระหว่างตัวจัดการกับเว็บไซต์ แต่บางระบบอาจแชร์ binary หรือ service ร่วมกัน ไม่ควรสมมติว่าแยกกันเสมอ แต่การแชร์ก็ไม่ได้แปลว่าจะเข้าถึง worker state ได้ทันที ต้องตรวจสอบสิทธิ์และ socket จริง",
+        "sapi_typical": "Internal Panel Daemon (cpsrvd, sw-engine) แยกจาก User Site PHP Pools",
+        "worker_model": "แยก Process และ Unix Domain Socket ระหว่าง Management Panel กับ User Websites",
+        "engine_shared_vulnerabilities": [
+            "PHP Engine Vulnerabilities บนเวอร์ชันที่แชร์รันไทม์",
+            "Local Privilege Escalation (กรณีแชร์ Socket/Process)"
+        ],
+        "exploit_chain_mechanism": "ไม่ใช่ exploit chain เดียวกันโดยอัตโนมัติ ต้องตรวจสอบว่า Control Panel ใช้ internal PHP binary แยกต่างหาก (เช่น /usr/local/cpanel/3rdparty/bin/php) หรือแชร์ PHP runtime กับเว็บไซต์ผู้ใช้ หากแยกกัน การโจมตีเว็บผู้ใช้จะไม่ส่งผลกระทบต่อสิทธิ์ของ Control Panel",
+        "prerequisites": [
+            {"name": "Shared Binary/Socket Analysis", "condition": "ต้องตรวจสอบว่าใช้ binary หรือ socket ร่วมกันหรือไม่", "status": "Inspection Required"},
+            {"name": "Privilege Boundary Crossing", "condition": "ต้องข้ามผ่านข้อจำกัดสิทธิ์ user isolation / chroot", "status": "Strict Boundary"}
+        ],
+        "impact_scope": "หากแยกสิทธิ์สมบูรณ์: ผลกระทบจำกัดเฉพาะเว็บไซต์ผู้ใช้; หากแชร์ runtime: เสี่ยงต่อการยกระดับสิทธิ์สู่ระบบจัดการ",
+        "mitigation": "บังคับแยก PHP service, binary และ user pool ระหว่างส่วนบริหารจัดการกับเว็บไซต์อย่างเด็ดขาด",
         "confidence_default": "Conditional"
     },
     4: {
         "group_id": 4,
         "name": "ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance, NAS, IoT)",
-        "sapi_evaluation": "ยืนยันความมีอยู่ของ PHP Runtime ก่อนประเมิน",
-        "risk_context": "อุปกรณ์ฮาร์ดแวร์มักใช้ Web Server แบบ Embedded (C/Lua/Go) ห้ามสรุปว่ามีช่องโหว่ PHP หากไม่พบ PHP Runtime จริงในระบบ",
+        "sapi_typical": "Embedded Web Server (Lighttpd, Boa, Go, C/Lua Embedded)",
+        "worker_model": "Single-process หรือ Event-driven Embedded Architecture",
+        "engine_shared_vulnerabilities": [
+            "ไม่สามารถยืนยันความเสี่ยงจนกว่าจะพบ PHP Runtime จริงในระบบ"
+        ],
+        "exploit_chain_mechanism": "อุปกรณ์เครือข่ายและ IoT มักไม่ใช้ PHP เป็นเว็บเซิร์ฟเวอร์หลัก ห้ามสรุปว่ามีช่องโหว่ PHP engine จนกว่าจะทราบ PHP version, SAPI, และ exposure จริงของระบบ",
+        "prerequisites": [
+            {"name": "PHP Runtime Verification", "condition": "ต้องตรวจพบ PHP binary และโมดูลเว็บที่ทำงานอยู่จริง", "status": "Unverified"}
+        ],
+        "impact_scope": "ไม่มีผลกระทบ (Non-Applicable) หากอุปกรณ์ไม่ได้รันรันไทม์ PHP",
+        "mitigation": "ตรวจสอบรายการ Service ที่เปิดใช้งานและปิดพอร์ตบริหารจัดการที่ไม่จำเป็นต่ออินเทอร์เน็ต",
         "confidence_default": "Unverified"
     },
     5: {
         "group_id": 5,
         "name": "Container และ Docker Image (Docker, K8s, Podman)",
-        "sapi_evaluation": "ประเมิน Image Layer และ Deployment Configuration",
-        "risk_context": "การ restart container ช่วยล้าง worker state ชั่วคราว แต่ไม่ใช่การแก้ช่องโหว่ถาวร ต้องอัปเดต PHP package/runtime ให้เป็นรุ่นที่ patched ใน image หรือ deployment configuration",
+        "sapi_typical": "Containerized PHP-FPM + Nginx Sidecar หรือ Apache mod_php ใน Base Image",
+        "worker_model": "Containerized Worker Pool (Ephemeral Lifecycle ผูกกับอายุ Container)",
+        "engine_shared_vulnerabilities": [
+            "PHP Engine Memory Corruption ใน Base Image",
+            "Transient Worker State Contamination"
+        ],
+        "exploit_chain_mechanism": "การรีสตาร์ท Container/Pod ช่วยล้าง transient stale state ชั่วคราวในหน่วยความจำ แต่ไม่ใช่การแก้ไขช่องโหว่ถาวร หากอิมเมจต้นทางยังเป็นเวอร์ชันที่มีช่องโหว่ เวิร์กเกอร์ใหม่ที่ถูกบูตขึ้นมาจะยังมีช่องโหว่เดิมพร้อมรับการโจมตีซ้ำ",
+        "prerequisites": [
+            {"name": "Image Layer Vulnerability", "condition": "Base Image บรรจุ PHP package ที่ยังไม่ได้รับการแพตช์", "status": "Persistent in Image"},
+            {"name": "Worker Reuse Before Pod Termination", "condition": "การโจมตีต้องเกิดภายในวงรอบชีวิตของ Container", "status": "Ephemeral Window"}
+        ],
+        "impact_scope": "ความเสี่ยงการค้างสถานะในแรมระหว่างคำขอ และความเสี่ยงถาวรในระดับ Supply Chain ของคอนเทนเนอร์",
+        "mitigation": "Rebuild อิมเมจใหม่ด้วย PHP Base Image ที่แพตช์แล้ว (PHP 8.2.20+ / 8.3.8+) และกำหนด Read-only Root Filesystem",
         "confidence_default": "Conditional"
     },
     6: {
         "group_id": 6,
         "name": "Windows ที่มี PHP ติดตั้งอยู่ (IIS, XAMPP, WampServer)",
-        "sapi_evaluation": "ประเมิน SAPI (FastCGI vs CGI vs mod_php) และเลขเวอร์ชันจริง",
-        "risk_context": "CVE-2024-4577 เป็นช่องโหว่สำคัญของ PHP-CGI บน Windows แต่การประเมินช่องโหว่ระดับ engine อื่นๆ ต้องพิจารณาตาม SAPI และเวอร์ชันจริง ไม่ควรใช้ OS เป็นตัวตัดสินเพียงอย่างเดียว",
+        "sapi_typical": "PHP-CGI (CVE-2024-4577 Priority), IIS FastCGI, หรือ Apache mod_php บน Windows",
+        "worker_model": "CGI Process-per-request หรือ IIS FastCGI Process Manager / Multi-thread",
+        "engine_shared_vulnerabilities": [
+            "CVE-2024-4577 (PHP-CGI Argument Injection via Unicode Best-fit)",
+            "PHP Engine OOM Memory Exhaustion (หากใช้ FastCGI หรือ mod_php บน Windows)",
+            "Stale State Worker Bugs"
+        ],
+        "exploit_chain_mechanism": "CVE-2024-4577 เป็น chain เฉพาะของ PHP-CGI บน Windows ผ่านกลไก Best-fit encoding แต่ไม่ได้แปลว่า Windows จะมีเฉพาะช่องโหว่นี้ หาก Windows รัน PHP ผ่าน FastCGI บน IIS หรือ mod_php บน XAMPP ช่องโหว่ระดับ PHP engine อื่นๆ ก็ยังคงมีผลกระทบตาม SAPI และเวอร์ชันจริง",
+        "prerequisites": [
+            {"name": "Windows SAPI Distinction", "condition": "แยกแยะว่าเป็น CGI, FastCGI หรือ mod_php", "status": "Determined by SAPI"},
+            {"name": "Unicode Best-fit Mapping", "condition": "เฉพาะกรณี PHP-CGI บน Windows Code Page (เช่น Windows-874, CP932)", "status": "Prerequisite for CVE-2024-4577"}
+        ],
+        "impact_scope": "RCE โดยตรงหากเป็น PHP-CGI (CVE-2024-4577) หรือความเสี่ยงระดับ Engine Memory หากเป็น FastCGI/mod_php",
+        "mitigation": "อัปเดต PHP เป็น 8.2.20+ / 8.3.8+ หลีกเลี่ยงการใช้โหมด CGI บน Windows และย้ายไปใช้ FastCGI ที่ตั้งค่าความปลอดภัยรัดกุม",
         "confidence_default": "Likely"
     },
     7: {
         "group_id": 7,
         "name": "ระบบทดสอบ ระบบเก่า และระบบสำรอง (Dev, UAT, Staging, DR, Snapshot)",
-        "sapi_evaluation": "ประเมิน Network Exposure สิทธิ์การเข้าถึง และการนำไปใช้งาน",
-        "risk_context": "ไฟล์สำรองหรือ snapshot หากเปิดเผยต่อเครือข่ายอาจเสี่ยงต่อข้อมูลรั่วไหล และหากถูก restore เป็นระบบที่เปิดใช้งานจริง จะกลับมาเป็น target ที่รัน PHP ได้",
+        "sapi_typical": "Standard SAPI ใน Debug Mode พร้อมเปิดเผยข้อผิดพลาดและข้อมูลระบบ",
+        "worker_model": "Unmonitored Worker Processes (มักไม่มีการกำหนด pm.max_requests หรือ memory_limit)",
+        "engine_shared_vulnerabilities": [
+            "Information Disclosure (CWE-200 via display_errors=On / expose_php=On)",
+            "Latent PHP Engine RCE เมื่อระบบกู้คืนสู่ Active State"
+        ],
+        "exploit_chain_mechanism": "ระบบเหล่านี้มักเปิดเผยข้อมูลคอนฟิก เส้นทางไฟล์ และ stack trace ออกมาโดยตรง นอกจากนี้ไฟล์สำรองหรือ snapshot หากเปิดเผยต่อเครือข่ายอาจเสี่ยงต่อข้อมูลรั่วไหล และหากถูก restore เป็นระบบที่เปิดใช้งานจริง จะกลับมาเป็น target ที่รัน PHP ที่มีช่องโหว่เดิมได้ทันที",
+        "prerequisites": [
+            {"name": "Network Exposure", "condition": "เข้าถึงได้จากภายนอกโดยไม่มี Network Segmentation", "status": "High Risk"},
+            {"name": "Telemetry Leakage", "condition": "เปิดเผยพาธไฟล์และค่าสภาพแวดล้อมในข้อความ Error", "status": "Confirmed in Dev"}
+        ],
+        "impact_scope": "การรั่วไหลของข้อมูลความลับ (Information Disclosure) และความเสี่ยงแฝง (Latent Risk) เมื่อระบบถูกกู้คืน",
+        "mitigation": "ปิดการเข้าถึงจากอินเทอร์เน็ตภายนอก, ปิด display_errors = Off และเข้ารหัสไฟล์สำรอง/Snapshot ทั้งหมด",
         "confidence_default": "Conditional"
     },
     8: {
         "group_id": 8,
         "name": "ระบบที่ผู้ให้บริการภายนอกดูแล (Shared Hosting, Cloud VM)",
-        "sapi_evaluation": "ประเมินระดับ Tenant Isolation, Pool Boundaries และ Worker Permissions",
-        "risk_context": "ระดับความเสี่ยงขึ้นกับ isolation ของผู้ให้บริการ การเข้าถึงข้ามบัญชีต้องพิสูจน์ว่า request ไปถึง PHP worker เดิมและมีสิทธิ์ใด",
+        "sapi_typical": "Multi-tenant FastCGI Pools หรือ Shared Apache Worker Model",
+        "worker_model": "Multi-tenant Pool Isolation (chroot, cgroups, CageFS หรือ Systemd Jail)",
+        "engine_shared_vulnerabilities": [
+            "Cross-tenant Stale Worker State Contamination",
+            "PHP Engine Memory Leaks ข้ามเซสชันผู้ใช้"
+        ],
+        "exploit_chain_mechanism": "ระดับความเสี่ยงขึ้นกับ isolation ของผู้ให้บริการ การเข้าถึงข้ามบัญชีต้องพิสูจน์ว่า request ถัดไปถูกส่งเข้า PHP worker เดิมและมีสิทธิ์เข้าถึงข้อมูลของ tenant อื่นได้จริงหรือไม่ ไม่สามารถยืนยันความเสี่ยงได้หากยังไม่ทราบการตั้งค่า pool และ isolation จริง",
+        "prerequisites": [
+            {"name": "Multi-tenant Pool Boundary", "condition": "ประเมินว่าผู้ให้บริการแยก user pool หรือแชร์ worker", "status": "Provider-Dependent"},
+            {"name": "Same Worker Request Routing", "condition": "คำขอจากผู้ใช้อื่นต้องถูก route เข้า worker ตัวเดิม", "status": "Conditional"}
+        ],
+        "impact_scope": "เสี่ยงต่อการรั่วไหลของข้อมูลข้ามบัญชี (Cross-account Data Leakage) หากไม่มี OS-level sandboxing",
+        "mitigation": "แยก User Pool อย่างเด็ดขาดผ่าน PHP-FPM pool configuration และเปิดใช้ OS-level isolation (เช่น CageFS หรือ Docker sandboxing)",
         "confidence_default": "Conditional"
     }
 }
+
+
+def evaluate_group_architecture_matrix(
+    groups: List[int],
+    is_php: bool,
+    php_version: str,
+    server: str,
+    has_lfi: bool = False,
+    is_patched: bool = False,
+    is_fpm: bool = False
+) -> List[Dict[str, Any]]:
+    """
+    Evaluates the distinct exploit chain, prerequisites, SAPI, worker model,
+    and impact for each matched ThaiCERT target group.
+    Ensures scientific accuracy: acknowledges engine-level bug commonalities while distinguishing
+    the unique exploit requirements and boundaries per system architecture.
+    """
+    matrix = []
+    server_lower = (server or "").lower()
+    is_win = "win" in server_lower or "microsoft" in server_lower
+
+    for g_id in groups:
+        profile = THAICERT_GROUP_PROFILES.get(g_id)
+        if not profile:
+            continue
+
+        # Dynamic SAPI & Worker Model Inference
+        if g_id == 6:
+            sapi_detected = "PHP-CGI" if ("cgi" in server_lower or not is_fpm) else "IIS FastCGI"
+            worker_model = "CGI Process per Request" if sapi_detected == "PHP-CGI" else "IIS FastCGI Process Manager"
+            chains_applicable = ["CVE-2024-4577 (CGI Parameter Injection)"]
+            if not is_patched:
+                chains_applicable.append("PHP Engine OOM & Stale State (FastCGI/mod_php)")
+            prereq_summary = "ตรงตามเงื่อนไข (Windows OS) — ตรวจสอบ SAPI และ Unicode Best-fit Code Page" if not is_patched else "ได้รับการแพตช์ (PHP 8.2.20+ / 8.3.8+)"
+            exploitability = "Likely" if not is_patched else "Mitigated"
+        elif g_id == 4:
+            sapi_detected = "Embedded Web Server (Lighttpd/Go/C)" if not is_php else "Embedded PHP Runtime"
+            worker_model = "Single-process / Event-driven"
+            chains_applicable = ["None (Non-PHP Embedded)" if not is_php else "PHP Engine Memory Vulnerability"]
+            prereq_summary = "เงื่อนไขไม่ตรงกัน: ไม่พบ PHP Runtime จริงในระบบ" if not is_php else "ต้องตรวจสอบเวอร์ชันและการเข้าถึงของ PHP"
+            exploitability = "Not Applicable" if not is_php else "Conditional"
+        elif g_id == 1:
+            sapi_detected = "PHP-FPM / FastCGI" if is_fpm else ("Apache mod_php" if "apache" in server_lower else "Standard SAPI")
+            worker_model = "FastCGI Worker Pool Reuse" if is_fpm else "Apache Pre-fork Multi-process"
+            chains_applicable = ["Chain A (Upload Progress + LFI)", "Chain D (mod_php OOM)", "GHSA-6wmf-4rv5-p3rp (FPM Stale State)"]
+            prereq_summary = "Engine Parsing เกิดก่อน CMS Router; แต่ขาด LFI Prerequisite ทำให้ห่วงโซ่ RCE ไม่ครบ" if not has_lfi else "ตรงตามเงื่อนไข: พบจุดเรียกไฟล์ LFI ร่วมกับ PHP Engine"
+            exploitability = "Conditional" if not has_lfi else "Confirmed"
+        elif g_id == 2:
+            sapi_detected = "PHP-FPM Worker Pool" if is_fpm else "Standard FastCGI / Swoole"
+            worker_model = "FastCGI Worker Reuse (pm.max_requests=0)"
+            chains_applicable = ["GHSA-6wmf-4rv5-p3rp (Stale Global State)", "PHP Engine OOM via Body Parsing"]
+            prereq_summary = "Engine Body Parsing เกิดก่อน Middleware; ต้องการ producer ทิ้ง state และ consumer อ่าน state ใน worker เดิม"
+            exploitability = "Conditional"
+        elif g_id == 3:
+            sapi_detected = "Internal Panel Daemon (Isolated) vs User Site Pool"
+            worker_model = "แยก Process และ Socket สิทธิ์ต่างกัน"
+            chains_applicable = ["User Site PHP Chain (ไม่กระทบ Panel หากแยก Binary)"]
+            prereq_summary = "ต้องตรวจสอบการแยก binary, socket และ privilege ของ Control Panel จาก user site"
+            exploitability = "Conditional"
+        elif g_id == 5:
+            sapi_detected = "Containerized PHP-FPM / mod_php"
+            worker_model = "Container Ephemeral Worker Pool"
+            chains_applicable = ["Transient Worker State Contamination", "Base Image Engine Vulnerability"]
+            prereq_summary = "การรีสตาร์ท Pod ล้างหน่วยความจำชั่วคราว แต่ Base Image ยังมีช่องโหว่เดิมถาวร"
+            exploitability = "Conditional"
+        elif g_id == 7:
+            sapi_detected = "Debug / Development SAPI"
+            worker_model = "Unmetered Worker Process"
+            chains_applicable = ["Chain B (Environment Telemetry Leak)", "Latent RCE when restored to Active DR"]
+            prereq_summary = "พบการเปิดเผยข้อมูลระบบ (CWE-200); ไฟล์สำรอง/Snapshot เสี่ยงข้อมูลรั่วไหลและเป็น target เมื่อกู้คืน"
+            exploitability = "Conditional"
+        elif g_id == 8:
+            sapi_detected = "Multi-tenant FastCGI / Cloud VM"
+            worker_model = "Multi-tenant Pool Boundary"
+            chains_applicable = ["Cross-tenant Worker Contamination (กรณีแชร์ Pool)"]
+            prereq_summary = "ขึ้นกับการแบ่งแยก Tenant Isolation ของผู้ให้บริการ ต้องพิสูจน์สิทธิ์และ worker socket จริง"
+            exploitability = "Conditional"
+        else:
+            sapi_detected = "Standard SAPI"
+            worker_model = "Standard Process Model"
+            chains_applicable = ["Standard PHP Security Chains"]
+            prereq_summary = "ประเมินตามพารามิเตอร์และเวอร์ชันของระบบ"
+            exploitability = profile.get("confidence_default", "Conditional")
+
+        matrix.append({
+            "group_id": g_id,
+            "group_name": profile["name"],
+            "sapi_detected": sapi_detected,
+            "worker_model": worker_model,
+            "engine_shared_vulnerabilities": profile.get("engine_shared_vulnerabilities", []),
+            "chains_applicable": chains_applicable,
+            "exploit_chain_mechanism": profile.get("exploit_chain_mechanism", profile.get("risk_context", "")),
+            "prerequisites": profile.get("prerequisites", []),
+            "prerequisite_summary": prereq_summary,
+            "exploitability": exploitability,
+            "impact_scope": profile.get("impact_scope", ""),
+            "mitigation": profile.get("mitigation", "")
+        })
+
+    return matrix
 
 
 def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_text: str, cookies_str: str, port: int, is_php: bool, is_node: bool, cms_name: str) -> dict:
@@ -228,11 +419,21 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
 
     primary = group_labels[0]
     unique_groups = sorted(list(set(matched_groups)))
+    arch_matrix = evaluate_group_architecture_matrix(
+        groups=unique_groups,
+        is_php=is_php,
+        php_version="",
+        server=server,
+        has_lfi=False,
+        is_patched=False,
+        is_fpm=("fpm" in server_lower or "nginx" in server_lower)
+    )
     return {
         "groups": unique_groups,
         "primary_group": primary,
         "group_labels": group_labels,
         "evidence": list(set(group_evidence)),
-        "profiles": [THAICERT_GROUP_PROFILES[g] for g in unique_groups if g in THAICERT_GROUP_PROFILES]
+        "profiles": [THAICERT_GROUP_PROFILES[g] for g in unique_groups if g in THAICERT_GROUP_PROFILES],
+        "architecture_matrix": arch_matrix
     }
 
