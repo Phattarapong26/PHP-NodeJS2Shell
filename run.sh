@@ -129,7 +129,8 @@ HOST_GATEWAY=$HOST_GATEWAY
 HOST_INTERFACE=$HOST_INTERFACE
 EOF
 
-# 2. Extract active LAN hosts discovered by DHCP / ARP on physical interface
+# 2. Quick host ARP warmup & extract active LAN hosts discovered on physical interface
+(ping -c 1 -W 500 255.255.255.255 >/dev/null 2>&1 || true) &
 ACTIVE_IPS=$(arp -an 2>/dev/null | grep -v "incomplete" | awk '{print $2}' | tr -d '()' | grep -v "224.0.0" | grep -v "\.255$" | tr '\n' ',' | sed 's/,$//')
 echo "$ACTIVE_IPS" > "$DIR/active_hosts.txt"
 
@@ -173,6 +174,10 @@ if [ "$1" == "--docker" ] || [ ! -f "$DIR/venv/bin/python" ]; then
       -v "$DIR/GUI.html:/app/GUI.html" \
       -v "$DIR/app.py:/app/app.py" \
       -v "$DIR/diagram.html:/app/diagram.html" \
+      -v "$DIR/core:/app/core" \
+      -v "$DIR/api:/app/api" \
+      -v "$DIR/audit:/app/audit" \
+      -v "$DIR/reports:/app/reports" \
       thaicert-php-scanner
   fi
 else

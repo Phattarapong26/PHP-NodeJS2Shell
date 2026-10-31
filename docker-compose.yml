@@ -25,6 +25,10 @@ services:
       - ./GUI.html:/app/GUI.html
       - ./app.py:/app/app.py
       - ./diagram.html:/app/diagram.html
+      - ./core:/app/core
+      - ./api:/app/api
+      - ./audit:/app/audit
+      - ./reports:/app/reports
 
   test-target:
     build:

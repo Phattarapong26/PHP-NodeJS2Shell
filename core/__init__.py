@@ -16,6 +16,7 @@ from .network import (
     get_docker_gateway,
     parse_target_hosts,
 )
+from .multi_vector_discovery import MultiVectorDiscoveryEngine
 
 __all__ = [
     "parse_semver",
@@ -33,4 +34,5 @@ __all__ = [
     "get_host_network_info",
     "get_docker_gateway",
     "parse_target_hosts",
+    "MultiVectorDiscoveryEngine",
 ]

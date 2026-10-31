@@ -6,3 +6,4 @@ server.log
 .env
 host_network.json
 active_hosts.txt
+active_hosts.json

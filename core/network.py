@@ -209,27 +209,52 @@ def get_live_lan_hosts(target_net=None) -> Dict[str, str]:
     except Exception:
         pass
 
-    # 3. Docker fallback active_hosts.txt
+    # 3. Docker fallback active_hosts.txt & active_hosts.json
     is_container = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true" or os.environ.get("IS_DOCKER") == "true"
-    if is_container and os.path.exists("active_hosts.txt"):
-        try:
-            with open("active_hosts.txt") as f:
-                content = f.read().strip()
-                if content:
-                    for ip_str in content.split(','):
-                        ip_str = ip_str.strip()
-                        if is_valid_unicast_host(ip_str):
-                            if target_net:
-                                try:
-                                    if ipaddress.ip_address(ip_str) in target_net and ip_str not in hosts:
-                                        hosts[ip_str] = "LAN Device"
-                                except Exception:
-                                    pass
-                            else:
-                                if ip_str not in hosts:
-                                    hosts[ip_str] = "LAN Device"
-        except Exception:
-            pass
+    if is_container:
+        if os.path.exists("active_hosts.json"):
+            try:
+                with open("active_hosts.json") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        for ip_str, mac_str in data.items():
+                            if is_valid_unicast_host(ip_str):
+                                if target_net:
+                                    try:
+                                        if ipaddress.ip_address(ip_str) in target_net and ip_str not in hosts:
+                                            hosts[ip_str] = mac_str
+                                    except Exception:
+                                        pass
+                                elif ip_str not in hosts:
+                                    hosts[ip_str] = mac_str
+            except Exception:
+                pass
+
+        if os.path.exists("active_hosts.txt"):
+            try:
+                with open("active_hosts.txt") as f:
+                    content = f.read().strip()
+                    if content:
+                        # Support comma-separated or newline-separated IP or IP=MAC or IP:MAC
+                        lines = content.replace(',', '\n').splitlines()
+                        for line in lines:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            parts = re.split(r'[,=\s]+', line)
+                            ip_str = parts[0].strip()
+                            mac_str = parts[1].strip() if len(parts) > 1 and ':' in parts[1] else "LAN Device"
+                            if is_valid_unicast_host(ip_str):
+                                if target_net:
+                                    try:
+                                        if ipaddress.ip_address(ip_str) in target_net and ip_str not in hosts:
+                                            hosts[ip_str] = mac_str
+                                    except Exception:
+                                        pass
+                                elif ip_str not in hosts:
+                                    hosts[ip_str] = mac_str
+            except Exception:
+                pass
 
     return hosts
 
