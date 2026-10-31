@@ -697,26 +697,14 @@ async def probe_endpoint(
             "allocator_profile": "USE_ZEND_ALLOC=1 (Zend Memory Manager) | ASan: heap-use-after-free triggerable" if asan_is_vuln else "Hardened / Protected Allocator",
             "patch_commit": "Commit 3584a98bda (Zend Core Patch)" if is_cve_2026_patched else ("Prerequisite Absent (Unserialized sinks absent)" if asan_is_mitigated else "Unpatched (Missing Commit 3584a98bda)"),
             "asan_trace_preview": (
-                "=================================================================\n"
-                "==84120==ERROR: AddressSanitizer: heap-use-after-free on address 0x6080000021c0 at pc 0x00010482b8a0 bp 0x7ffee1f3e1a0 sp 0x7ffee1f3e198\n"
-                "READ of size 8 at 0x6080000021c0 thread T0\n"
-                "    #0 0x10482b8a0 in php_var_unserialize Zend/var_unserializer.c:851\n"
-                "    #1 0x104829312 in zif_unserialize ext/standard/var.c:1120\n"
-                "    #2 0x10495f820 in execute_ex Zend/zend_vm_execute.h:58210\n"
-                "    #3 0x1048fd104 in zend_call_function Zend/zend_execute_API.c:890\n"
-                "    #4 0x1048a9220 in zend_objects_destroy_object Zend/zend_objects_API.c:160\n"
-                "    #5 0x10482b210 in var_destroy Zend/var_unserializer.c:310\n"
-                "0x6080000021c0 is located 32 bytes inside of 4080-byte region [0x6080000021a0,0x608000003190)\n"
-                "freed by thread T0 here:\n"
-                "    #0 0x104fb21a0 in __interceptor_free (libclang_rt.asan_osx_dynamic.dylib)\n"
-                "    #1 0x104812300 in _efree_custom Zend/zend_alloc.c:2430\n"
-                "    #2 0x10482b140 in var_destroy Zend/var_unserializer.c:245\n"
-                "    #3 0x104828f20 in php_var_unserialize Zend/var_unserializer.c:1020\n"
-                "================================================================="
+                f"การประเมินสถาปัตยกรรมและสภาวะหน่วยความจำสำหรับ {base_url}:\n"
+                f"- ผลการตรวจประเมิน: ตรวจพบช่องทางรับค่า Deserialization Sink ร่วมกับเวอร์ชันที่ยังไม่ผ่านเกณฑ์แพตช์ความปลอดภัย\n"
+                f"- รหัสช่องโหว่ที่เกี่ยวข้อง: CVE-2026-109618 / CVE-2026-109619\n"
+                f"- คำแนะนำการตรวจประเมิน: รัน binary บนเซิร์ฟเวอร์ด้วย `USE_ZEND_ALLOC=0 ASAN_OPTIONS=detect_leaks=1 php -m` เพื่อวิเคราะห์ Heap State เชิงลึก"
             ) if asan_is_vuln else (
-                f"AddressSanitizer Status for {base_url}:\n"
-                "Clean Runtime — ไม่พบจุดรับข้อมูล Object Deserialization ภายนอก ทำให้โค้ดส่วน var_unserializer.c:245 ไม่ถูกทริกเกอร์\n"
-                "สถานะ: ปลอดภัยจากสภาวะ Heap Use-After-Free (ห่วงโซ่ความเสี่ยงไม่ครบ)"
+                f"AddressSanitizer Remote Status for {base_url}:\n"
+                "Clean Runtime — ไม่พบจุดรับข้อมูล Object Deserialization ภายนอก ทำให้โค้ดส่วน var_unserializer.c ไม่ถูกทริกเกอร์\n"
+                "สถานะ: ปลอดภัยจากสภาวะ Heap Use-After-Free จากภายนอก (ห่วงโซ่ความเสี่ยงไม่ครบ)"
             )
         }
 

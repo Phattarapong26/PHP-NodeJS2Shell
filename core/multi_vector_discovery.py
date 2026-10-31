@@ -12,6 +12,7 @@ Vectors:
 
 import asyncio
 import ipaddress
+import os
 import re
 import socket
 import struct
@@ -20,8 +21,8 @@ import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 
-# Common TCP ports across home devices, workstations, IoT, printers, and labs
-DISCOVERY_TCP_PORTS = [
+# Standard enterprise & LAN TCP service ports for host discovery
+STANDARD_DISCOVERY_TCP_PORTS = [
     80,    # HTTP (Routers, Web servers, Cameras)
     443,   # HTTPS (Web services, Secure Admin)
     53,    # DNS (Routers, Pi-hole, AdGuard)
@@ -40,8 +41,9 @@ DISCOVERY_TCP_PORTS = [
     5000,  # UPnP / Synology NAS / Flask
     5050,  # OPScaner Host
     8443,  # Alternate HTTPS
-    8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088  # ThaiCERT Labs
 ]
+
+DISCOVERY_TCP_PORTS = STANDARD_DISCOVERY_TCP_PORTS
 
 # NetBIOS Node Status Request Packet (Wildcard '*')
 NETBIOS_NODE_STATUS_QUERY = (

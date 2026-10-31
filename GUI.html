@@ -57,17 +57,15 @@
 
     /* Neumorphic engraved text effect matching the image */
     .embossed-title {
-      color: #e5edf5;
+      color: #64748b;
+      letter-spacing: -0.02em;
       text-shadow: 
-        -1.5px -1.5px 2px rgba(255, 255, 255, 0.95),
-        2px 2px 3px rgba(148, 163, 184, 0.45),
-        inset 1px 1px 2px rgba(255, 255, 255, 0.8),
-        inset -1px -1px 2px rgba(100, 116, 139, 0.3);
-      filter: drop-shadow(0 2px 3px rgba(148, 163, 184, 0.25));
+        1px 1px 1px #ffffff,
+        -1px -1px 1px rgba(148, 163, 184, 0.35);
     }
 
     .embossed-sub {
-      color: #94a3b8;
+      color: #64748b;
       letter-spacing: 0.38em;
       text-shadow: 
         1px 1px 1px #ffffff,
@@ -114,30 +112,6 @@
       transform: scale(0.97);
       box-shadow: 
         0 6px 14px -2px rgba(37, 99, 235, 0.4),
-        inset 0 4px 10px rgba(15, 23, 42, 0.5);
-    }
-
-    /* Agent AI Purple/Indigo Glowing Sphere */
-    .btn-agent-sphere {
-      background: radial-gradient(circle at 35% 30%, #8b5cf6 0%, #6366f1 65%, #4338ca 100%);
-      box-shadow: 
-        0 14px 28px -4px rgba(99, 102, 241, 0.55),
-        0 6px 12px -2px rgba(99, 102, 241, 0.3),
-        inset 0 3px 6px rgba(255, 255, 255, 0.6),
-        inset 0 -4px 8px rgba(15, 23, 42, 0.4);
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .btn-agent-sphere:hover {
-      transform: scale(1.03);
-      box-shadow: 
-        0 18px 34px -4px rgba(99, 102, 241, 0.65),
-        0 8px 16px -2px rgba(99, 102, 241, 0.4),
-        inset 0 3px 6px rgba(255, 255, 255, 0.8);
-    }
-    .btn-agent-sphere:active {
-      transform: scale(0.97);
-      box-shadow: 
-        0 6px 14px -2px rgba(99, 102, 241, 0.4),
         inset 0 4px 10px rgba(15, 23, 42, 0.5);
     }
 
@@ -269,27 +243,6 @@
         <span class="w-3.5 h-3.5 rounded-full bg-red-400/90 shadow-sm inline-block opacity-85"></span>
         <span class="w-3.5 h-3.5 rounded-full bg-amber-400/90 shadow-sm inline-block opacity-85"></span>
         <span class="w-3.5 h-3.5 rounded-full bg-emerald-400/90 shadow-sm inline-block opacity-85"></span>
-      </div>
-
-      <!-- Center Mode Switcher Tabs (Manual Scan vs Agent AI MCP) -->
-      <div class="flex items-center p-1 rounded-full bg-slate-200/70 border border-white/80 shadow-inner select-none">
-        <button 
-          id="tabBtnManual" 
-          type="button" 
-          class="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-blue-700 bg-white shadow-sm transition-all duration-200 cursor-pointer"
-        >
-          <i class="ph-bold ph-sliders text-sm"></i>
-          <span>Manual Scan</span>
-        </button>
-        <button 
-          id="tabBtnAgentAI" 
-          type="button" 
-          class="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-indigo-700 transition-all duration-200 cursor-pointer"
-        >
-          <i class="ph-bold ph-sparkle text-sm text-indigo-500"></i>
-          <span>Agent AI (MCP)</span>
-          <span class="px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700 text-[9px] font-bold">MCP</span>
-        </button>
       </div>
 
       <!-- Right Window Actions -->
@@ -458,152 +411,6 @@
           </div>
         </div>
       </div> <!-- /#viewManualScan -->
-
-      <!-- VIEW 2: AGENT AI INTERFACE (MCP PROTOCOL) -->
-      <div id="viewAgentAI" class="w-full flex-1 flex flex-col items-center justify-center transition-all duration-300 hidden">
-        
-        <!-- Title Area: ThaiCERT AGENT AI -->
-        <div class="text-center mb-5 select-none w-full max-w-lg mx-auto">
-          <div class="flex items-center justify-center gap-2 mb-1.5">
-            <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10.5px] font-bold tracking-wider uppercase border border-indigo-200 flex items-center gap-1.5 shadow-xs">
-              <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-              <span>Model Context Protocol (MCP) Autonomous Agent</span>
-            </span>
-          </div>
-
-          <h1 class="embossed-title text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-slate-700 via-indigo-900 to-slate-800 bg-clip-text">
-            ThaiCERT
-          </h1>
-          <p class="embossed-sub text-base sm:text-lg font-bold tracking-[0.35em] mt-1 uppercase text-indigo-700">
-            AGENT AI
-          </p>
-
-          <!-- Search / Goal Instruction Input Bar -->
-          <div class="mt-3 px-2 sm:px-4">
-            <div class="relative flex items-center shadow-sm rounded-full bg-white/80 backdrop-blur-md border border-indigo-200/90 p-1 pl-3.5 focus-within:ring-2 focus-within:ring-indigo-500/40 focus-within:border-indigo-400 focus-within:bg-white transition-all duration-200 hover:shadow-md">
-              <i class="ph-bold ph-sparkle text-indigo-500 text-base mr-2 flex-shrink-0 animate-pulse"></i>
-              <input 
-                id="agentPromptInput" 
-                type="text" 
-                placeholder="สั่งการ Agent AI ตรวจสอบความปลอดภัย หรือระบุเป้าหมาย MCP..." 
-                class="w-full bg-transparent text-slate-800 placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none select-text"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <button 
-                id="btnAgentPrompt" 
-                type="button"
-                class="ml-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-medium text-xs shadow-sm flex items-center gap-1.5 transition-all active:scale-95 flex-shrink-0 cursor-pointer"
-                title="สั่งการ Agent AI ให้เริ่มดำเนินการ"
-              >
-                <span>สั่งการ Agent</span>
-                <i class="ph-bold ph-paper-plane-right text-[11px]"></i>
-              </button>
-            </div>
-            <!-- Faint message: ขับเคลื่อนด้วย Model Context Protocol -->
-            <p class="text-[11px] text-slate-400/80 font-normal mt-1.5 tracking-wide text-center">
-              ระบบตรวจสอบอัตโนมัติด้วย Model Context Protocol (MCP) และเครื่องมือวิเคราะห์เชิงรับ
-            </p>
-          </div>
-
-          <!-- Connected MCP Capabilities Tags -->
-          <div class="flex flex-wrap items-center justify-center gap-1.5 mt-2.5">
-            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 text-slate-600 text-[10px] font-mono border border-slate-200 shadow-xs">
-              <i class="ph-bold ph-plug text-emerald-600"></i>
-              <span>MCP: rea (Analysis)</span>
-            </span>
-            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 text-slate-600 text-[10px] font-mono border border-slate-200 shadow-xs">
-              <i class="ph-bold ph-browsers text-blue-600"></i>
-              <span>MCP: Web & PHP Probe</span>
-            </span>
-            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 text-slate-600 text-[10px] font-mono border border-slate-200 shadow-xs">
-              <i class="ph-bold ph-shield-check text-purple-600"></i>
-              <span>Defensive Lexicon Rules</span>
-            </span>
-          </div>
-        </div>
-
-        <!-- Central Agent Sphere Neumorphic Disk -->
-        <div class="relative flex items-center justify-center">
-          
-          <!-- Outermost Neumorphic Plate -->
-          <div class="outer-dish w-[280px] h-[280px] sm:w-[330px] sm:h-[330px] rounded-full flex items-center justify-center p-3 relative">
-            
-            <!-- Outer Rotating SVG Radar Graphics (Neural & MCP Paths) -->
-            <svg class="absolute inset-0 w-full h-full animate-spin-radar transition-all duration-700" viewBox="0 0 400 400" fill="none">
-              <path d="M 120 70 A 155 155 0 0 1 290 85" stroke="#6366f1" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="120 40" opacity="0.95"/>
-              <path d="M 85 275 A 155 155 0 0 1 180 345" stroke="#8b5cf6" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
-              <path d="M 290 85 A 155 155 0 0 1 345 230" stroke="#c084fc" stroke-width="2.5" stroke-dasharray="3 9" stroke-linecap="round"/>
-              <path d="M 60 210 A 155 155 0 0 1 120 70" stroke="#818cf8" stroke-width="2.5" stroke-dasharray="4 8" stroke-linecap="round"/>
-              
-              <!-- Orbital Accent Neural Dots -->
-              <circle cx="305" cy="115" r="4" fill="#8b5cf6" />
-              <circle cx="340" cy="180" r="3" fill="#6366f1" />
-              <circle cx="346" cy="225" r="3.5" fill="#a855f7" />
-              <circle cx="75" cy="265" r="4" fill="#6366f1" />
-              <circle cx="160" cy="342" r="2.5" fill="#c084fc" />
-              <circle cx="230" cy="336" r="3.5" fill="#818cf8" />
-              <circle cx="250" cy="328" r="3" fill="#a855f7" />
-            </svg>
-
-            <!-- Middle Intermediate Dish with Indigo Ambient Glow -->
-            <div class="w-[225px] h-[225px] sm:w-[265px] sm:h-[265px] rounded-full border border-indigo-200/50 flex items-center justify-center relative bg-gradient-to-b from-indigo-50/50 to-white/20 shadow-inner">
-              
-              <!-- Counter-Rotating Ring -->
-              <div class="absolute inset-2 rounded-full border border-dashed border-indigo-300/40 animate-spin-reverse pointer-events-none"></div>
-
-              <!-- Inner Concave Dish -->
-              <div class="inner-dish w-[165px] h-[165px] sm:w-[195px] sm:h-[195px] rounded-full flex items-center justify-center p-2.5 relative">
-                
-                <!-- Center Round Push Button (Agent Sphere) -->
-                <button 
-                  id="btnAgentAction" 
-                  type="button"
-                  class="btn-agent-sphere w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center text-white font-bold cursor-pointer group focus:outline-none"
-                  title="คลิกเพื่อสั่งการ Agent AI"
-                >
-                  <div class="flex flex-col items-center">
-                    <i class="ph-bold ph-robot text-xl sm:text-2xl mb-0.5 group-hover:scale-110 transition-transform"></i>
-                    <span class="text-base sm:text-lg font-bold tracking-wide drop-shadow">Agent</span>
-                    <span class="text-[9px] font-semibold text-indigo-100 tracking-wider">MCP ACTIVE</span>
-                  </div>
-                </button>
-
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Agent AI Status & Execution Console Card (Ready for User Logic) -->
-        <div class="mt-7 text-center max-w-lg w-full">
-          <div id="agentStatusBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 border border-indigo-200/80 text-xs font-semibold text-slate-700 shadow-sm transition-all">
-            <i class="ph-bold ph-sparkle text-indigo-600"></i>
-            <span id="agentStatusBadgeText">Agent AI พร้อมรับคำสั่ง · รอการมอบหมายงานผ่าน MCP</span>
-          </div>
-
-          <!-- Execution Console Feed Container -->
-          <div class="mt-3 p-3.5 rounded-2xl neu-concave-card border border-indigo-200/60 bg-white/60 text-left text-xs space-y-2">
-            <div class="flex items-center justify-between border-b border-slate-200/60 pb-1.5 text-[11px] font-semibold text-slate-700">
-              <span class="flex items-center gap-1.5 text-indigo-900">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>Agent Execution Feed (MCP Console)</span>
-              </span>
-              <span class="text-[10px] font-mono text-slate-400">Idle · Ready for Logic</span>
-            </div>
-            <div id="agentTerminalFeed" class="font-mono text-[11px] text-slate-600 bg-slate-900/5 p-2.5 rounded-xl space-y-1 max-h-24 overflow-y-auto">
-              <div class="text-emerald-700 flex items-center gap-1">
-                <i class="ph-bold ph-check text-xs"></i>
-                <span>[MCP Core] Model Context Protocol Environment initialized.</span>
-              </div>
-              <div class="text-indigo-700 flex items-center gap-1">
-                <i class="ph-bold ph-info text-xs"></i>
-                <span>[Agent Subsystem] Defensive Lexicon verified. Ready for user logic.</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div> <!-- /#viewAgentAI -->
 
     </main>
 
@@ -1782,19 +1589,19 @@ Content-Type: text/html; charset=UTF-8</div>
               </div>
 
               <!-- Dynamic Network Impact Alert Box (Dynamic Safe / Warning) -->
-              <div id="sliderAlertSafe" class="p-2.5 rounded-xl bg-emerald-50/90 border border-emerald-300 text-emerald-900 text-[11px] flex items-start gap-2">
+              <div id="sliderAlertSafe" class="p-2.5 rounded-xl bg-blue-50/90 border border-blue-200 text-blue-900 text-[11px] flex items-start gap-2">
                 <i class="ph-bold ph-shield-check text-base text-emerald-600 flex-shrink-0 mt-0.5"></i>
                 <div class="leading-relaxed">
-                  <span class="font-bold">ขนาดช่วงพอร์ตเหมาะสม (Makes Sense):</span>
-                  <span>ช่วงพอร์ตอยู่ในเกณฑ์ที่ปลอดภัย ไม่สร้างความหนาแน่นหรือส่งผลกระทบต่อประสิทธิภาพเครือข่าย</span>
+                  <span class="font-bold">ขนาดช่วงพอร์ตเหมาะสม:</span>
+                  <span>ระบบควบคุมการเชื่อมต่อด้วย Non-blocking Async I/O ทำงานได้อย่างรวดเร็วและปลอดภัย</span>
                 </div>
               </div>
 
-              <div id="sliderAlertWarning" class="p-2.5 rounded-xl bg-amber-50/95 border border-amber-300 text-amber-900 text-[11px] flex items-start gap-2 hidden">
-                <i class="ph-bold ph-warning text-base text-amber-600 flex-shrink-0 mt-0.5"></i>
+              <div id="sliderAlertWarning" class="p-2.5 rounded-xl bg-blue-50/90 border border-blue-200 text-blue-900 text-[11px] flex items-start gap-2 hidden">
+                <i class="ph-bold ph-lightning text-base text-amber-500 flex-shrink-0 mt-0.5"></i>
                 <div class="leading-relaxed">
-                  <span class="font-bold">คำแนะนำด้านเสถียรภาพเครือข่าย:</span>
-                  <span>ช่วงพอร์ตที่กำหนดกว้างเกินไป (<span id="alertSpanCount" class="font-mono font-bold">120</span> พอร์ต) <b>แนะนำให้เลี่ยงการใช้งาน</b> เนื่องจากอาจส่งผลกระทบต่อภาระและเสถียรภาพเครือข่ายของท่าน</span>
+                  <span class="font-bold">สแกนช่วงพอร์ต (<span id="alertSpanCount" class="font-mono font-bold">120</span> พอร์ต):</span>
+                  <span>ระบบประมวลผลแบบ High-Concurrency Async พร้อม Semaphore ควบคุมอัตราการส่งข้อมูลอย่างมีเสถียรภาพ</span>
                 </div>
               </div>
             </div>
@@ -1840,33 +1647,33 @@ Content-Type: text/html; charset=UTF-8</div>
           </div>
 
           <!-- MODE 3 PANEL: Wide Scan Probe -->
-          <div id="panelPortWide" class="port-mode-panel hidden space-y-3 p-3 rounded-xl neu-concave-card bg-rose-50/40 border border-rose-300">
-            <!-- Alert Warning: Advise avoiding due to network impact -->
-            <div class="p-3 rounded-xl bg-rose-100/90 border border-rose-300 text-rose-900 space-y-1.5 shadow-sm">
-              <div class="flex items-center gap-2 font-bold text-xs text-rose-800">
-                <i class="ph-bold ph-warning-octagon text-base text-rose-600"></i>
-                <span>คำเตือน: อาจส่งผลกระทบต่อเครือข่าย</span>
+          <div id="panelPortWide" class="port-mode-panel hidden space-y-3 p-3 rounded-xl neu-concave-card bg-white/70 border border-slate-200">
+            <!-- Async Notice -->
+            <div class="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-900 space-y-1">
+              <div class="flex items-center gap-2 font-bold text-xs text-blue-800">
+                <i class="ph-bold ph-lightning text-base text-amber-500"></i>
+                <span>สแกนครอบคลุมพอร์ตบริการกว้าง (High-Concurrency Async)</span>
               </div>
-              <p class="text-[10.5px] leading-relaxed">
-                <b>แนะนำให้เลี่ยงการใช้งานโหมดนี้</b> เนื่องจากเป็นการปล่อยสแกนพอร์ตแบบครอบคลุมกว้าง ซึ่งอาจส่งผลกระทบต่อภาระการรับส่งข้อมูลและความเร็วของเครือข่ายของท่าน (Network Congestion)
+              <p class="text-[10.5px] text-slate-600 leading-relaxed">
+                ระบบใช้สถาปัตยกรรม Non-blocking Asynchronous I/O สแกนพอร์ตบริการอย่างรวดเร็วและมีความเสถียรสูง
               </p>
             </div>
 
             <!-- Scope Choice -->
             <div>
-              <label class="block text-[10px] text-slate-700 font-semibold mb-1">เลือกระดับความกว้างในการปล่อยสแกน:</label>
-              <select id="selectWideScope" class="w-full px-2.5 py-2 rounded-lg neu-concave-card text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-rose-500 bg-white">
-                <option value="50">Top 50 พอร์ตบริการยอดนิยม (ขอบเขตจำกัด)</option>
-                <option value="100" selected>Top 100 พอร์ตมาตรฐานทั่วไป (ภาระปานกลาง)</option>
-                <option value="250">Top 250 พอร์ตบริการแบบกว้าง (ภาระสูง - เสี่ยงกระทบเครือข่าย)</option>
+              <label class="block text-[10px] text-slate-700 font-semibold mb-1">เลือกระดับความกว้างในการสแกน:</label>
+              <select id="selectWideScope" class="w-full px-2.5 py-2 rounded-lg neu-concave-card text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                <option value="50">Top 50 พอร์ตบริการยอดนิยม</option>
+                <option value="100" selected>Top 100 พอร์ตมาตรฐานทั่วไป</option>
+                <option value="250">Top 250 พอร์ตบริการแบบกว้าง</option>
               </select>
             </div>
 
             <div class="p-2 rounded-lg bg-white/80 border border-slate-200 text-[10px] text-slate-600 flex items-center justify-between">
-              <span>พอร์ตที่จะตรวจสอบ: <b id="widePortsCountDisplay" class="font-mono text-rose-700 font-bold">100 พอร์ต</b></span>
-              <span class="text-rose-600 font-semibold flex items-center gap-1">
-                <i class="ph-bold ph-shield-warning text-xs"></i>
-                <span>เฉพาะวงแล็บทดสอบ</span>
+              <span>พอร์ตที่จะตรวจสอบ: <b id="widePortsCountDisplay" class="font-mono text-blue-700 font-bold">100 พอร์ต</b></span>
+              <span class="text-emerald-700 font-semibold flex items-center gap-1">
+                <i class="ph-bold ph-check-circle text-xs text-emerald-600"></i>
+                <span>Async Concurrency</span>
               </span>
             </div>
           </div>
@@ -4470,79 +4277,6 @@ ${data.c_patch_directive}
     }
     const btnMaximize = document.getElementById('btnMaximize');
     if (btnMaximize) btnMaximize.addEventListener('click', toggleFullScreen);
-
-    // --- Mode Tabs Switcher (Manual Scan vs Agent AI MCP) ---
-    const tabBtnManual = document.getElementById('tabBtnManual');
-    const tabBtnAgentAI = document.getElementById('tabBtnAgentAI');
-    const viewManualScan = document.getElementById('viewManualScan');
-    const viewAgentAI = document.getElementById('viewAgentAI');
-
-    function switchAppMode(mode) {
-      if (mode === 'agent') {
-        if (tabBtnAgentAI) {
-          tabBtnAgentAI.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-indigo-700 bg-white shadow-sm transition-all duration-200 cursor-pointer";
-        }
-        if (tabBtnManual) {
-          tabBtnManual.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-blue-700 transition-all duration-200 cursor-pointer";
-        }
-        if (viewManualScan) viewManualScan.classList.add('hidden');
-        if (viewAgentAI) viewAgentAI.classList.remove('hidden');
-        showToast("สลับเข้าสู่โหมด Agent AI (MCP)");
-      } else {
-        if (tabBtnManual) {
-          tabBtnManual.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-blue-700 bg-white shadow-sm transition-all duration-200 cursor-pointer";
-        }
-        if (tabBtnAgentAI) {
-          tabBtnAgentAI.className = "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-indigo-700 transition-all duration-200 cursor-pointer";
-        }
-        if (viewAgentAI) viewAgentAI.classList.add('hidden');
-        if (viewManualScan) viewManualScan.classList.remove('hidden');
-        showToast("สลับเข้าสู่โหมด Manual Scan ทั่วไป");
-      }
-    }
-
-    if (tabBtnManual) tabBtnManual.addEventListener('click', () => switchAppMode('manual'));
-    if (tabBtnAgentAI) tabBtnAgentAI.addEventListener('click', () => switchAppMode('agent'));
-
-    // --- Agent AI Interface Interaction (Ready for User Logic) ---
-    const btnAgentAction = document.getElementById('btnAgentAction');
-    const btnAgentPrompt = document.getElementById('btnAgentPrompt');
-    const agentPromptInput = document.getElementById('agentPromptInput');
-    const agentTerminalFeed = document.getElementById('agentTerminalFeed');
-
-    function triggerAgentPlaceholder() {
-      const userPrompt = agentPromptInput ? agentPromptInput.value.trim() : "";
-      const displayTask = userPrompt || "การตรวจสอบความปลอดภัยเครือข่ายอัตโนมัติ (Default Task)";
-      
-      showToast("โหมด Agent AI: พร้อมเชื่อมต่อ Agent Logic & MCP จากท่าน");
-      
-      if (agentTerminalFeed) {
-        const timeStr = new Date().toLocaleTimeString();
-        const logItem = document.createElement('div');
-        logItem.className = "text-indigo-900 flex items-start gap-1.5 pt-1.5 border-t border-slate-200/60";
-        logItem.innerHTML = `
-          <i class="ph-bold ph-caret-right text-xs text-indigo-600 mt-0.5"></i>
-          <div>
-            <span class="text-slate-400 font-mono text-[10px]">[${timeStr}] Task Queued:</span> 
-            <span class="font-semibold text-indigo-950">${displayTask}</span>
-            <div class="text-[10px] text-slate-500 mt-0.5 font-sans">
-              (UI พร้อมรับ Agent & MCP Backend จากท่านเรียบร้อยแล้ว)
-            </div>
-          </div>
-        `;
-        agentTerminalFeed.prepend(logItem);
-      }
-    }
-
-    if (btnAgentAction) btnAgentAction.addEventListener('click', triggerAgentPlaceholder);
-    if (btnAgentPrompt) btnAgentPrompt.addEventListener('click', triggerAgentPlaceholder);
-    if (agentPromptInput) {
-      agentPromptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          triggerAgentPlaceholder();
-        }
-      });
-    }
 
     // Search Host Filter Input
     const inputSearchHost = document.getElementById('inputSearchHost');

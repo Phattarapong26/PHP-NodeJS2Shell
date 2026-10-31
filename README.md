@@ -86,30 +86,86 @@ docker compose up -d
 ## โครงสร้างโปรเจกต์ (Project Structure)
 
 ```text
-├── app.py              # Backend API, Network Engine, Vulnerability Auditor
-├── GUI.html            # Neumorphic Desktop UI, Workflow Modal, Results Panel
-├── run.sh              # Start script (Dynamic OS network probe & launcher)
-├── Dockerfile          # Container build definition
-├── docker-compose.yml  # Docker Compose configuration
-├── requirements.txt    # Python dependencies (Flask, httpx)
-└── .gitignore          # Git exclusion rules
+├── app.py              # Main Web Server & Blueprint Controller (Port 5050)
+├── audit_cli.py        # Enterprise CLI Security Audit Toolkit
+├── GUI.html            # Neumorphic Desktop UI & Workflow Dashboard
+├── diagram.html        # Interactive Architecture & Security Chains Diagram
+├── run.sh              # Production Launch Script (Auto-detects network & routes)
+├── Dockerfile          # Production Container Definition
+├── docker-compose.yml  # Docker Compose Production Service
+├── .env.example        # Environment Configuration Template
+├── core/               # Network Discovery, SemVer Engine, Dynamic CVE Catalog
+│   ├── network.py
+│   ├── multi_vector_discovery.py
+│   ├── semver.py
+│   ├── database.py
+│   └── sync_arp.py
+├── audit/              # Security Evaluators & ThaiCERT 8-Group Classifier
+│   ├── php_audit.py
+│   ├── node_audit.py
+│   ├── nginx_audit.py
+│   ├── thaicert_rules.py
+│   ├── probe_audit.py
+│   ├── sub_tools.py
+│   └── rce_prover.py
+├── reports/            # TLP:AMBER Official Advisory & PDF Engine
+│   ├── amber_builder.py
+│   ├── pdf_engine.py
+│   └── assets.py
+├── api/                # Production HTTP API Blueprints
+│   ├── scan_routes.py
+│   └── report_routes.py
+├── fonts/              # Official Thai SarabunPSK TrueType Fonts
+└── tests/              # Automated Test Suite & Production Readiness Verifications
 ```
 
 ---
 
-## เอนด์พอยต์จำลองสำหรับทดสอบ (Test Lab)
+## การใช้งานเครื่องมือตรวจสอบทางเทคนิค (CLI Edition)
 
-สามารถทดสอบฟังก์ชันการตรวจจับช่องโหว่ความปลอดภัยผ่านเครื่องจำลอง:
-- `http://localhost:5050/test-lab/php56` -> PHP 5.6.40 (Critical EOL + php2shell)
-- `http://localhost:5050/test-lab/php74` -> PHP 7.4.33 (Critical EOL + php2shell)
-- `http://localhost:5050/test-lab/php83` -> PHP 8.3.8 (Secure Patched)
-- `http://localhost:5050/test-lab/node20-vuln` -> Node.js v20.18.0 (Critical EOL + Brotli Node2Shell)
-- `http://localhost:5050/test-lab/node22-vuln` -> Node.js v22.12.0 (Critical Node2Shell)
-- `http://localhost:5050/test-lab/node22-safe` -> Node.js v22.23.4 (Secure Patched)
-- `http://localhost:5050/test-lab/node24-safe` -> Node.js v24.22.1 (Secure Patched)
+นอกเหนือจากหน้าจอเว็บแอปพลิเคชัน OPScaner มาพร้อมกับ **CLI Toolkit (`audit_cli.py`)** สำหรับผู้เชี่ยวชาญด้านความมั่นคงปลอดภัยไซเบอร์ของ ThaiCERT / สกมช.:
+
+```bash
+# ตรวจสอบเป้าหมายแบบเจาะจง (Single Target Audit)
+python3 audit_cli.py -t http://192.168.1.50:80
+
+# ตรวจสอบและสร้างรายงาน TLP:AMBER HTML อัตโนมัติ
+python3 audit_cli.py -t https://target-agency.go.th --export-report
+
+# ส่งออกผลลัพธ์เป็น JSON Telemetry สำหรับเชื่อมต่อกับระบบ SIEM/SOC
+python3 audit_cli.py -t http://10.0.0.10 --json target_telemetry.json
+```
+
+---
+
+## การกำหนดค่าสภาพแวดล้อมระบบ (Configuration)
+
+คัดลอกไฟล์ `.env.example` ไปเป็น `.env` เพื่อกำหนดค่านโยบายความปลอดภัย:
+
+```bash
+cp .env.example .env
+```
+
+| ตัวแปร | ความหมาย | ค่าเริ่มต้น |
+|---|---|---|
+| `OPSCANER_ENV` | สภาพแวดล้อมการทำงาน (`production` / `development`) | `production` |
+| `PORT` | พอร์ตสำหรับ Web Service | `5050` |
+| `FLASK_SECRET` | คีย์เข้ารหัสเซสชัน (หากเว้นว่างจะสุ่ม key อัตโนมัติ) | `secrets.token_hex(32)` |
+| `OPSCANER_CORS_ORIGINS` | Whitelist โดเมนที่อนุญาตให้เรียกใช้งาน API | `http://127.0.0.1:5050,http://localhost:5050` |
+| `OPSCANER_CVE_FEED_PATH` | พาธไฟล์ JSON สำหรับอัปเดต CVE feed เพิ่มเติมแบบ Dynamic | *(เว้นว่าง)* |
+
+---
+
+## การทดสอบระบบ (Quality & Production Verification)
+
+รันชุดทดสอบเพื่อยืนยันความพร้อมของระบบทั้งหมด:
+
+```bash
+./venv/bin/python -m unittest discover tests
+```
 
 ---
 
 ## ลิขสิทธิ์และการนำไปใช้ (License)
 
-พัฒนาขึ้นเพื่อการวิเคราะห์และตรวจสอบความปลอดภัยในเครือข่ายสำหรับองค์กรและการนำเสนอ ThaiCERT
+พัฒนาขึ้นเพื่อการวิเคราะห์ ประเมินความเสี่ยง และตรวจสอบความมั่นคงปลอดภัยระบบสารสนเทศตามมาตรฐาน ThaiCERT และสำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช. / NCSA Thailand)

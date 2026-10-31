@@ -272,3 +272,41 @@ CVE_DATABASE = [
         "confirm_safe": "PHP ≥ 8.1.7 หรือ PHP 8.2+"
     }
 ]
+
+import json
+import os
+
+def load_cve_feed_updates(feed_path: str = None) -> int:
+    """
+    Dynamically loads updated CVE advisory records from an external JSON feed file
+    (e.g., synchronized from NVD, OSV, or ThaiCERT feed) without altering code.
+    """
+    path = feed_path or os.environ.get("OPSCANER_CVE_FEED_PATH")
+    if not path and os.path.exists("cve_feed.json"):
+        path = "cve_feed.json"
+    
+    if path and os.path.isfile(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                feed = json.load(f)
+                if isinstance(feed, list):
+                    existing_ids = {item.get("id") for item in CVE_DATABASE}
+                    added = 0
+                    for entry in feed:
+                        if isinstance(entry, dict) and entry.get("id"):
+                            if entry["id"] in existing_ids:
+                                for i, old in enumerate(CVE_DATABASE):
+                                    if old.get("id") == entry["id"]:
+                                        CVE_DATABASE[i] = entry
+                                        break
+                            else:
+                                CVE_DATABASE.append(entry)
+                                existing_ids.add(entry["id"])
+                                added += 1
+                    return added
+        except Exception:
+            pass
+    return 0
+
+# Attempt initial feed load if feed file exists
+load_cve_feed_updates()
