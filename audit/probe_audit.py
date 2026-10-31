@@ -29,6 +29,7 @@ from audit.sub_tools import (
     probe_spring_java_security,
     probe_embedded_appliance_security
 )
+from audit.rce_prover import probe_active_rce_proof
 
 async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_text: str, req_headers: dict) -> dict:
     """
@@ -745,6 +746,10 @@ async def probe_endpoint(
             "zend_c_telemetry": zend_c_telemetry
         }
 
+        # Active RCE Proof & PoC Verification Indicator
+        rce_proof = await probe_active_rce_proof(client, base_url, port, server=server or "", is_php=is_php)
+        deep_audit["rce_proof"] = rce_proof
+
         # Multi-Stack CVE Mapping (NGINX, PHP, Node.js)
         nginx_sev, nginx_cves, nginx_note = evaluate_nginx_security(server or "", headers)
         deep_audit["nginx_audit"] = {
@@ -764,9 +769,13 @@ async def probe_endpoint(
             vuln = v_node if sev_order.get(v_node, 0) >= sev_order.get(v_php, 0) else v_php
             if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
                 vuln = nginx_sev
+            if rce_proof.get("is_rce_proved"):
+                vuln = "Critical"
             matched_cves = collect_target_cves(is_php, is_node, v_php, v_node, php_version_str, node_version_str, has_brotli, nginx_cves, has_lfi_active, is_fpm)
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
-            if nginx_cves:
+            if rce_proof.get("is_rce_proved"):
+                cve_note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
+            elif nginx_cves:
                 cve_note += f" | {nginx_note}"
             display_ver = f"PHP ({php_version_str}) + Node.js ({node_version_str})"
             return {
@@ -787,6 +796,10 @@ async def probe_endpoint(
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "rce_proof": rce_proof,
+                "is_rce_proved": rce_proof.get("is_rce_proved", False),
+                "rce_proof": rce_proof,
+                "is_rce_proved": rce_proof.get("is_rce_proved", False),
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
@@ -806,9 +819,12 @@ async def probe_endpoint(
             deep_audit["node_audit"] = getattr(vuln, "details", {})
             if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
                 vuln = nginx_sev
-            matched_cves = collect_target_cves(False, True, "Secure", vuln, "", node_version_str, has_brotli, nginx_cves, False, False)
-            if nginx_cves:
+            if rce_proof.get("is_rce_proved"):
+                vuln = "Critical"
+                note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
+            elif nginx_cves:
                 note += f" | {nginx_note}"
+            matched_cves = collect_target_cves(False, True, "Secure", vuln, "", node_version_str, has_brotli, nginx_cves, False, False)
             display_ver = node_version_str
             if has_brotli and "[Brotli]" not in display_ver:
                 display_ver += " [Brotli]"
@@ -830,6 +846,10 @@ async def probe_endpoint(
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "rce_proof": rce_proof,
+                "is_rce_proved": rce_proof.get("is_rce_proved", False),
+                "rce_proof": rce_proof,
+                "is_rce_proved": rce_proof.get("is_rce_proved", False),
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
@@ -850,9 +870,12 @@ async def probe_endpoint(
             vuln, note = evaluate_php_security(php_version_str)
             if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
                 vuln = nginx_sev
-            matched_cves = collect_target_cves(True, False, vuln, "Secure", php_version_str, "", False, nginx_cves, has_lfi_active, is_fpm)
-            if nginx_cves:
+            if rce_proof.get("is_rce_proved"):
+                vuln = "Critical"
+                note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
+            elif nginx_cves:
                 note += f" | {nginx_note}"
+            matched_cves = collect_target_cves(True, False, vuln, "Secure", php_version_str, "", False, nginx_cves, has_lfi_active, is_fpm)
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
@@ -871,6 +894,10 @@ async def probe_endpoint(
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "rce_proof": rce_proof,
+                "is_rce_proved": rce_proof.get("is_rce_proved", False),
+                "rce_proof": rce_proof,
+                "is_rce_proved": rce_proof.get("is_rce_proved", False),
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],
@@ -931,6 +958,8 @@ async def probe_endpoint(
                 "site_name": site_name,
                 "waf": waf_name,
                 "deep_audit": deep_audit,
+                "rce_proof": rce_proof,
+                "is_rce_proved": rce_proof.get("is_rce_proved", False),
                 "thaicert_groups": thaicert_info["groups"],
                 "primary_group": thaicert_info["primary_group"],
                 "group_labels": thaicert_info["group_labels"],

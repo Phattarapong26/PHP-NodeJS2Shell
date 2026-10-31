@@ -1122,6 +1122,42 @@
             </div>
           </div>
           
+          <!-- Empirical Live RCE Proof Indicator (Active PoC Execution) -->
+          <div id="auditRceProofWrapper" class="hidden p-3.5 rounded-2xl bg-gradient-to-r from-rose-950 via-slate-900 to-black border-2 border-rose-500 shadow-md text-white space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold">
+              <span class="flex items-center gap-2 text-rose-300">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping flex-shrink-0"></span>
+                <i class="ph-bold ph-terminal-window text-base text-rose-400 flex-shrink-0"></i>
+                <span id="auditRceProofTitle">หลักฐานเชิงประจักษ์ยืนยันการรันคำสั่งควบคุมระบบ (Live RCE Proof)</span>
+              </span>
+              <span id="auditRceProofStatusBadge" class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-900/80 text-rose-200 border border-rose-600">VERIFIED EXPLOITABLE</span>
+            </div>
+            <div id="auditRceProofDesc" class="text-xs text-rose-200/90 leading-relaxed font-sans">
+              <!-- Description -->
+            </div>
+            <div class="p-2.5 bg-black/90 rounded-xl border border-rose-900/60 font-mono text-xs space-y-1.5">
+              <div class="text-slate-400 text-[11px] flex items-center justify-between flex-wrap gap-1">
+                <span><b>เทคนิคการเจาะระบบ:</b> <span id="auditRceProofTechnique" class="text-amber-300">-</span></span>
+                <span id="auditRceProofPrivilege" class="text-rose-400 font-semibold font-mono">-</span>
+              </div>
+              <div class="text-slate-300 text-[11px] pt-1">
+                <span class="text-emerald-400 font-bold">$</span> <span id="auditRceProofCommand" class="text-slate-100 font-bold">id</span>
+              </div>
+              <div id="auditRceProofOutput" class="p-2 bg-slate-950 rounded-lg text-emerald-400 text-[11px] overflow-x-auto whitespace-pre-wrap font-bold border border-emerald-950/40 select-all">
+                <!-- Terminal Output -->
+              </div>
+              <div id="auditRceProofCurlWrapper" class="pt-1 text-[10px] text-slate-400 space-y-1">
+                <div class="flex items-center justify-between">
+                  <span><b>คำสั่งทดสอบจริง (CLI Reproduction):</b></span>
+                  <button id="btnCopyRceCurl" type="button" class="text-blue-400 hover:text-blue-300 underline cursor-pointer">คัดลอกคำสั่ง curl</button>
+                </div>
+                <div id="auditRceProofCurl" class="p-1.5 bg-slate-900 rounded text-sky-300 text-[10px] overflow-x-auto font-mono select-all">
+                  <!-- curl command -->
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <!-- ThaiCERT 8 Groups Target Classification -->
           <div class="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-slate-50/80 border border-blue-200/80 shadow-sm space-y-1.5">
             <div class="flex items-center justify-between text-xs font-bold text-slate-800">
@@ -2759,7 +2795,16 @@ Content-Type: text/html; charset=UTF-8</div>
         const isHigh = item.vulnerability === "High" || item.vulnerabilityNode === "High" || nginxSev === "High";
         const isWarn = item.vulnerability === "Warning" || item.vulnerability === "Outdated" || item.vulnerabilityNode === "Warning";
 
-        if (isCrit) {
+        const rceProof = item.rce_proof || deep.rce_proof || {};
+        const isRceProved = item.is_rce_proved || !!rceProof.is_rce_proved;
+
+        if (isRceProved) {
+          shortStatusIcon = "ph-terminal-window";
+          statusBadgeStyle = "bg-rose-100 text-rose-900 border-rose-400 hover:bg-rose-200 shadow-xs font-bold";
+          sevPill = "CRITICAL";
+          sevPillClass = "bg-rose-950 text-rose-300 border-rose-800";
+          shortStatus = "🔥 ยืนยัน RCE สำเร็จ (PoC)";
+        } else if (isCrit) {
           shortStatusIcon = "ph-warning-octagon";
           statusBadgeStyle = "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 shadow-2xs font-bold";
           sevPill = "CRITICAL";
@@ -2974,6 +3019,13 @@ Content-Type: text/html; charset=UTF-8</div>
                 <span class="whitespace-nowrap font-medium">${shortStatus}</span>
                 <i class="ph-bold ph-info text-[10px] opacity-60"></i>
               </div>
+              ${isRceProved ? `
+                <div class="mt-1 flex items-center gap-1">
+                  <span class="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-rose-600 text-white shadow-2xs inline-flex items-center gap-1">
+                    <i class="ph-bold ph-terminal-window"></i> RCE ยืนยันผล
+                  </span>
+                </div>
+              ` : ''}
             </div>
           </td>
           <td class="py-3 px-3 text-right">
@@ -3125,6 +3177,43 @@ Content-Type: text/html; charset=UTF-8</div>
           });
         } else {
           portSwitcherWrapper.classList.add('hidden');
+        }
+      }
+
+      // Empirical Live RCE Proof Indicator (PoC Prover)
+      const rceWrapper = document.getElementById('auditRceProofWrapper');
+      const rceProof = host.rce_proof || deep.rce_proof || null;
+      if (rceWrapper) {
+        if (rceProof && rceProof.is_rce_proved) {
+          rceWrapper.classList.remove('hidden');
+          const elTitle = document.getElementById('auditRceProofTitle');
+          const elBadge = document.getElementById('auditRceProofStatusBadge');
+          const elDesc = document.getElementById('auditRceProofDesc');
+          const elTech = document.getElementById('auditRceProofTechnique');
+          const elPriv = document.getElementById('auditRceProofPrivilege');
+          const elCmd = document.getElementById('auditRceProofCommand');
+          const elOut = document.getElementById('auditRceProofOutput');
+          const elCurl = document.getElementById('auditRceProofCurl');
+          const btnCopy = document.getElementById('btnCopyRceCurl');
+
+          if (elTitle) elTitle.textContent = rceProof.proof_badge || "🔥 ยืนยัน RCE สำเร็จ (PoC Proved)";
+          if (elBadge) elBadge.textContent = "VERIFIED EXPLOITABLE";
+          if (elDesc) elDesc.textContent = rceProof.impact_statement || "ยืนยันผลการประเมิน: ตรวจพบช่องทางการรันคำสั่งควบคุมระบบปฏิบัติการได้จริง 100%";
+          if (elTech) elTech.textContent = rceProof.technique || "Remote Code Execution";
+          if (elPriv) elPriv.textContent = rceProof.privilege_level || "Root / Superuser";
+          if (elCmd) elCmd.textContent = rceProof.command_executed || "id";
+          if (elOut) elOut.textContent = rceProof.execution_output || "";
+          if (elCurl) elCurl.textContent = rceProof.reproduce_curl || "";
+          if (btnCopy) {
+            btnCopy.onclick = () => {
+              if (rceProof.reproduce_curl) {
+                navigator.clipboard.writeText(rceProof.reproduce_curl);
+                showToast("คัดลอกคำสั่ง PoC curl แล้ว");
+              }
+            };
+          }
+        } else {
+          rceWrapper.classList.add('hidden');
         }
       }
 

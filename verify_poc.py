@@ -15,6 +15,7 @@ import json
 from audit.probe_audit import probe_lfi_prerequisite
 from audit.sub_tools import probe_strict_session_mode, probe_information_disclosure
 from audit.thaicert_rules import classify_thaicert_groups, evaluate_group_architecture_matrix
+from audit.rce_prover import probe_active_rce_proof
 
 BLUE = "\033[94m"
 GREEN = "\033[92m"
@@ -110,6 +111,32 @@ async def run_verification_suite(base_url: str = "http://localhost:8080"):
         )
         print(f"    - กลุ่มหลักที่ระบุ:  {BOLD}{tc_info.get('primary_group')}{RESET}")
         print(f"    - กลุ่มระบบที่เข้าข่าย: {YELLOW}{', '.join(tc_info.get('group_labels', []))}{RESET}")
+
+        # -------------------------------------------------------------
+        # CHALLENGE 4: Empirical Live RCE Proof Indicator
+        # -------------------------------------------------------------
+        port_num = 8080
+        if ":" in base_url.replace("http://", "").replace("https://", ""):
+            try:
+                port_num = int(base_url.split(":")[-1].split("/")[0])
+            except ValueError:
+                pass
+
+        print(f"\n{BOLD}[4] การพิสูจน์การรันคำสั่งจริง (Empirical Live RCE Proof Indicator){RESET}")
+        rce_res = await probe_active_rce_proof(client, base_url, port_num, server=server_banner, is_php=True)
+        if rce_res.get("is_rce_proved"):
+            print(f"    -> {RED}{BOLD}{rce_res.get('proof_badge')}{RESET}")
+            print(f"       เทคนิค:          {YELLOW}{rce_res.get('technique')}{RESET}")
+            print(f"       ระดับสิทธิ์:      {RED}{rce_res.get('privilege_level')}{RESET}")
+            print(f"       คำสั่งที่รัน:     {GREEN}$ {rce_res.get('command_executed')}{RESET}")
+            print(f"       ผลลัพธ์จาก OS:   {BOLD}{rce_res.get('execution_output')}{RESET}")
+            print(f"       CLI Reproduce:   {YELLOW}{rce_res.get('reproduce_curl')}{RESET}")
+            print(f"       สรุปผล:          {rce_res.get('impact_statement')}")
+        else:
+            print(f"    -> {GREEN}{BOLD}[SAFE / THEORETICAL ONLY]{RESET}")
+            print(f"       สถานะ:          {rce_res.get('proof_badge')}")
+            print(f"       ผลลัพธ์:        {rce_res.get('execution_output')}")
+            print(f"       สรุปผล:          {rce_res.get('impact_statement')}")
 
         print(f"\n{BOLD}{BLUE}{'='*75}{RESET}\n")
 
