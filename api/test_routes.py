@@ -43,8 +43,8 @@ def test_node20_vuln():
         "node": "v20.18.0",
         "framework": "Express 4.19",
         "brotli": True,
-        "cve": "CVE-2026-111497 (Node2Shell Brotli RCE)",
-        "eol": "30 Apr 2026"
+        "cve": "CVE-2026-111497 (Brotli decoder vulnerability / Node2Shell)",
+        "eol": "24 Mar 2026"
     })
     resp.headers["X-Powered-By"] = "Express"
     resp.headers["X-Node-Version"] = "20.18.0"

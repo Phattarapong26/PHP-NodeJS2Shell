@@ -755,11 +755,12 @@ async def probe_endpoint(
         }
 
         # Step 5: Evaluate & Return Classification
-        sev_order = {"Critical": 4, "High": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Secure": 0}
+        sev_order = {"Critical": 4, "High": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Patched for this CVE": 0, "Secure": 0}
 
         if is_node and is_php:
             v_php, note_php = evaluate_php_security(php_version_str or "PHP")
             v_node, note_node = evaluate_node_security(node_version_str or "Node.js", has_brotli)
+            deep_audit["node_audit"] = getattr(v_node, "details", {})
             vuln = v_node if sev_order.get(v_node, 0) >= sev_order.get(v_php, 0) else v_php
             if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
                 vuln = nginx_sev
@@ -802,6 +803,7 @@ async def probe_endpoint(
             }
         elif is_node:
             vuln, note = evaluate_node_security(node_version_str, has_brotli)
+            deep_audit["node_audit"] = getattr(vuln, "details", {})
             if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
                 vuln = nginx_sev
             matched_cves = collect_target_cves(False, True, "Secure", vuln, "", node_version_str, has_brotli, nginx_cves, False, False)

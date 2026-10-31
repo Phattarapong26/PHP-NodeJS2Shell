@@ -149,18 +149,20 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
 
     # 3. Node.js CVE Mapping
     if is_node:
-        if v_node == "Critical" or (has_brotli and v_node in ("Critical", "Warning")):
+        if v_node in ("Critical", "High", "Outdated", "Warning") or (has_brotli and v_node in ("Critical", "High", "Warning")):
             cves.append({
                 "id": "CVE-2026-111497",
                 "cve": "CVE-2026-111497",
-                "name": "Node.js Brotli Out-of-bounds Write (Node2Shell RCE)",
+                "name": "ช่องโหว่ Brotli decoder ใน Node.js (CVE-2026-111497)",
+                "alias": "Node2Shell",
                 "category": "Node.js",
-                "severity": "Critical",
+                "severity": "High",
                 "cvss": 9.2,
-                "reason": f"Node.js ({node_ver}) เสี่ยงต่อ Node2Shell / CVE-2026-111497 (Brotli RCE)",
+                "confidence": "Likely" if has_brotli else "Conditional",
+                "reason": f"Node.js ({node_ver}) ต่ำกว่าเวอร์ชันที่ระบุว่าได้รับแพตช์สำหรับ CVE-2026-111497 (NVD ระบุ CVSS 9.2 Critical ขณะที่ Node.js จัดเป็นระดับ High) อาจได้รับผลกระทบหากแอปพลิเคชันรับข้อมูล Brotli จากภายนอกและนำไปถอดรหัสด้วย node:zlib",
                 "host_check": "node -v",
-                "confirm_vuln": "Node.js < 22.23.4 / 24.22.1 / 26.12.1 หรือ EOL",
-                "confirm_safe": "Node.js ≥ 22.23.4 / 24.22.1 / 26.12.1"
+                "confirm_vuln": "Node.js < 22.23.4 / 24.22.1 / 26.12.1 หรือ EOL ร่วมกับมีการรับข้อมูล Brotli มาถอดรหัส",
+                "confirm_safe": "อัปเดตเป็นรุ่นที่มีแพตช์อย่างน้อย 22.23.4, 24.22.1 หรือ 26.12.1 ตามสายเวอร์ชัน หรือรุ่นล่าสุดที่ผู้พัฒนาแนะนำ"
             })
         nv = parse_semver(node_ver)
         if nv and nv[0] <= 20:

@@ -1,6 +1,7 @@
 import unittest
 import asyncio
 from audit.php_audit import evaluate_php_security, evaluate_security_chains
+from audit.node_audit import evaluate_node_security
 from audit.sub_tools import probe_embedded_appliance_security
 
 
@@ -113,6 +114,66 @@ class TestAuditChains(unittest.TestCase):
         res = asyncio.run(probe_embedded_appliance_security("Boa/0.94.14rc21"))
         self.assertTrue(res["is_embedded_binary"])
         self.assertFalse(res["php_present"])
+
+    def test_node_security_eol_dates_and_CVE_separation(self):
+        # Node 20: EOL 24 March 2026
+        res20 = evaluate_node_security("v20.18.0", has_brotli=True)
+        sev20, note20 = res20
+        self.assertEqual(sev20, "Outdated")
+        self.assertIn("24 มี.ค. 2026", note20)
+        self.assertIn("ผู้จัดจำหน่าย", note20)  # Recommends checking OS vendor backports
+        self.assertNotIn("HTTP2Shell", note20)
+
+        # Node 25: EOL 31 March 2026
+        res25 = evaluate_node_security("Node.js/25.0.0")
+        sev25, note25 = res25
+        self.assertEqual(sev25, "Outdated")
+        self.assertIn("31 มี.ค. 2026", note25)
+        self.assertNotIn("HTTP2Shell", note25)
+
+    def test_node_security_patch_baselines_and_exposure_distinction(self):
+        # Node 22 below patch (22.20.0) without active decompression
+        res22_unpatched = evaluate_node_security("v22.20.0", has_brotli=True)
+        sev22, note22 = res22_unpatched
+        self.assertEqual(sev22, "High")
+        self.assertEqual(res22_unpatched.details["confidence"], "Conditional")
+        self.assertIn("22.23.4", note22)
+        self.assertIn("หากแอปพลิเคชันรับข้อมูล Brotli", note22)
+
+        # Node 22 with confirmed exposed decompression
+        res22_exposed = evaluate_node_security("v22.20.0", has_brotli=True, accepts_untrusted_brotli=True, uses_node_zlib_decompress=True)
+        self.assertEqual(res22_exposed.details["confidence"], "Likely")
+
+        # Node 22 at or above patch (22.23.4)
+        res22_patched = evaluate_node_security("v22.23.4", has_brotli=True)
+        sev22_p, note22_p = res22_patched
+        self.assertEqual(sev22_p, "Patched for this CVE")
+        self.assertIn("อยู่ที่หรือสูงกว่าเวอร์ชันที่มีแพตช์", note22_p)
+        self.assertIn("ยังต้องตรวจสอบการใช้งาน Brotli", note22_p)
+        self.assertNotEqual(sev22_p, "Secure")  # Not unconditionally claiming system is safe
+
+        # Node 24 patched (24.22.1)
+        res24_patched = evaluate_node_security("v24.22.1")
+        self.assertEqual(res24_patched[0], "Patched for this CVE")
+
+        # Node 26 patched (26.12.1)
+        res26_patched = evaluate_node_security("v26.12.1")
+        self.assertEqual(res26_patched[0], "Patched for this CVE")
+
+    def test_node_security_newer_major_not_assumed_safe(self):
+        # Major > 26 (e.g. 28.0.0)
+        res28 = evaluate_node_security("v28.0.0")
+        sev28, note28 = res28
+        self.assertEqual(sev28, "Review Needed")
+        self.assertNotEqual(sev28, "Secure")
+        self.assertIn("รุ่นใหม่กว่าช่วงที่กฎนี้ครอบคลุม", note28)
+
+    def test_node_security_no_http2shell_alias(self):
+        # Ensure 'HTTP2Shell' is never emitted
+        for v_str in ["v18.0.0", "v20.10.0", "v22.10.0", "v24.10.0", "v25.0.0", "v26.0.0", "v28.0.0", "Node.js (Unknown)"]:
+            res = evaluate_node_security(v_str, has_brotli=True)
+            self.assertNotIn("HTTP2Shell", res.note)
+            self.assertNotIn("HTTP2Shell", str(res.details))
 
 
 if __name__ == "__main__":
