@@ -90,7 +90,7 @@ def build_pdf_footer_overlay(total_pages: int) -> io.BytesIO:
         # 2. Left Agency Name
         c.setFont(font_name, 9)
         c.setFillColorRGB(0.35, 0.38, 0.42)
-        agency_text = "สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)"
+        agency_text = "รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)"
         c.drawString(margin_left, 24, agency_text)
 
         # 3. Center TLP:AMBER Symbol + Traffic Light Box

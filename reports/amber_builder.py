@@ -73,9 +73,41 @@ def get_ncsa_header_banner_html() -> str:
     """
 
 
+def get_watermark_svg_data_uri() -> str:
+    """Generate subtle, faint diagonal watermark SVG as data URI for report sheets."""
+    import base64
+    svg = """<svg xmlns='http://www.w3.org/2000/svg' width='460' height='270' viewBox='0 0 460 270'>
+  <style>
+    .wm-txt {
+      font-family: 'TH SarabunPSK', 'TH Sarabun New', 'Segoe UI', Tahoma, sans-serif;
+      font-size: 15px;
+      font-weight: bold;
+      fill: #0f172a;
+      opacity: 0.055;
+      letter-spacing: 0.6px;
+    }
+    .wm-sub {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', Consolas, monospace;
+      font-size: 9.5px;
+      font-weight: 600;
+      fill: #334155;
+      opacity: 0.045;
+      letter-spacing: 1.8px;
+    }
+  </style>
+  <g transform='rotate(-24 230 135)'>
+    <text x='230' y='126' text-anchor='middle' class='wm-txt'>เอกสารลับจากระบบของฝ่ายปฏิบัติการ ThaiCERT</text>
+    <text x='230' y='146' text-anchor='middle' class='wm-sub'>CONFIDENTIAL • THAICERT OPERATIONAL LICENSE</text>
+  </g>
+</svg>"""
+    b64 = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{b64}"
+
+
 def get_css_styles() -> str:
     """Official Thai Government & NCSA Typography CSS."""
-    return """
+    wm_uri = get_watermark_svg_data_uri()
+    css = """
     @font-face {
       font-family: 'TH SarabunPSK';
       src: local('TH SarabunPSK'), local('THSarabunPSK'), local('TH Sarabun PSK'), local('TH Sarabun New'),
@@ -204,8 +236,14 @@ def get_css_styles() -> str:
       font-size: 16pt;
       line-height: 1.4;
       color: #000000;
-      background: #ffffff;
+      background-color: #ffffff;
+      background-image: url("__WATERMARK_DATA_URI__");
+      background-repeat: repeat;
+      background-position: center center;
+      background-size: 440px 255px;
       box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
 
     @media screen {
@@ -644,10 +682,17 @@ def get_css_styles() -> str:
         box-shadow: none !important;
         border: none !important;
         border-radius: 0 !important;
+        background-color: #ffffff !important;
+        background-image: url("__WATERMARK_DATA_URI__") !important;
+        background-repeat: repeat !important;
+        background-position: center center !important;
+        background-size: 440px 255px !important;
         position: static !important;
         overflow: visible !important;
         page-break-after: auto !important;
         break-after: auto !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
       .page-break-section {
@@ -678,6 +723,7 @@ def get_css_styles() -> str:
       }
     }
     """
+    return css.replace("__WATERMARK_DATA_URI__", wm_uri)
 
 
 def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
