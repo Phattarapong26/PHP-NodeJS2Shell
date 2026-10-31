@@ -962,6 +962,13 @@
                   <!-- curl command -->
                 </div>
               </div>
+              <div id="auditRceTrailWrapper" class="hidden pt-1.5 border-t border-slate-800 text-[10px] text-slate-400 font-mono space-y-0.5">
+                <div class="text-cyan-400 font-semibold flex items-center gap-1">
+                  <i class="ph-bold ph-seal-check text-xs"></i> Cryptographic Evidence Trail (SHA-256 Digital Verification)
+                </div>
+                <div><span class="text-slate-500">Operator:</span> <span id="auditRceTrailOperator" class="text-slate-300">-</span> | <span class="text-slate-500">Time (UTC):</span> <span id="auditRceTrailTime" class="text-slate-300">-</span></div>
+                <div class="truncate"><span class="text-slate-500">Evidence SHA-256:</span> <span id="auditRceTrailSha" class="text-emerald-400 select-all font-bold">-</span></div>
+              </div>
             </div>
           </div>
           
@@ -2987,11 +2994,12 @@ Content-Type: text/html; charset=UTF-8</div>
         }
       }
 
-      // Empirical Live RCE Proof Indicator (PoC Prover)
+      // Empirical Live RCE / LFI Proof Indicator (PoC Prover with Audit Trail)
       const rceWrapper = document.getElementById('auditRceProofWrapper');
       const rceProof = host.rce_proof || deep.rce_proof || null;
       if (rceWrapper) {
-        if (rceProof && rceProof.is_rce_proved) {
+        const hasVerifiedProof = rceProof && (rceProof.is_rce_proved || rceProof.proof_status === 'CANARY_CONFIRMED' || rceProof.proof_status === 'CONFIRMED_LFI');
+        if (hasVerifiedProof) {
           rceWrapper.classList.remove('hidden');
           const elTitle = document.getElementById('auditRceProofTitle');
           const elBadge = document.getElementById('auditRceProofStatusBadge');
@@ -3003,12 +3011,18 @@ Content-Type: text/html; charset=UTF-8</div>
           const elCurl = document.getElementById('auditRceProofCurl');
           const btnCopy = document.getElementById('btnCopyRceCurl');
 
-          if (elTitle) elTitle.textContent = rceProof.proof_badge || "🔥 ยืนยัน RCE สำเร็จ (PoC Proved)";
-          if (elBadge) elBadge.textContent = "VERIFIED EXPLOITABLE";
-          if (elDesc) elDesc.textContent = rceProof.impact_statement || "ยืนยันผลการประเมิน: ตรวจพบช่องทางการรันคำสั่งควบคุมระบบปฏิบัติการได้จริง 100%";
-          if (elTech) elTech.textContent = rceProof.technique || "Remote Code Execution";
-          if (elPriv) elPriv.textContent = rceProof.privilege_level || "Root / Superuser";
-          if (elCmd) elCmd.textContent = rceProof.command_executed || "id";
+          const isRce = rceProof.is_rce_proved || rceProof.proof_status === 'RCE_CONFIRMED';
+          if (elTitle) elTitle.textContent = rceProof.proof_badge || (isRce ? "🔥 ยืนยัน RCE สำเร็จ (PoC Proved)" : "⚠️ ยืนยัน LFI / Arbitrary File Read");
+          if (elBadge) {
+            elBadge.textContent = isRce ? "RCE CONFIRMED" : (rceProof.proof_status === 'CANARY_CONFIRMED' ? "CANARY CONFIRMED" : "LFI CONFIRMED");
+            elBadge.className = isRce 
+              ? "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-900/80 text-rose-200 border border-rose-600"
+              : "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-900/80 text-amber-200 border border-amber-600";
+          }
+          if (elDesc) elDesc.textContent = rceProof.impact_statement || "";
+          if (elTech) elTech.textContent = rceProof.technique || "Security Exploit PoC";
+          if (elPriv) elPriv.textContent = rceProof.privilege_level || "Standard";
+          if (elCmd) elCmd.textContent = rceProof.command_executed || "canary execution";
           if (elOut) elOut.textContent = rceProof.execution_output || "";
           if (elCurl) elCurl.textContent = rceProof.reproduce_curl || "";
           if (btnCopy) {
@@ -3019,8 +3033,26 @@ Content-Type: text/html; charset=UTF-8</div>
               }
             };
           }
+
+          // Cryptographic Audit Trail
+          const trailWrapper = document.getElementById('auditRceTrailWrapper');
+          if (trailWrapper) {
+            if (rceProof.audit_trail) {
+              trailWrapper.classList.remove('hidden');
+              const elOp = document.getElementById('auditRceTrailOperator');
+              const elTime = document.getElementById('auditRceTrailTime');
+              const elSha = document.getElementById('auditRceTrailSha');
+              if (elOp) elOp.textContent = rceProof.audit_trail.operator || "operator";
+              if (elTime) elTime.textContent = rceProof.audit_trail.timestamp_utc || "-";
+              if (elSha) elSha.textContent = rceProof.audit_trail.evidence_sha256 || "-";
+            } else {
+              trailWrapper.classList.add('hidden');
+            }
+          }
         } else {
           rceWrapper.classList.add('hidden');
+        }
+      }
         }
       }
 

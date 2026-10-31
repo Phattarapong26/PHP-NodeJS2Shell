@@ -106,7 +106,9 @@ async def probe_endpoint(
     hostname: str = None,
     host_ip: str = "",
     is_docker: bool = False,
-    docker_gw: str = None
+    docker_gw: str = None,
+    allow_active_rce: bool = False,
+    operator: str = "security-auditor"
 ):
     """Deep inspection of a target IP and port for PHP and Node.js signatures and vulnerabilities."""
     scheme = "https" if port in (443, 8443) else "http"
@@ -734,8 +736,16 @@ async def probe_endpoint(
             "zend_c_telemetry": zend_c_telemetry
         }
 
-        # Active RCE Proof & PoC Verification Indicator
-        rce_proof = await probe_active_rce_proof(client, base_url, port, server=server or "", is_php=is_php)
+        # Active RCE Proof & PoC Verification Indicator (Safety Gate Protected)
+        rce_proof = await probe_active_rce_proof(
+            client,
+            base_url,
+            port,
+            server=server or "",
+            is_php=is_php,
+            allow_active_rce=allow_active_rce,
+            operator=operator
+        )
         deep_audit["rce_proof"] = rce_proof
 
         # Multi-Stack CVE Mapping (NGINX, PHP, Node.js)

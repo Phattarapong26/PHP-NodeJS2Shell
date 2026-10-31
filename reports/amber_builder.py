@@ -873,24 +873,43 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         matrix = h.get("architecture_matrix") or da.get("architecture_matrix") or []
         rce_proof = h.get("rce_proof") or da.get("rce_proof") or {}
 
-        # 0. Empirical Live RCE Proof Section
-        if rce_proof.get("is_rce_proved"):
+        # 0. Empirical Live RCE / LFI Proof Section with Cryptographic Evidence
+        status_val = rce_proof.get("proof_status", "")
+        if rce_proof.get("is_rce_proved") or status_val in ("RCE_CONFIRMED", "CANARY_CONFIRMED", "CONFIRMED_LFI"):
+            is_rce = rce_proof.get("is_rce_proved") or status_val == "RCE_CONFIRMED"
+            trail = rce_proof.get("audit_trail") or {}
+            box_bg = "#fff5f5" if is_rce else "#fefce8"
+            box_border = "#dc2626" if is_rce else "#ca8a04"
+            title_color = "#991b1b" if is_rce else "#854d0e"
+            badge_text = "[RCE CONFIRMED]" if is_rce else ("[CANARY CONFIRMED]" if status_val == "CANARY_CONFIRMED" else "[LFI CONFIRMED]")
+            header_title = "หลักฐานเชิงประจักษ์ยืนยันการรันคำสั่งควบคุมระบบ (Live RCE Proof)" if is_rce else "หลักฐานเชิงประจักษ์ยืนยันช่องโหว่ LFI / Arbitrary File Read"
+            
+            trail_html = ""
+            if trail:
+                trail_html = f"""
+                <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #334155; font-size: 8.5pt; color: #94a3b8;">
+                  <div><b>Cryptographic Audit Trail:</b> Operator: {html.escape(trail.get('operator', '-'))} | UTC: {html.escape(trail.get('timestamp_utc', '-'))}</div>
+                  <div style="word-break: break-all;"><b>Evidence SHA-256:</b> <span style="color: #4ade80;">{html.escape(trail.get('evidence_sha256', '-'))}</span></div>
+                </div>
+                """
+
             findings_html += f"""
-            <div style="margin-top: 14px; margin-bottom: 18px; padding: 12px 16px; background: #fff5f5; border-left: 4px solid #dc2626; border-radius: 4px;">
-              <div style="font-size: 15.5pt; font-weight: bold; color: #991b1b; margin-bottom: 4px;">
-                หลักฐานเชิงประจักษ์ยืนยันการรันคำสั่งควบคุมระบบ (Live RCE Proof) บนพอร์ต {html.escape(str(h.get('port','-')))}
+            <div style="margin-top: 14px; margin-bottom: 18px; padding: 12px 16px; background: {box_bg}; border-left: 4px solid {box_border}; border-radius: 4px;">
+              <div style="font-size: 15.5pt; font-weight: bold; color: {title_color}; margin-bottom: 4px;">
+                {header_title} บนพอร์ต {html.escape(str(h.get('port','-')))}
               </div>
-              <p class="adv-para" style="color: #7f1d1d; margin-bottom: 8px;">
-                ระบบได้ส่งชุดข้อมูลทดสอบเพื่อพิสูจน์ความเป็นไปได้ในการโจมตีจริง (Active Safe Non-Destructive Proof of Concept) ผ่านช่องทาง <b>{html.escape(rce_proof.get('technique', ''))}</b> โดยไม่พึ่งพาเพียงการอ่านค่าเวอร์ชัน ผลการทดสอบสามารถสั่งประมวลผลและดึงผลลัพธ์จากระบบปฏิบัติการกลับมาได้จริง ยืนยันสิทธิ์ในระดับ <b>{html.escape(rce_proof.get('privilege_level', ''))}</b>
+              <p class="adv-para" style="color: #451a03; margin-bottom: 8px;">
+                {html.escape(rce_proof.get('impact_statement', ''))} (เทคนิค: <b>{html.escape(rce_proof.get('technique', ''))}</b> | ระดับสิทธิ์: <b>{html.escape(rce_proof.get('privilege_level', ''))}</b>)
               </p>
-              <div style="background: #0f172a; color: #38bdf8; padding: 10px 14px; border-radius: 6px; font-family: monospace; font-size: 11pt; line-height: 1.45; overflow-x: auto;">
-                <div style="color: #94a3b8; font-size: 9.5pt; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 6px;">
-                  $ {html.escape(rce_proof.get('command_executed', 'id'))} &nbsp;&nbsp;<span style="color: #4ade80; font-weight: bold;">[VERIFIED EXPLOITABLE]</span> &nbsp;&nbsp;เวลาตรวจสอบ: {html.escape(rce_proof.get('verified_at', ''))}
+              <div style="background: #0f172a; color: #38bdf8; padding: 10px 14px; border-radius: 6px; font-family: monospace; font-size: 10.5pt; line-height: 1.45; overflow-x: auto;">
+                <div style="color: #94a3b8; font-size: 9pt; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 6px;">
+                  $ {html.escape(rce_proof.get('command_executed', 'canary execution'))} &nbsp;&nbsp;<span style="color: {'#f87171' if is_rce else '#facc15'}; font-weight: bold;">{badge_text}</span> &nbsp;&nbsp;เวลา: {html.escape(rce_proof.get('verified_at', ''))}
                 </div>
                 <div style="color: #4ade80; font-weight: bold;">
                   {html.escape(rce_proof.get('execution_output', ''))}
                 </div>
-                {f'<div style="color: #f59e0b; font-size: 9.5pt; margin-top: 6px; border-top: 1px dashed #334155; padding-top: 4px;">คำสั่งทดสอบจริง (CLI): {html.escape(rce_proof.get("reproduce_curl", ""))}</div>' if rce_proof.get("reproduce_curl") else ''}
+                {f'<div style="color: #f59e0b; font-size: 9pt; margin-top: 6px; border-top: 1px dashed #334155; padding-top: 4px;">คำสั่งทดสอบจริง (CLI): {html.escape(rce_proof.get("reproduce_curl", ""))}</div>' if rce_proof.get("reproduce_curl") else ''}
+                {trail_html}
               </div>
             </div>
             """

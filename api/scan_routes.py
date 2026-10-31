@@ -378,6 +378,8 @@ def scan():
     subnet_str = data.get("subnet", "").strip()
     concurrency = min(max(int(data.get("concurrency", 120)), 20), 200)
     custom_ports = data.get("ports", None)
+    allow_active_rce = bool(data.get("allow_active_rce", False))
+    operator = data.get("operator", "web-operator")
 
     net_info = get_host_network_info()
     if not subnet_str:
@@ -428,7 +430,9 @@ def scan():
                         hostname=target_domain,
                         host_ip=curr_host_ip,
                         is_docker=curr_is_docker,
-                        docker_gw=curr_docker_gw
+                        docker_gw=curr_docker_gw,
+                        allow_active_rce=allow_active_rce,
+                        operator=operator
                     )
 
             gw_ip = net_info.get("gateway", "")

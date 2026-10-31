@@ -577,3 +577,23 @@ def parse_target_hosts(target_str: str, max_scan: int = 512, host_ip: str = ""):
                 return [ip], None, 32, 1, clean, target_port
             except Exception as e:
                 raise ValueError(f"ไม่สามารถค้นหา IP หรือโดเมน '{clean}' ได้: {e}")
+
+
+def is_public_target(target_str: str) -> bool:
+    """
+    Safety Gate Helper:
+    Checks whether a target resolves to an external/public non-RFC1918/non-loopback IP.
+    Returns True for public targets, False for internal/private/loopback IPs.
+    """
+    try:
+        cleaned = target_str.replace("http://", "").replace("https://", "").split("/")[0].split(":")[0].strip()
+        ip_obj = ipaddress.ip_address(cleaned)
+        return not (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local)
+    except ValueError:
+        try:
+            resolved = socket.gethostbyname(cleaned)
+            ip_obj = ipaddress.ip_address(resolved)
+            return not (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local)
+        except Exception:
+            return True
+

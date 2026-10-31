@@ -116,11 +116,24 @@ flowchart TD
   * ฉีดโค้ดลงใน Access Log ผ่านส่วนหัว User-Agent (Log Poisoning)
   เมื่อไฟล์ถูกสร้างขึ้น จึงใช้ LFI เรียกไฟล์นั้นเพื่อสั่งประมวลผลโค้ด
 
-### 2. กระบวนการทดสอบและการแยกแยะผลลัพธ์ของ OPScaner
-* **การทดสอบ LFI:** ส่งพารามิเตอร์ทดสอบพื้นฐาน (`?page=`, `?file=`) เพื่อดูว่าเซิร์ฟเวอร์ส่ง Error เกี่ยวกับ `include()` หรือ `open_basedir` หรือไม่ 
-  * *ข้อควรระวัง:* หากไม่พบ Error ระบบจะบันทึกสถานะว่า **"ไม่พบข้อผิดพลาดจากพารามิเตอร์พื้นฐาน (Inconclusive)"** และไม่ถือว่าระบบปลอดภัยสมบูรณ์
-* **การทดสอบ Arbitrary File Read:** หากพบว่าสามารถอ่านไฟล์คอนฟิกหรือ `/etc/passwd` ได้ ระบบจะจัดเป็น **`CONFIRMED_LFI` (ไม่ใช่ RCE)** เนื่องจากเป็นการเข้าถึงไฟล์โดยไม่ได้รับอนุญาต แต่ยังไม่มีการรันคำสั่ง OS
-* **การทดสอบ RCE จริง (Active PoC):** เฉพาะกรณีที่คำขอสั่งรันโค้ดและส่งผลลัพธ์ยืนยันการประมวลผลจริงกลับมา (เช่น การทดสอบ PoC ของ CVE-2024-4577 หรือการพบ Web Shell ที่รันคำสั่งได้) ระบบจึงจะติดป้ายเป็น **`CONFIRMED_RCE`**
+### 2. ลำดับขั้นตอนการพิสูจน์ทราบช่องโหว่ (LFI-to-RCE Verification Flow)
+เพื่อให้การตรวจสอบเป็นไปตามมาตรฐานวิชาการด้านความมั่นคงปลอดภัย (Security Research Standard) OPScaner กำหนดลำดับขั้นตอนการทดสอบอย่างเคร่งครัด:
+
+1. **ตรวจหา LFI (Detect LFI):** ส่งพารามิเตอร์ทดสอบพื้นฐาน (`?page=`, `?file=`) เพื่อตรวจจับข้อผิดพลาด `include` หรือ `open_basedir`
+2. **หา Endpoint สร้าง Session (Discover Session):** ค้นหาจุดที่สร้างคุกกี้ `PHPSESSID` หรือใช้กลไก PHP Session Upload Progress
+3. **ส่ง Canary Payload ปลอดภัย (Inject Safe Canary):** สุ่มตัวเลขทางคณิตศาสตร์สองชุด (เช่น `15200 + 4811 = 20011`) และส่งคำนวณโค้ดผ่านแท็ก PHP ใน Session Storage โดยไม่ส่งโค้ดอันตรายหรือสร้าง Backdoor
+4. **พยายาม Trigger ผ่าน LFI (Trigger via LFI):** ส่งคำขอ LFI ไปเรียกอ่านไฟล์เซสชันปลายทาง (เช่น `/?page=/tmp/sess_<id>`)
+5. **แยกสถานะผลลัพธ์ 3 ระดับอย่างแม่นยำ (Tri-State Categorization):**
+   * **`RCE_CONFIRMED`:** ผลลัพธ์ตัวเลขคณิตศาสตร์ถูกคำนวณจริง (ยืนยันว่าโค้ดถูกประมวลผลโดย PHP Engine สำเร็จ)
+   * **`CANARY_CONFIRMED`:** พบค่าวาจาของ Canary สะท้อนกลับมาเป็นข้อความล้วน แต่ไม่มีการ Execute (ยืนยันว่ามี LFI อ่านไฟล์เซสชันได้จริง แต่ไม่เกิดการรันโค้ด)
+   * **`NOT_CONFIRMED`:** ไม่พบการตอบสนอง หรือระบบไม่สามารถเปิดอ่านไฟล์เซสชันได้
+6. **บันทึกหลักฐานดิจิทัล (Cryptographic Evidence Trail):**
+   * บันทึกวันเวลา (ISO 8601 UTC), ชื่อผู้ตรวจสอบ (Operator), Full HTTP Transcript (Request/Response)
+   * คำนวณค่า **SHA-256 Hash** ของ Payload และ Evidence Transcript เพื่อรับประกันความถูกต้องของหลักฐานทางนิติวิทยาศาสตร์ (Non-repudiation)
+7. **กลไกความปลอดภัย (Safety Gate Protection):**
+   * **ระงับการยิง Active RCE โดยค่าเริ่มต้น:** การสแกนปกติจะทำงานในโหมด Safe Passive & Heuristic Inspection เท่านั้น
+   * **การเปิดใช้ Active Verification:** ผู้ใช้ต้องระบุพารามิเตอร์ `--active-rce` เจาะจง
+   * **Public Target Safeguard:** หากเป้าหมายเป็น Public IP หรือโดเมนภายนอก ผู้ใช้ต้องระบุ `--i-own-this-target` หรือพิมพ์ `YES` ยืนยันสิทธิ์ความเป็นเจ้าของระบบก่อนเสมอ เพื่อป้องกันการละเมิดกฎหมาย พ.ร.บ. คอมพิวเตอร์ฯ
 
 ---
 
@@ -171,11 +184,14 @@ docker-compose up -d --build
 ### 2. รันผ่าน CLI (สำหรับการทดสอบโฮสต์เดี่ยว)
 
 ```bash
-# ตรวจสอบเป้าหมายเจาะจงผ่าน Terminal
+# 1. การสแกนแบบปลอดภัย (Safe Passive & Fingerprint Mode - ค่าเริ่มต้น)
 ./venv/bin/python audit_cli.py -t http://192.168.1.50:8080
 
-# ตรวจสอบพร้อมสร้างไฟล์รายงานสรุปผล
-./venv/bin/python audit_cli.py -t https://target-app.internal --export-report
+# 2. การเปิดทดสอบ Active RCE & Canary Verification (มี Safety Gate ป้องกัน)
+./venv/bin/python audit_cli.py -t http://192.168.1.50:8080 --active-rce
+
+# 3. การทดสอบเป้าหมายสาธารณะพร้อมยืนยันสิทธิ์ความเป็นเจ้าของระบบ
+./venv/bin/python audit_cli.py -t https://my-app.internal:8443 --active-rce --i-own-this-target --operator "Auditor-Name" --export-report
 ```
 
 ---

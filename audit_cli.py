@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import asyncio
+import getpass
 import json
 import sys
 import time
@@ -19,6 +20,7 @@ from urllib.parse import urlparse
 import httpx
 
 from audit.probe_audit import probe_endpoint
+from core.network import is_public_target
 from reports.amber_builder import build_amber_advisory_html
 
 
@@ -67,16 +69,53 @@ def parse_target(target_str: str, default_port: int = 80):
     return host, port, scheme
 
 
-async def run_cli_audit(target: str, port_override: int, export_report: bool, output_json: str):
+async def run_cli_audit(
+    target: str,
+    port_override: int,
+    export_report: bool,
+    output_json: str,
+    active_rce: bool = False,
+    i_own_this_target: bool = False,
+    operator: str = ""
+):
     host, port, scheme = parse_target(target, default_port=port_override or 80)
     target_url = f"{scheme}://{host}:{port}"
+    operator = operator or getpass.getuser()
+
+    # --- SAFETY GATE CHECK ---
+    if active_rce:
+        is_public = is_public_target(host)
+        if is_public and not i_own_this_target:
+            print(f"\n{C_RED}{C_BOLD}╔══════════════════════════════════════════════════════════════════════╗{C_RESET}")
+            print(f"{C_RED}{C_BOLD}║                [!] SAFETY GATE ACTIVATED: PUBLIC TARGET              ║{C_RESET}")
+            print(f"{C_RED}{C_BOLD}╚══════════════════════════════════════════════════════════════════════╝{C_RESET}")
+            print(f"{C_YELLOW}เป้าหมาย '{host}' เป็น IP สาธารณะ หรือ โดเมนภายนอกเครือข่ายท้องถิ่น{C_RESET}")
+            print(f"{C_YELLOW}การเปิดโหมด --active-rce จะส่ง Live Canary & PoC Payload เพื่อทดสอบการรันโค้ดจริง{C_RESET}")
+            print(f"{C_WHITE}ท่านต้องเป็นเจ้าของระบบ หรือได้รับหนังสืออนุญาตเป็นลายลักษณ์อักษรตาม พ.ร.บ.คอมพิวเตอร์ฯ{C_RESET}\n")
+            try:
+                confirm = input(f"{C_WHITE}พิมพ์ '{C_RED}{C_BOLD}YES{C_RESET}{C_WHITE}' เพื่อยืนยันสิทธิ์และดำเนินการต่อ: {C_RESET}").strip()
+            except (KeyboardInterrupt, EOFError):
+                confirm = "NO"
+
+            if confirm != "YES":
+                print(f"\n{C_YELLOW}[!] Safety Gate: ยกเลิก Active RCE โดยผู้ใช้งาน — ดำเนินการเฉพาะ Safe Passive Audit{C_RESET}\n")
+                active_rce = False
+            else:
+                print(f"\n{C_GREEN}[✓] Safety Gate: ยืนยันสิทธิ์เรียบร้อย — เริ่มต้นการทดสอบ Active RCE Verification...{C_RESET}\n")
 
     print(f"{C_WHITE}[*] กำลังเริ่มต้นตรวจสอบเป้าหมาย:{C_RESET} {C_BOLD}{target_url}{C_RESET}")
+    print(f"{C_WHITE}[*] โหมดการตรวจสอบ:{C_RESET} {C_RED + C_BOLD + 'Active RCE PoC Enabled' if active_rce else C_GREEN + 'Safe Passive & Heuristic Inspection'}{C_RESET}")
     print(f"{C_WHITE}[*] ขั้นตอนที่ 1:{C_RESET} Pre-flight TCP Handshake & Layer-7 Fingerprinting...")
 
     t0 = time.time()
     async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
-        result = await probe_endpoint(client, host, port)
+        result = await probe_endpoint(
+            client,
+            host,
+            port,
+            allow_active_rce=active_rce,
+            operator=operator
+        )
 
     duration = time.time() - t0
 
@@ -165,6 +204,43 @@ async def run_cli_audit(target: str, port_override: int, export_report: bool, ou
                 first_rem = c_val.get("remediation").splitlines()[0]
                 print(f"    - แนวทางแก้ไข: {C_CYAN}{first_rem}{C_RESET}")
 
+    # RCE Proof & Cryptographic Evidence Card
+    rce_info = da.get("rce_proof") or {}
+    rce_status = rce_info.get("proof_status", "PROBING_DISABLED_BY_SAFETY_GATE")
+    rce_tech = rce_info.get("technique", "-")
+    rce_cmd = rce_info.get("command_executed")
+    rce_out = rce_info.get("execution_output")
+    rce_trail = rce_info.get("audit_trail")
+
+    print(f"\n{C_BOLD}═══ [ผลการพิสูจน์ทราบ RCE / LFI Verification (PoC Evidence)] ══════════════{C_RESET}")
+    if rce_status == "RCE_CONFIRMED":
+        print(f"  {C_BG_RED} 🔥 RCE CONFIRMED (ยืนยันช่องโหว่การรันโค้ดระดับคำสั่ง) {C_RESET}")
+        print(f"  • {C_WHITE}เทคนิคการขยายผล:{C_RESET}     {C_RED}{rce_tech}{C_RESET}")
+        print(f"  • {C_WHITE}คำสั่ง/Canary ที่รัน:{C_RESET} {C_YELLOW}{rce_cmd}{C_RESET}")
+        print(f"  • {C_WHITE}ผลลัพธ์เชิงประจักษ์:{C_RESET}  {C_WHITE}{rce_out}{C_RESET}")
+        print(f"  • {C_WHITE}ระดับสิทธิ์ที่ได้รับ:{C_RESET}  {C_RED}{rce_info.get('privilege_level')}{C_RESET}")
+        print(f"  • {C_WHITE}Endpoint ทดสอบ:{C_RESET}     {C_CYAN}{rce_info.get('exploit_endpoint')}{C_RESET}")
+    elif rce_status == "CANARY_CONFIRMED":
+        print(f"  {C_BG_AMBER} ⚠️ CANARY CONFIRMED (ยืนยัน LFI สำเร็จ - อ่านไฟล์เซสชันได้) {C_RESET}")
+        print(f"  • {C_WHITE}ผลการประเมิน:{C_RESET}        {C_YELLOW}Canary reflected in session file (PHP execution neutralized){C_RESET}")
+        print(f"  • {C_WHITE}ข้อสรุปทางเทคนิค:{C_RESET}    {C_WHITE}เป็น Arbitrary File Read ผ่านเซสชัน แต่ไม่เกิดการ Execute โค้ด{C_RESET}")
+    elif rce_status == "CONFIRMED_LFI":
+        print(f"  {C_BG_AMBER} ⚠️ LFI / ARBITRARY FILE READ CONFIRMED (CWE-22 / CWE-98) {C_RESET}")
+        print(f"  • {C_WHITE}ไฟล์ระบบที่อ่านได้:{C_RESET}  {C_YELLOW}{rce_info.get('exploit_endpoint')}{C_RESET}")
+        print(f"  • {C_WHITE}ข้อสรุปทางเทคนิค:{C_RESET}    {C_WHITE}อ่าน /etc/passwd ได้จริง (ยังไม่ยืนยัน RCE){C_RESET}")
+    elif rce_status == "PROBING_DISABLED_BY_SAFETY_GATE":
+        print(f"  {C_GREEN}🛡️ SAFETY GATE ACTIVE: การทดสอบ Active RCE ถูกระงับไว้โดยค่าเริ่มต้น{C_RESET}")
+        print(f"  • {C_WHITE}คำแนะนำ:{C_RESET}              หากต้องการทดสอบ PoC ให้ระบุ {C_CYAN}--active-rce{C_RESET}")
+    else:
+        print(f"  {C_GREEN}✓ NOT CONFIRMED: ไม่พบหลักฐานการเกิด RCE หรือช่องทางส่งต่อคำสั่งควบคุม{C_RESET}")
+
+    if rce_trail:
+        print(f"\n  {C_CYAN}{C_BOLD}[Cryptographic Audit Trail & Evidence Hash]{C_RESET}")
+        print(f"  • {C_WHITE}ผู้ทดสอบ (Operator):{C_RESET}  {rce_trail.get('operator')}")
+        print(f"  • {C_WHITE}เวลา (Timestamp UTC):{C_RESET} {rce_trail.get('timestamp_utc')}")
+        print(f"  • {C_WHITE}Payload SHA-256:{C_RESET}     {C_YELLOW}{rce_trail.get('payload_sha256')}{C_RESET}")
+        print(f"  • {C_WHITE}Evidence SHA-256:{C_RESET}    {C_GREEN}{rce_trail.get('evidence_sha256')}{C_RESET}")
+
     # Matched CVEs
     print(f"\n{C_BOLD}═══ [รายการข้อค้นพบช่องโหว่ความมั่นคงปลอดภัย (CVE Ledger)] ═══════════════{C_RESET}")
     if matched_cves:
@@ -212,11 +288,22 @@ def main():
     parser = argparse.ArgumentParser(description="OPScaner ThaiCERT/NCSA Security Audit CLI Toolkit")
     parser.add_argument("-t", "--target", required=True, help="Target URL or Host (e.g., http://localhost:8080, 192.168.1.41)")
     parser.add_argument("-p", "--port", type=int, default=None, help="Port override (default: 80 or 443)")
+    parser.add_argument("--active-rce", action="store_true", help="Enable active LFI-to-RCE and canary verification probes")
+    parser.add_argument("--i-own-this-target", action="store_true", help="Affirm that you own or have explicit authorization to test this target")
+    parser.add_argument("--operator", type=str, default="", help="Auditor / Operator name for cryptographic audit trail")
     parser.add_argument("--export-report", action="store_true", help="Generate official ThaiCERT TLP:AMBER advisory HTML report")
     parser.add_argument("--json", type=str, default=None, help="Save JSON telemetry output to specified file")
 
     args = parser.parse_args()
-    asyncio.run(run_cli_audit(args.target, args.port, args.export_report, args.json))
+    asyncio.run(run_cli_audit(
+        target=args.target,
+        port_override=args.port,
+        export_report=args.export_report,
+        output_json=args.json,
+        active_rce=args.active_rce,
+        i_own_this_target=args.i_own_this_target,
+        operator=args.operator
+    ))
 
 
 if __name__ == "__main__":
