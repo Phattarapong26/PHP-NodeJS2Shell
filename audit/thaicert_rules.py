@@ -414,7 +414,7 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
             group_evidence = ["General PHP Web Application"]
         else:
             matched_groups = [4]
-            group_labels = ["กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์ทั่วไปในเครือข่าย"]
+            group_labels = ["ไม่สามารถระบุกลุ่มระบบได้จากข้อมูลที่มี (Unclassified Host)"]
             group_evidence = ["General Network Service"]
 
     primary = group_labels[0]

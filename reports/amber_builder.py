@@ -1,7 +1,7 @@
 """
-TLP:AMBER Security Advisory Builder - ThaiCERT & NCSA Standards
-Produces official government-standard A4 security advisories in HTML,
-complying with FIRST TLP v2.0, NCSA letterhead, 18pt/16pt typography,
+TLP:AMBER Security Advisory Builder - Evidence-based Assessment Format
+Produces standardized A4 security advisories in HTML,
+complying with FIRST TLP v2.0, 18pt/16pt typography,
 strict page-break controls, table repeating headers, and code hardening blueprints.
 NO LLM DEPENDENCY - 100% Deterministic Technical Narrative Generator.
 """
@@ -61,9 +61,9 @@ def get_ncsa_header_banner_html() -> str:
         <img class="ncsa-logo-img" src="{logo_src}" alt="NCSA Thailand" />
         <div class="ncsa-header-divider"></div>
         <div class="ncsa-header-text">
-          <div class="ncsa-agency-name">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
-          <div class="ncsa-agency-addr">National Cyber Security Agency (NCSA) | อาคารรัฐประศาสนภักดี ศูนย์ราชการเฉลิมพระเกียรติฯ ๑๒๐ หมู่ ๓ ถนนแจ้งวัฒนะ แขวงทุ่งสองห้อง เขตหลักสี่ กรุงเทพมหานคร ๑๐๒๑๐</div>
-          <div class="ncsa-agency-contact">โทรศัพท์ ๐ ๒๑๔๑ ๖๘๘๕-๙ | อีเมล: saraban@ncsa.or.th | เว็บไซต์: https://www.ncsa.or.th</div>
+          <div class="ncsa-agency-name">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (อ้างอิงแนวทาง TLP:AMBER)</div>
+          <div class="ncsa-agency-addr">Cybersecurity Technical Assessment Report | อ้างอิงแนวทาง FIRST TLP v2.0 และกรอบการประเมินเชิงเทคนิค</div>
+          <div class="ncsa-agency-contact">เอกสารสำหรับผู้ดูแลระบบและทีมงานเทคนิคที่เกี่ยวข้องตามความจำเป็นในการปฏิบัติงาน (Need-to-know)</div>
         </div>
       </div>
       <div class="ncsa-header-right">
@@ -771,10 +771,10 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         """
         
         da = h.get("deep_audit") or {}
-        grp = da.get("primary_group") or "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร"
+        grp = da.get("primary_group") or "ไม่สามารถระบุกลุ่มระบบได้จากข้อมูลที่มี (Unclassified)"
         
         # Determine highest severity
-        sev = "ปลอดภัย (Secure)"
+        sev = "ยังไม่พบความเสี่ยงตามขอบเขตที่ตรวจสอบ (No Finding Within Scope)"
         badge_cls = "adv-item-badge-sec"
         v_php = h.get("vulnerability")
         v_node = h.get("vulnerabilityNode")
@@ -884,7 +884,16 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             }
             cve_sev_th = sev_th_map.get(cve_sev, f"ระดับ {cve_sev}")
 
-            cve_conf = "Confirmed" if c.get("confidence") == "Confirmed" else ("Likely" if ("cve-2024-4577" in cve_id.lower() or "node" in cat.lower()) else "Conditional")
+            cve_conf = c.get("confidence")
+            if not cve_conf:
+                if c.get("confirmed") or c.get("is_vulnerable"):
+                    cve_conf = "Confirmed"
+                elif c.get("version_matched") and (c.get("sapi_confirmed") or c.get("exposure_confirmed")):
+                    cve_conf = "Likely"
+                elif c.get("version_matched"):
+                    cve_conf = "Conditional"
+                else:
+                    cve_conf = "Conditional"
 
             findings_html += f"""
             <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
@@ -900,27 +909,27 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
               </div>
 
               <p class="adv-para">
-                จากการตรวจสอบและประเมินความมั่นคงปลอดภัยบนระบบเป้าหมายอย่างละเอียด พบข้อค้นพบทางเทคนิคว่า {html.escape(reason)} ซึ่งจัดเป็นช่องโหว่ความมั่นคงปลอดภัย {cve_sev_th} ตามเกณฑ์มาตรฐานของ สกมช. และศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT) ทั้งนี้ หากระบบเปิดให้บริการและสามารถเข้าถึงได้จากเครือข่าย อาจเปิดโอกาสให้ผู้ไม่ประสงค์ดีส่งข้อมูลทดสอบเพื่อแทรกแซงหรือข้ามผ่านการควบคุมความปลอดภัย และกระทำการเข้าถึงระบบโดยไม่ได้รับอนุญาตได้
+                จากการตรวจสอบและประเมินความมั่นคงปลอดภัยบนระบบเป้าหมาย พบข้อค้นพบทางเทคนิคว่า {html.escape(reason)} ซึ่งจัดอยู่ในระดับความรุนแรง {cve_sev_th} ตามข้อมูลการประเมินของรายการช่องโหว่ที่อ้างถึง ทั้งนี้ ระดับความเสี่ยงต่อระบบเป้าหมายจริงอาจแตกต่างกันตามเวอร์ชันซอฟต์แวร์ การตั้งค่า การเปิดให้เข้าถึงจากเครือข่าย และเงื่อนไขแวดล้อมของระบบ หากระบบมีเงื่อนไขที่สอดคล้องกับข้อกำหนดของช่องโหว่และเปิดให้เข้าถึงจากเครือข่าย ผู้โจมตีอาจใช้ประโยชน์จากช่องโหว่ดังกล่าวได้ อย่างไรก็ตาม ผลกระทบและความเป็นไปได้ในการโจมตีต้องยืนยันเพิ่มเติมจากเวอร์ชันซอฟต์แวร์ การตั้งค่า และเส้นทางการให้บริการจริง
               </p>
 
               <p class="adv-para">
-                ในการพิจารณาเกณฑ์ความเสี่ยง ระบบจะเข้าข่ายมีช่องโหว่เมื่อ {html.escape(confirm_vuln)} ในขณะที่เกณฑ์การดำเนินงานที่ปลอดภัยตามมาตรฐานสากลคือการปรับปรุงระบบให้เข้าสู่สภาวะ {html.escape(confirm_safe)} ทั้งนี้ เพื่อความแม่นยำในการยืนยันสภาพแวดล้อมจริง ผู้ดูแลระบบสามารถใช้ชุดคำสั่งด้านล่างนี้รันบนเครื่องเซิร์ฟเวอร์เป้าหมายโดยตรง:
+                จากข้อมูลที่ตรวจพบ ระบบอาจเข้าข่ายได้รับผลกระทบเมื่อ {html.escape(confirm_vuln)} ทั้งนี้ควรตรวจสอบยืนยันเวอร์ชันและการตั้งค่าบนเครื่องจริงก่อนสรุปผล โดยเกณฑ์การดำเนินงานที่แนะนำคือการปรับปรุงระบบให้เข้าสู่สภาวะ {html.escape(confirm_safe)}:
               </p>
 
               <div class="adv-code-box" style="margin: 8px 0 12px 0;">
-                <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">ชุดคำสั่งสำหรับผู้ดูแลระบบตรวจสอบการตั้งค่าบนเครื่องเซิร์ฟเวอร์จริง:</div>
+                <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">ตัวอย่างคำสั่งตรวจสอบสำหรับผู้ดูแลระบบ (ควรทบทวนขอบเขตและสิทธิ์ก่อนนำไปใช้):</div>
                 <pre><code>{html.escape(host_check)}</code></pre>
               </div>
 
               <p class="adv-para">
-                สำหรับแนวทางการแก้ไขและยกระดับความมั่นคงปลอดภัยเชิงป้องกัน ขอแนะนำให้ผู้ดูแลระบบดำเนินการปรับปรุงและอัปเกรดเวอร์ชันของซอฟต์แวร์ {html.escape(cat)} ให้เป็นรุ่นล่าสุดที่ได้รับการแพตช์แก้ไขแล้ว หรือดำเนินการปรับแต่งคอนฟิกตามแนวทางปฏิบัติด้านล่างนี้:
+                สำหรับแนวทางการแก้ไขและยกระดับความมั่นคงปลอดภัยเชิงป้องกัน ขอแนะนำให้ผู้ดูแลระบบตรวจสอบประกาศของผู้พัฒนาและอัปเดตซอฟต์แวร์ {html.escape(cat)} เป็นรุ่นที่มีแพตช์แก้ไขช่องโหว่ดังกล่าว โดยทดสอบความเข้ากันได้ในสภาพแวดล้อมทดสอบก่อนนำไปใช้กับระบบจริง:
               </p>
 
               <div class="adv-code-box" style="margin: 8px 0 14px 0;">
                 <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">แนวทางการปรับปรุงระบบและการตั้งค่าความมั่นคงปลอดภัย:</div>
-                <pre><code># ดำเนินการอัปเกรดแพ็กเกจซอฟต์แวร์ {html.escape(cat)} บนโฮสต์ {html.escape(h_ip)}
-# เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(confirm_safe)}
-sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum update {cat.lower()}</code></pre>
+                <pre><code># ตัวอย่างเท่านั้น: ตรวจสอบชื่อแพ็กเกจ ผู้จัดจำหน่าย และวิธีติดตั้งให้เหมาะกับระบบจริงก่อนดำเนินการ
+# ควรสำรองข้อมูลและทดสอบใน Staging ก่อนอัปเดต Production
+# เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(confirm_safe)}</code></pre>
               </div>
             </div>
             """
@@ -937,11 +946,11 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
                     c_ini = c_val.get("hardening_ini") or "; ปรับแต่ง php.ini เพื่อความมั่นคงปลอดภัย"
                     
                     if c_verdict_code == "VULN":
-                        eval_status_desc = "ตรวจพบความเสี่ยงที่ยืนยันได้ (Confirmed Risk)"
+                        eval_status_desc = "ตรวจพบเงื่อนไขที่สอดคล้องกับความเสี่ยง ควรตรวจสอบเพิ่มเติมเพื่อยืนยันผลกระทบ (Potential Risk — Verification Required)"
                     elif c_verdict_code == "ARCHITECTURAL_RISK":
-                        eval_status_desc = "ข้อพิจารณาเชิงสถาปัตยกรรม (Architectural Precondition / GHSA-6wmf-4rv5-p3rp)"
+                        eval_status_desc = "เงื่อนไขทางสถาปัตยกรรมที่อาจเพิ่มความเสี่ยง (Architectural Condition — ต้องตรวจสอบเพิ่มเติม)"
                     elif c_verdict_code == "INFO_DISCLOSURE":
-                        eval_status_desc = "การเปิดเผยข้อมูลสภาพแวดล้อม (Information Disclosure / CWE-200)"
+                        eval_status_desc = "การเปิดเผยข้อมูลเกี่ยวกับระบบหรือการตั้งค่า (Information Disclosure — CWE-200)"
                     else:
                         eval_status_desc = "ควรตรวจสอบและปรับปรุงการตั้งค่า (Review & Hardening)"
                     
@@ -958,7 +967,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
                         <strong>ระดับความเชื่อมั่น (Confidence):</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(c_conf)}</span>
                       </div>
                       <p class="adv-para">
-                        จากการตรวจสอบค่าคอนฟิกและพฤติกรรมการจัดการเซสชัน {html.escape(c_verdict)} ซึ่งขอแนะนำให้ผู้ดูแลระบบพิจารณาปรับปรุงค่ากำหนดในไฟล์คอนฟิก {html.escape(c_remedy)} เพื่อลดความเสี่ยงที่อาจเกิดขึ้น
+                        จากการตรวจสอบค่าคอนฟิกและพฤติกรรมการจัดการเซสชัน พบว่า {html.escape(c_verdict)} ข้อค้นพบนี้อาจเพิ่มความเสี่ยงภายใต้เงื่อนไขบางประการ ผู้ดูแลระบบควรตรวจสอบผลกระทบต่อระบบงานและพิจารณาปรับปรุง {html.escape(c_remedy)} ตามความเหมาะสม
                       </p>
                       <div class="adv-code-box" style="margin: 8px 0 14px 0;">
                         <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">แนวทางการตั้งค่าคอนฟิก php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:</div>
@@ -972,8 +981,8 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
         findings_html = """
         <div class="adv-finding-item">
           <p class="adv-para" style="text-align: center; color: #16a34a; font-weight: bold; margin: 24px 0;">
-            ✓ จากการประเมินเบื้องต้น ไม่พบข้อค้นพบช่องโหว่ระดับวิกฤต (Critical) หรือระดับสูง (High) ในขอบเขตที่กำหนด
-            <br><span style="font-size: 14pt; color: #475569; font-weight: normal;">(แนะนำให้คงมาตรการเฝ้าระวังและอัปเดตแพตช์ความปลอดภัยตามรอบระยะเวลาอย่างสม่ำเสมอ)</span>
+            ✓ จากการตรวจสอบตามขอบเขตและวิธีการที่กำหนด ยังไม่พบหลักฐานของข้อค้นพบระดับวิกฤต (Critical) หรือระดับสูง (High)
+            <br><span style="font-size: 14pt; color: #475569; font-weight: normal;">(ผลดังกล่าวไม่ใช่การรับรองว่าระบบปลอดภัยทั้งหมด ผู้ดูแลระบบควรติดตามแพตช์และทบทวนการตั้งค่าตามรอบระยะเวลาที่เหมาะสม)</span>
           </p>
         </div>
         """
@@ -997,7 +1006,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
   <div class="adv-toolbar no-print">
     <div class="adv-toolbar-title">
       <span class="adv-toolbar-badge">TLP:AMBER</span>
-      <span>เอกสารแจ้งเตือนความมั่นคงปลอดภัยไซเบอร์ สกมช. / ThaiCERT</span>
+      <span>รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (TLP:AMBER)</span>
     </div>
     <div class="adv-toolbar-actions">
       <button class="adv-btn adv-btn-primary" onclick="window.print()">
@@ -1015,21 +1024,21 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
     <div class="a4-paper-sheet" id="sheet-page-1">
       {header_banner}
 
-      <div class="adv-doc-title">เอกสารแจ้งเตือนความมั่นคงปลอดภัยไซเบอร์</div>
+      <div class="adv-doc-title">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
       <div class="adv-doc-meta">
         รหัสอ้างอิง: {ref_id} &nbsp;|&nbsp; วันที่: {date_str} &nbsp;|&nbsp; ขอบเขต: {html.escape(target_scope)}
       </div>
 
       <div class="adv-tlp-rule-box">
-        <strong>ข้อกำหนดการรักษาความลับ (TLP:AMBER):</strong> ข้อมูลในเอกสารนี้เป็นความลับเฉพาะกลุ่มผู้มีส่วนได้ส่วนเสียและผู้ดูแลระบบที่จำเป็นต้องทราบเพื่อการแก้ไขเท่านั้น (Need-to-know) รวมถึงผู้ดูแลระบบเครือข่ายและระบบสารสนเทศที่ได้รับผลกระทบ เพื่อการป้องกันและแก้ไขความเสี่ยงทางไซเบอร์ ห้ามเปิดเผยต่อสาธารณะหรือส่งต่อแก่บุคคลภายนอกที่ไม่เกี่ยวข้อง
+        <strong>ข้อกำหนดการเผยแพร่ TLP:AMBER:</strong> เอกสารนี้ใช้สำหรับผู้รับและหน่วยงานที่เกี่ยวข้องตามความจำเป็นในการปฏิบัติงาน ผู้รับสามารถแบ่งปันต่อภายในหน่วยงานของตนและแก่ผู้เกี่ยวข้องที่จำเป็นต้องใช้ข้อมูลเพื่อป้องกัน แก้ไข หรือประเมินความเสี่ยง ทั้งนี้ต้องไม่เผยแพร่ต่อสาธารณะ และไม่ส่งต่อไปยังผู้ที่ไม่เกี่ยวข้องกับการดำเนินงาน
       </div>
 
       <div class="adv-heading">ส่วนที่ ๑: สรุปผลการประเมินและภาพรวมความเสี่ยง (Executive Summary & Attack Surface)</div>
       <p class="adv-para">
-        เอกสารแจ้งเตือนความมั่นคงปลอดภัยไซเบอร์ฉบับนี้ จัดทำขึ้นเพื่อรายงานข้อค้นพบความเสี่ยงและแนวทางแก้ไขเชิงเทคนิค สำหรับผู้ดูแลระบบและผู้เกี่ยวข้องโดยตรง จากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในขอบเขต <code>{html.escape(target_scope)}</code> รวมทั้งสิ้น <strong>{total_scanned}</strong> ระบบ ได้ดำเนินการตรวจสอบและประเมินความมั่นคงปลอดภัยตามมาตรฐานของ สกมช. และเกณฑ์ทางเทคนิคของศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT)
+        รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ฉบับนี้ จัดทำขึ้นเพื่อรายงานข้อค้นพบความเสี่ยงและแนวทางแก้ไขเชิงเทคนิค สำหรับผู้ดูแลระบบและผู้เกี่ยวข้องโดยตรง จากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในขอบเขต <code>{html.escape(target_scope)}</code> รวมทั้งสิ้น <strong>{total_scanned}</strong> ระบบ ได้ดำเนินการตรวจสอบตามขอบเขต วิธีการ และข้อมูลที่ระบุในเอกสารฉบับนี้ โดยอ้างอิงข้อมูลทางเทคนิคจากแหล่งที่เกี่ยวข้อง เช่น เอกสารผู้พัฒนา รายการ CVE และแนวปฏิบัติด้านความมั่นคงปลอดภัยที่เหมาะสมกับระบบ
       </p>
       <p class="adv-para">
-        ผลการประเมินพบข้อค้นพบที่มีความเสี่ยงรวมกัน โดยจำแนกตามระดับความรุนแรงได้แก่: ระดับวิกฤต (Critical) จำนวน <strong>{crit_count}</strong> รายการ, ระดับสูง (High) จำนวน <strong>{high_count}</strong> รายการ, ระดับปานกลาง (Medium) จำนวน <strong>{med_count}</strong> รายการ และระบบที่มีการตั้งค่าปลอดภัยหรืออยู่นอกช่วงความเสี่ยง จำนวน <strong>{safe_count}</strong> รายการ ทั้งนี้ เพื่อป้องกันไม่ให้ผู้ไม่ประสงค์ดีอาศัยช่องทางดังกล่าวในการเข้าถึงหรือแทรกแซงระบบ ขอให้ผู้ดูแลระบบโปรดพิจารณาดำเนินการปรับปรุงและอัปเดตการตั้งค่าความมั่นคงปลอดภัยตามแนวทางที่ระบุไว้ในเอกสารฉบับนี้โดยเร็ว
+        ผลการประเมินพบข้อค้นพบจำนวน <strong>{crit_count + high_count + med_count}</strong> รายการ โดยแบ่งตามระดับความรุนแรงเป็นระดับวิกฤต (Critical) จำนวน <strong>{crit_count}</strong> รายการ, ระดับสูง (High) จำนวน <strong>{high_count}</strong> รายการ, ระดับปานกลาง (Medium) จำนวน <strong>{med_count}</strong> รายการ และรายการที่ยังไม่พบสัญญาณความเสี่ยงตามเงื่อนไขที่ตรวจสอบ จำนวน <strong>{safe_count}</strong> รายการ ทั้งนี้ ขอให้ผู้ดูแลระบบพิจารณาตรวจสอบข้อค้นพบตามลำดับความสำคัญ และดำเนินการแก้ไขหรือลดความเสี่ยงตามความเหมาะสม โดยให้ความสำคัญกับรายการที่มีหลักฐานยืนยันและเปิดให้เข้าถึงจากเครือข่ายก่อน
       </p>
 
       <div class="adv-subhead">ตารางสรุปรายการอุปกรณ์และบริการที่ตรวจพบ (Asset & Service Inventory Ledger)</div>
@@ -1041,7 +1050,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
               <th style="width: 120px;">เป้าหมาย (Host / IP)</th>
               <th style="width: 60px;">พอร์ต</th>
               <th>ประเภทอุปกรณ์ / บริการ</th>
-              <th style="width: 180px;">กลุ่มระบบ (สกมช.)</th>
+              <th style="width: 180px;">กลุ่มระบบเป้าหมาย</th>
               <th style="width: 120px;">สถานะความเสี่ยง</th>
             </tr>
           </thead>
@@ -1054,7 +1063,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
         <div class="sheet-footer-row">
-          <div class="sheet-footer-left">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)</div>
           <div class="sheet-footer-center">TLP:AMBER ●</div>
           <div class="sheet-footer-right">1 | P a g e</div>
         </div>
@@ -1065,7 +1074,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
     <div class="a4-paper-sheet page-break-section" id="sheet-page-2">
       <div class="adv-heading">ส่วนที่ ๒: การวิเคราะห์ข้อค้นพบเชิงลึกและพิมพ์เขียวการแก้ไข (In-Depth Technical Findings & Hardening Blueprints)</div>
       <p class="adv-para">
-        ในส่วนนี้เป็นการวิเคราะห์เชิงลึกเกี่ยวกับข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยที่ตรวจพบ พร้อมทั้งระบุระดับความเชื่อมั่นตามกรอบการประเมินเชิงประจักษ์ (Evidence-based Confidence Levels: Confirmed, Likely, Conditional, Unverified) มาตรฐานอ้างอิงระดับสากล กลไกความเสี่ยง และชุดคำสั่งสำหรับให้ผู้ดูแลระบบนำไปรันตรวจสอบบนเครื่องเซิร์ฟเวอร์จริง (Host Verification CLI) เพื่อยืนยันสถานะความปลอดภัย ตลอดจนตัวอย่างไฟล์คอนฟิกสำหรับการแก้ไขปรับปรุงระบบให้มีความมั่นคงปลอดภัยสอดคล้องกับมาตรฐาน
+        ส่วนนี้นำเสนอการวิเคราะห์เชิงลึกของข้อค้นพบด้านความมั่นคงปลอดภัย โดยระบุระดับความเชื่อมั่นของแต่ละข้อสรุปตามหลักฐานที่ตรวจพบ ได้แก่ ยืนยันแล้ว (Confirmed), มีแนวโน้ม (Likely), ต้องตรวจสอบเงื่อนไขเพิ่มเติม (Conditional) และยังยืนยันไม่ได้ (Unverified) พร้อมอธิบายกลไกและเงื่อนไขของความเสี่ยง คำสั่งสำหรับให้ผู้ดูแลระบบตรวจสอบบนเครื่องจริง และตัวอย่างการตั้งค่าที่ใช้เป็นแนวทางในการแก้ไขหรือลดความเสี่ยง
       </p>
 
       {arch_matrix_html}
@@ -1075,7 +1084,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
         <div class="sheet-footer-row">
-          <div class="sheet-footer-left">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)</div>
           <div class="sheet-footer-center">TLP:AMBER ●</div>
           <div class="sheet-footer-right">2 | P a g e</div>
         </div>
@@ -1087,11 +1096,11 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
       <div class="adv-heading">ส่วนที่ ๓: เอกสารอ้างอิงและช่องทางประสานงาน (References & Incident Coordination)</div>
       
       <p class="adv-para">
-        การประเมินและการจัดทำเอกสารแจ้งเตือนฉบับนี้ อ้างอิงตามกรอบมาตรฐานความมั่นคงปลอดภัยสารสนเทศและแนวปฏิบัติสากล ได้แก่:
+        การประเมินและการจัดทำเอกสารฉบับนี้ อ้างอิงตามกรอบมาตรฐานความมั่นคงปลอดภัยสารสนเทศและแนวปฏิบัติสากล ได้แก่:
       </p>
       <ul class="adv-list">
-        <li>สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.) — แนวปฏิบัติการบริหารจัดการช่องโหว่ความมั่นคงปลอดภัยไซเบอร์</li>
-        <li>ThaiCERT Cybersecurity Advisory & Guidance — มาตรการรับมือช่องโหว่ความปลอดภัยบนเว็บแอปพลิเคชัน</li>
+        <li>แนวทางการบริหารจัดการช่องโหว่ความมั่นคงปลอดภัยไซเบอร์สากล (NIST SP 800-115 / Vulnerability Management)</li>
+        <li>ThaiCERT Cybersecurity Advisory & Guidance — คำแนะนำการรับมือช่องโหว่ความปลอดภัยบนเว็บแอปพลิเคชัน</li>
         <li>CIS Benchmarks — Center for Internet Security (Nginx, PHP, and Node.js Hardening Benchmarks)</li>
         <li>National Vulnerability Database (NVD / NIST) — Common Vulnerabilities and Exposures (CVE Catalog)</li>
         <li>FIRST Standards — Traffic Light Protocol (TLP) Version 2.0 User Guidance</li>
@@ -1113,7 +1122,7 @@ sudo apt update && sudo apt --only-upgrade install {cat.lower()} || sudo yum upd
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
         <div class="sheet-footer-row">
-          <div class="sheet-footer-left">สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (สกมช.)</div>
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)</div>
           <div class="sheet-footer-center">TLP:AMBER ●</div>
           <div class="sheet-footer-right">3 | P a g e</div>
         </div>
