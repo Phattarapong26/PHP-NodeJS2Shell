@@ -9,12 +9,14 @@ from typing import Tuple, List, Dict, Any
 from core.semver import parse_semver, in_range
 from core.database import NGINX_VULN, NGINX_CVE_DESCS
 
-def evaluate_nginx_security(server_str: str, headers: dict = None):
+def evaluate_nginx_security(server_str: str, headers: dict = None, hints: dict = None):
     """
-    Evaluates NGINX version against known CVEs using SemVer ranges.
+    Evaluates NGINX version against known CVEs using SemVer ranges combined with
+    behavioral precondition hints (SSI files, HTTP/3 QUIC UDP, alias rewrite traversal).
     Returns: (overall_severity, matched_cves, summary_note)
     """
     headers = headers or {}
+    hints = hints or {}
     s = (server_str or "").lower()
     if "nginx" not in s:
         return "Secure", [], "ไม่ใช่บริการ NGINX"
@@ -34,6 +36,36 @@ def evaluate_nginx_security(server_str: str, headers: dict = None):
             if in_vulnerable_range:
                 desc = NGINX_CVE_DESCS.get(cve_id, {})
                 cve_sev = desc.get("severity", "Medium")
+                v_status = "SUSPECTED_RISK (NEEDS_LOCAL_VERIFICATION)"
+                reason = f"NGINX {ver_str} อยู่ในช่วงเวอร์ชันที่ได้รับผลกระทบตามฐานข้อมูลช่องโหว่"
+
+                # Behavioral Precondition Correlation
+                if cve_id == "CVE-2026-97205":  # SSI
+                    if hints.get("ssi_files"):
+                        v_status = "PRECONDITION_IDENTIFIED"
+                        reason = f"NGINX {ver_str} เสี่ยงต่อ SSI UAF + พบไฟล์ SSI ในระบบ ({', '.join(hints['ssi_files'][:2])})"
+                    else:
+                        v_status = "PRECONDITION_ABSENT"
+                        reason = f"NGINX {ver_str} เข้าข่ายช่วงเสี่ยง แต่ไม่พบไฟล์ .shtml/.shtm จากการสำรวจภายนอก"
+                        cve_sev = "Low"
+
+                elif cve_id == "CVE-2026-15176":  # Alias Off-by-slash
+                    if hints.get("alias_traversal_observed"):
+                        v_status = "PRECONDITION_IDENTIFIED"
+                        reason = f"NGINX {ver_str} + ตรวจพบพฤติกรรม alias path traversal: {hints.get('alias_evidence')}"
+                    else:
+                        v_status = "SUSPECTED_RISK"
+                        reason = f"NGINX {ver_str} เสี่ยงเชิงโครงสร้าง แต่ไม่พบความผิดปกติของ alias rewrite จากการทดสอบเบื้องต้น"
+
+                elif cve_id == "CVE-2026-95101":  # HTTP/3 QUIC
+                    if hints.get("http3_udp_verified"):
+                        v_status = "PRECONDITION_IDENTIFIED"
+                        reason = f"NGINX {ver_str} + ยืนยันพอร์ต UDP 443 รองรับโปรโตคอล QUIC (HTTP/3)"
+                    else:
+                        v_status = "PRECONDITION_ABSENT"
+                        reason = f"NGINX {ver_str} อยู่ในช่วงเสี่ยง แต่ไม่พบการตอบสนองของ QUIC UDP listener"
+                        cve_sev = "Low"
+
                 matched.append({
                     "id": cve_id,
                     "cve": cve_id,
@@ -45,14 +77,15 @@ def evaluate_nginx_security(server_str: str, headers: dict = None):
                     "host_check": desc.get("host_check"),
                     "confirm_vuln": desc.get("confirm_vuln"),
                     "confirm_safe": desc.get("confirm_safe"),
-                    "reason": f"NGINX {ver_str} อยู่ในช่วงเวอร์ชันที่ได้รับผลกระทบ"
+                    "verification_status": v_status,
+                    "reason": reason
                 })
                 if sev_weights.get(cve_sev, 0) > sev_weights.get(highest_sev, 0):
                     highest_sev = cve_sev
         
         if matched:
             cve_names = ", ".join(c["cve"] for c in matched[:3])
-            note = f"NGINX {ver_str} ตรวจพบ {len(matched)} ช่องโหว่ ({cve_names}) ควรตรวจสอบคอนฟิกและอัปเดตเป็น 1.30.6+ หรือ 1.31.7+"
+            note = f"NGINX {ver_str} ตรวจพบ {len(matched)} รายการประเมิน ({cve_names}) ควรตรวจสอบคอนฟิกและอัปเดตเป็น 1.30.6+ หรือ 1.31.7+"
         else:
             note = f"NGINX {ver_str} ปลอดภัย (อยู่นอกช่วงความเสี่ยงของ CVE-2026)"
     else:
@@ -61,9 +94,24 @@ def evaluate_nginx_security(server_str: str, headers: dict = None):
         
     return highest_sev, matched, note
 
-def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, php_ver: str, node_ver: str, has_brotli: bool, nginx_cves: list, has_lfi_active: bool = False, is_fpm: bool = False) -> list:
+def collect_target_cves(
+    is_php: bool,
+    is_node: bool,
+    v_php: str,
+    v_node: str,
+    php_ver: str,
+    node_ver: str,
+    has_brotli: bool,
+    nginx_cves: list,
+    has_lfi_active: bool = False,
+    is_fpm: bool = False,
+    is_windows: bool = False,
+    rce_confirmed: bool = False
+) -> list:
     """
     Aggregates all matched CVE findings across NGINX, PHP, and Node.js for a target.
+    Enforces strict OS boundaries (e.g. CVE-2024-4577 only applies to Windows)
+    and updates confidence/status when RCE is empirically confirmed.
     """
     cves = []
     
@@ -73,19 +121,22 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
         
     # 2. PHP CVE Mapping
     if is_php:
-        # CVE-2024-4577 (Windows CGI Argument Injection - ThaiCERT Priority)
-        if v_php in ("Critical", "Outdated"):
+        # CVE-2024-4577 (Windows CGI Argument Injection - STRICTLY Windows Only)
+        if is_windows and v_php in ("Critical", "Outdated"):
             cves.append({
                 "id": "CVE-2024-4577",
                 "cve": "CVE-2024-4577",
-                "name": "ช่องโหว่ระดับวิกฤตประเภท Argument Injection บนสถาปัตยกรรม PHP CGI",
+                "name": "ช่องโหว่ระดับวิกฤตประเภท Argument Injection บนสถาปัตยกรรม PHP CGI (Windows)",
                 "category": "PHP",
                 "severity": "Critical",
                 "cvss": 9.8,
-                "reason": f"PHP ({php_ver}) ต่ำกว่าเกณฑ์แพตช์ 8.2.20+ / 8.3.8+ เสี่ยงต่อ CVE-2024-4577",
+                "reason": f"PHP ({php_ver}) บนระบบปฏิบัติการ Windows เสี่ยงต่อ CVE-2024-4577 ผ่านการแปลง Best-fit mapping",
                 "host_check": "php -v && (php -i | grep 'Server API')",
                 "confirm_vuln": "PHP < 8.2.20 / 8.3.8 บน Windows CGI/FastCGI",
-                "confirm_safe": "PHP ≥ 8.2.20 / 8.3.8 หรือรันบน Linux"
+                "confirm_safe": "PHP ≥ 8.2.20 / 8.3.8 หรือย้ายไปรันบนระบบปฏิบัติการ Linux",
+                "confidence": "Confirmed" if rce_confirmed else "Likely",
+                "confirmed": bool(rce_confirmed),
+                "verification_status": "RCE_CONFIRMED" if rce_confirmed else "SUSPECTED_RISK"
             })
         
         # CVE-2026-109618 & 109619 (PHP 8.2/8.3 UAF memory corruption)
@@ -102,7 +153,9 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
                     "reason": f"PHP {php_ver} ต่ำกว่าแพตช์ 8.2.35 / 8.3.36",
                     "host_check": "php -v",
                     "confirm_vuln": "php -v ต่ำกว่า 8.2.35 / 8.3.36 และ Server API เป็น FPM/Apache Handler",
-                    "confirm_safe": "php -v ≥ 8.2.35 / 8.3.36"
+                    "confirm_safe": "php -v ≥ 8.2.35 / 8.3.36",
+                    "confidence": "Likely",
+                    "verification_status": "SUSPECTED_RISK"
                 })
                 cves.append({
                     "id": "CVE-2026-109619",
@@ -114,22 +167,27 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
                     "reason": f"PHP {php_ver} ต่ำกว่าแพตช์ 8.2.35 / 8.3.36 ร่วมกับ upload_progress",
                     "host_check": "php -i | grep session.upload_progress",
                     "confirm_vuln": "session.upload_progress.enabled = On บน PHP < 8.2.35 / 8.3.36",
-                    "confirm_safe": "session.upload_progress.enabled = Off หรือ PHP ≥ 8.2.35"
+                    "confirm_safe": "session.upload_progress.enabled = Off หรือ PHP ≥ 8.2.35",
+                    "confidence": "Likely",
+                    "verification_status": "SUSPECTED_RISK"
                 })
                 
         # CVE-2026-115560 (Session Upload Progress)
-        if has_lfi_active:
+        if has_lfi_active or rce_confirmed:
             cves.append({
                 "id": "CVE-2026-115560",
                 "cve": "CVE-2026-115560",
                 "name": "ช่องโหว่การสลับรูปแบบ Serializer ผ่าน Session Upload Progress บน PHP",
                 "category": "PHP",
-                "severity": "Medium-High",
-                "cvss": 8.1,
-                "reason": "ตรวจพบเงื่อนไข Session Upload Progress เสี่ยงต่อการสลับ serialize_handler",
+                "severity": "Critical" if rce_confirmed else "Medium-High",
+                "cvss": 9.8 if rce_confirmed else 8.1,
+                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ตรวจพบ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด Canary ใน Session Upload Progress สำเร็จ" if rce_confirmed else "ตรวจพบเงื่อนไข Session Upload Progress เสี่ยงต่อการสลับ serialize_handler",
                 "host_check": "php -i | grep -E 'session.serialize_handler|session.upload_progress'",
                 "confirm_vuln": "แอปสลับ serialize_handler ข้ามรูปแบบตอน runtime",
-                "confirm_safe": "session.upload_progress.enabled = Off"
+                "confirm_safe": "session.upload_progress.enabled = Off",
+                "confirmed": bool(rce_confirmed),
+                "confidence": "Confirmed" if rce_confirmed else "Conditional",
+                "verification_status": "RCE_CONFIRMED" if rce_confirmed else "PRECONDITION_IDENTIFIED"
             })
             
         # CVE-2019-11043 (PHP-FPM underflow)
@@ -144,7 +202,9 @@ def collect_target_cves(is_php: bool, is_node: bool, v_php: str, v_node: str, ph
                 "reason": f"PHP-FPM {php_ver} ต่ำกว่า 7.3.11 เสี่ยงต่อ fastcgi_split_path_info underflow",
                 "host_check": "php-fpm -v && (nginx -T 2>/dev/null | grep fastcgi_split_path_info)",
                 "confirm_vuln": "PHP-FPM 7.1–7.3 ร่วมกับ NGINX fastcgi_split_path_info",
-                "confirm_safe": "PHP ≥ 7.3.11 หรือ PHP 8.x"
+                "confirm_safe": "PHP ≥ 7.3.11 หรือ PHP 8.x",
+                "confidence": "Likely",
+                "verification_status": "SUSPECTED_RISK"
             })
 
     # 3. Node.js CVE Mapping

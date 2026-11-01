@@ -877,6 +877,19 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         # Build Architectural Narrative per host if present (Official Paper Format: No borders, no dark boxes, indented paragraphs)
         matrix = h.get("architecture_matrix") or da.get("architecture_matrix") or []
         rce_proof = h.get("rce_proof") or da.get("rce_proof") or {}
+        is_rce_active = bool(rce_proof.get("is_rce_proved"))
+        rce_tech = rce_proof.get("technique", "")
+
+        # Synchronize live RCE verification into exploit chains and matrix
+        if is_rce_active:
+            if "Session Upload Progress" in rce_tech or "LFI" in rce_tech:
+                if "a" in chains:
+                    chains["a"]["verdict"] = "CONFIRMED (ยืนยันผลการประเมินเชิงประจักษ์: ตรวจพบ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด Canary ใน Session Upload Progress สำเร็จ)"
+                    chains["a"]["verdict_code"] = "CONFIRMED"
+                    chains["a"]["confidence"] = "Confirmed"
+            for m in matrix:
+                if m.get("group_id") in (1, 6, 7):
+                    m["exploitability"] = "Confirmed"
 
         # 0. Empirical Live RCE / LFI Proof Section with Cryptographic Evidence
         status_val = rce_proof.get("proof_status", "")
@@ -940,6 +953,30 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
               </p>
             </div>
             """
+
+        # Architectural & Behavioral Preconditions Matrix per host
+        br_pre = da.get("brotli_preconditions") or {}
+        nx_pre = da.get("nginx_preconditions") or {}
+        if br_pre or nx_pre:
+            br_status = "ยอมรับและถอดรหัสบิตสตรีมเข้า (Active Decompression Confirmed)" if br_pre.get("brotli_request_accepted") else ("รองรับ Brotli ผ่านส่วนหัว (Header Hint Observed)" if br_pre.get("brotli_supported") else "ปฏิเสธ / ไม่พบการใช้งาน (Precondition Absent)")
+            h3_status = "ยืนยันพอร์ต UDP 443 ผ่านแพ็กเก็ต RFC 9000 (Active QUIC Listener Confirmed)" if nx_pre.get("http3_udp_verified") else "ไม่พบการตอบสนองของ QUIC UDP บนพอร์ต 443"
+            alias_status = f"ตรวจพบพฤติกรรม Traversal: {nx_pre.get('alias_evidence')}" if nx_pre.get("alias_traversal_observed") else "ปกติ (ไม่พบความผิดปกติจากคำขอ /dir../ เทียบกับ 404 Baseline)"
+            ssi_status = f"พบไฟล์: {', '.join(nx_pre.get('ssi_files', []))}" if nx_pre.get("ssi_files") else "ไม่พบไฟล์ .shtml/.shtm บนระบบ"
+
+            findings_html += f"""
+            <div style="margin-top: 10px; margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <div style="font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 6px;">
+                ตารางประเมินเงื่อนไขจำเป็นทางสถาปัตยกรรม (Architectural & Behavioral Preconditions) บนพอร์ต {html.escape(str(h.get('port','-')))}
+              </div>
+              <table style="width: 100%; font-size: 9pt; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; width: 35%; color: #475569;">Brotli Stream Processing (CVE-2026-111497):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(br_status)}</td></tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">HTTP/3 QUIC UDP Transport (CVE-2026-95101):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(h3_status)}</td></tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">NGINX Alias Path Traversal (CVE-2026-15176):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(alias_status)}</td></tr>
+                <tr><td style="padding: 5px 8px; font-weight: bold; color: #475569;">SSI Directive Exposure (CVE-2026-97205):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(ssi_status)}</td></tr>
+              </table>
+            </div>
+            """
+
         if matrix:
             arch_matrix_html += f"""
             <div style="margin-top: 14px; margin-bottom: 20px;">
@@ -1018,6 +1055,11 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             # Format finding title: Start with keyword "ค้นพบ" without numbers
             finding_title = f"ค้นพบ {html.escape(cve_id)} {html.escape(cve_name)}"
 
+            if cve_conf == "Confirmed":
+                cve_narrative = f"""จากการตรวจสอบและพิสูจน์ทราบความมั่นคงปลอดภัยบนระบบเป้าหมาย พบหลักฐานเชิงประจักษ์ (Live Proof Verification) ว่า {html.escape(reason)} ซึ่งจัดอยู่ในระดับความรุนแรง {cve_sev_th} โดยระบบการทดสอบได้ยืนยันความพร้อมของเส้นทางประเมินและผลลัพธ์การตอบสนองในเชิงประจักษ์แล้ว ผู้ดูแลระบบจำเป็นต้องยกระดับการป้องกันและแก้ไขอย่างเร่งด่วนที่สุด"""
+            else:
+                cve_narrative = f"""จากการตรวจสอบและประเมินความมั่นคงปลอดภัยบนระบบเป้าหมาย พบข้อค้นพบทางเทคนิคว่า {html.escape(reason)} ซึ่งจัดอยู่ในระดับความรุนแรง {cve_sev_th} ตามข้อมูลการประเมินของรายการช่องโหว่ที่อ้างถึง ทั้งนี้ ระดับความเสี่ยงต่อระบบเป้าหมายจริงอาจแตกต่างกันตามเวอร์ชันซอฟต์แวร์ การตั้งค่า การเปิดให้เข้าถึงจากเครือข่าย และเงื่อนไขแวดล้อมของระบบ หากระบบมีเงื่อนไขที่สอดคล้องกับข้อกำหนดของช่องโหว่และเปิดให้เข้าถึงจากเครือข่าย ผู้โจมตีอาจใช้ประโยชน์จากช่องโหว่ดังกล่าวได้ อย่างไรก็ตาม ผลกระทบและความเป็นไปได้ในการโจมตีต้องยืนยันเพิ่มเติมจากเวอร์ชันซอฟต์แวร์ การตั้งค่า และเส้นทางการให้บริการจริง"""
+
             findings_html += f"""
             <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
               <div style="font-size: 16.5pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
@@ -1032,7 +1074,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
               </div>
 
               <p class="adv-para">
-                จากการตรวจสอบและประเมินความมั่นคงปลอดภัยบนระบบเป้าหมาย พบข้อค้นพบทางเทคนิคว่า {html.escape(reason)} ซึ่งจัดอยู่ในระดับความรุนแรง {cve_sev_th} ตามข้อมูลการประเมินของรายการช่องโหว่ที่อ้างถึง ทั้งนี้ ระดับความเสี่ยงต่อระบบเป้าหมายจริงอาจแตกต่างกันตามเวอร์ชันซอฟต์แวร์ การตั้งค่า การเปิดให้เข้าถึงจากเครือข่าย และเงื่อนไขแวดล้อมของระบบ หากระบบมีเงื่อนไขที่สอดคล้องกับข้อกำหนดของช่องโหว่และเปิดให้เข้าถึงจากเครือข่าย ผู้โจมตีอาจใช้ประโยชน์จากช่องโหว่ดังกล่าวได้ อย่างไรก็ตาม ผลกระทบและความเป็นไปได้ในการโจมตีต้องยืนยันเพิ่มเติมจากเวอร์ชันซอฟต์แวร์ การตั้งค่า และเส้นทางการให้บริการจริง
+                {cve_narrative}
               </p>
 
               <p class="adv-para">
@@ -1062,13 +1104,15 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         if chains:
             for c_key, c_val in chains.items():
                 c_verdict_code = c_val.get("verdict_code")
-                if c_verdict_code in ("VULN", "REVIEW", "AUDIT", "ARCHITECTURAL_RISK", "INFO_DISCLOSURE"):
+                if c_verdict_code in ("CONFIRMED", "VULN", "REVIEW", "AUDIT", "ARCHITECTURAL_RISK", "INFO_DISCLOSURE"):
                     c_title = c_val.get("title") or "PHP Session Security Chain"
                     c_verdict = c_val.get("verdict") or "ตรวจพบข้อควรระวังในการตั้งค่า"
                     c_remedy = c_val.get("remediation") or "ปรับปรุงค่า php.ini ตามแนวทาง CIS Benchmark"
                     c_ini = c_val.get("hardening_ini") or "; ปรับแต่ง php.ini เพื่อความมั่นคงปลอดภัย"
                     
-                    if c_verdict_code == "VULN":
+                    if c_verdict_code == "CONFIRMED":
+                        eval_status_desc = "ได้รับการยืนยันผลกระทบเชิงประจักษ์แล้ว (Confirmed — Live Proof Verified)"
+                    elif c_verdict_code == "VULN":
                         eval_status_desc = "ตรวจพบเงื่อนไขที่สอดคล้องกับความเสี่ยง ควรตรวจสอบเพิ่มเติมเพื่อยืนยันผลกระทบ (Potential Risk — Verification Required)"
                     elif c_verdict_code == "ARCHITECTURAL_RISK":
                         eval_status_desc = "เงื่อนไขทางสถาปัตยกรรมที่อาจเพิ่มความเสี่ยง (Architectural Condition — ต้องตรวจสอบเพิ่มเติม)"

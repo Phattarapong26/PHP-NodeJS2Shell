@@ -163,6 +163,7 @@ class TestRceVerifierAndSafetyGate(unittest.TestCase):
                     "http://127.0.0.1:8080",
                     8080,
                     is_php=True,
+                    is_windows=True,
                     allow_active_rce=True,
                     operator="unit-tester"
                 )

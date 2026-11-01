@@ -427,6 +427,7 @@ def verify_rce_route():
 
     scheme = "https" if port in (443, 8443) else "http"
     base_url = f"{scheme}://{connect_host}:{port}"
+    reported_base_url = f"{scheme}://{clean_target}:{port}"
 
     async def _run_probe():
         async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
@@ -437,7 +438,8 @@ def verify_rce_route():
                 server=server_hdr,
                 is_php=is_php,
                 allow_active_rce=allow_active_rce,
-                operator=operator
+                operator=operator,
+                reported_base_url=reported_base_url
             )
 
     try:

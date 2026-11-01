@@ -12,7 +12,7 @@ import re
 import socket
 import subprocess
 import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Set
 import httpx
 
 from core.semver import parse_semver
@@ -30,29 +30,41 @@ from audit.sub_tools import (
     probe_embedded_appliance_security
 )
 from audit.rce_prover import probe_active_rce_proof
+from audit.crawler import crawl_target, hash_body
+from audit.precondition_prober import probe_brotli_preconditions, probe_nginx_preconditions
 
-async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_text: str, req_headers: dict) -> dict:
+async def probe_lfi_prerequisite(
+    client: httpx.AsyncClient,
+    base_url: str,
+    body_text: str,
+    req_headers: dict,
+    discovered_params: Optional[Set[str]] = None,
+    baseline_hash: str = ""
+) -> dict:
     """
-    Heuristic LFI Prerequisite Probing:
-    Tests whether the target web application has common parameters (?page=, ?file=) that trigger PHP include/stream errors.
-    NOTE: This is a limited blackbox heuristic test. Absence of error indicators only means LFI was not observed
-    via tested basic parameters, and does NOT prove the absence of LFI vulnerabilities elsewhere in the application.
+    Dynamic LFI Prerequisite Verification:
+    Tests candidate parameters discovered dynamically via crawler and forms
+    against include/stream execution errors with differential 404 baseline filtering.
     """
     canary_token = "thaicert_audit_probe_canary_test"
-    found_params = set()
-    for m in re.finditer(r'[?&]([a-zA-Z0-9_\-]+)=', body_text):
+    found_params = set(discovered_params or [])
+    for m in re.finditer(r'[?&]([a-zA-Z0-9_\-]+)=', body_text or ""):
         p_name = m.group(1).lower()
-        if p_name in ["page", "file", "include", "view", "template", "doc", "load", "module", "lang", "action"]:
+        if p_name in ["page", "file", "include", "view", "template", "doc", "load", "module", "lang", "action", "src", "path"]:
             found_params.add(p_name)
-    
+
     probe_params = list(found_params) if found_params else ["page", "file"]
-    
-    for param in probe_params[:2]:
+
+    for param in probe_params[:3]:
         test_url = f"{base_url}/?{param}={canary_token}"
         try:
             r = await client.get(test_url, headers=req_headers, timeout=1.5)
-            r_text = r.text.lower() if r.text else ""
-            
+            r_text = (r.text or "").lower()
+
+            # Ignore if response matches 404 baseline
+            if baseline_hash and hash_body(r.text or "") == baseline_hash:
+                continue
+
             inclusion_indicators = [
                 "failed to open stream: no such file or directory",
                 f"failed opening required '{canary_token}'",
@@ -69,19 +81,19 @@ async def probe_lfi_prerequisite(client: httpx.AsyncClient, base_url: str, body_
                         "has_lfi_prerequisite": True,
                         "tested_url": test_url,
                         "param": param,
-                        "status": "DETECTED",
-                        "evidence": f"ตรวจพบข้อผิดพลาด include stream บนพารามิเตอร์ ?{param}=",
+                        "status": "PRECONDITION_IDENTIFIED",
+                        "evidence": f"ตรวจพบเงื่อนไขจำเป็น: include stream error บนพารามิเตอร์ ?{param}=",
                         "badge": "VULN"
                     }
         except Exception:
             pass
-            
+
     return {
         "has_lfi_prerequisite": False,
         "tested_url": f"{base_url}/?page={canary_token}",
         "param": None,
         "status": "NOT_OBSERVED_VIA_PROBE",
-        "evidence": "ไม่พบข้อผิดพลาด include stream จากพารามิเตอร์ทดสอบพื้นฐาน (?page, ?file) — ไม่สามารถสรุปได้ว่าระบบปราศจาก LFI ในส่วนอื่น",
+        "evidence": "ไม่พบข้อผิดพลาด include stream จากการทดสอบพารามิเตอร์ที่พบ — ไม่สามารถสรุปได้ว่าระบบปราศจาก LFI ในส่วนอื่น",
         "badge": "INFO"
     }
 
@@ -160,6 +172,12 @@ async def probe_endpoint(
         powered = headers.get("x-powered-by", "")
         content_encoding = headers.get("content-encoding", "").lower()
         has_brotli = ("br" in content_encoding)
+
+        # OS Fingerprint determination (strictly distinguishes Linux vs Windows)
+        combined_srv = (server + " " + powered + " " + headers.get("x-aspnet-version", "")).lower()
+        is_windows_os = any(k in combined_srv for k in ["iis", "windows", "win32", "win64", "microsoft", "xampp", "aspnet"])
+        if any(k in combined_srv for k in ["centos", "ubuntu", "debian", "alpine", "redhat", "fedora", "linux"]):
+            is_windows_os = False
         
         # Check explicit node version header if provided
         node_ver_hdr = headers.get("x-node-version", "") or headers.get("node-version", "")
@@ -743,13 +761,24 @@ async def probe_endpoint(
             port,
             server=server or "",
             is_php=is_php,
+            is_windows=is_windows_os,
             allow_active_rce=allow_active_rce,
-            operator=operator
+            operator=operator,
+            reported_base_url=reported_base_url
         )
         deep_audit["rce_proof"] = rce_proof
 
-        # Multi-Stack CVE Mapping (NGINX, PHP, Node.js)
-        nginx_sev, nginx_cves, nginx_note = evaluate_nginx_security(server or "", headers)
+        # Step 4.9: Behavioral Precondition Probing (Brotli decompression & NGINX hints)
+        brotli_probe = await probe_brotli_preconditions(client, base_url, headers)
+        if brotli_probe.get("brotli_request_accepted") or brotli_probe.get("brotli_supported"):
+            has_brotli = True
+        deep_audit["brotli_preconditions"] = brotli_probe
+
+        nginx_hints = await probe_nginx_preconditions(client, base_url, headers=headers)
+        deep_audit["nginx_preconditions"] = nginx_hints
+
+        # Multi-Stack CVE Mapping (NGINX, PHP, Node.js) with verified hints
+        nginx_sev, nginx_cves, nginx_note = evaluate_nginx_security(server or "", headers, hints=nginx_hints)
         deep_audit["nginx_audit"] = {
             "server": server or "",
             "severity": nginx_sev,
@@ -762,14 +791,21 @@ async def probe_endpoint(
 
         if is_node and is_php:
             v_php, note_php = evaluate_php_security(php_version_str or "PHP")
-            v_node, note_node = evaluate_node_security(node_version_str or "Node.js", has_brotli)
+            v_node, note_node = evaluate_node_security(
+                node_version_str or "Node.js",
+                has_brotli=has_brotli,
+                accepts_untrusted_brotli=brotli_probe.get("brotli_request_accepted")
+            )
             deep_audit["node_audit"] = getattr(v_node, "details", {})
             vuln = v_node if sev_order.get(v_node, 0) >= sev_order.get(v_php, 0) else v_php
             if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
                 vuln = nginx_sev
             if rce_proof.get("is_rce_proved"):
                 vuln = "Critical"
-            matched_cves = collect_target_cves(is_php, is_node, v_php, v_node, php_version_str, node_version_str, has_brotli, nginx_cves, has_lfi_active, is_fpm)
+            matched_cves = collect_target_cves(
+                is_php, is_node, v_php, v_node, php_version_str, node_version_str, has_brotli, nginx_cves,
+                has_lfi_active, is_fpm, is_windows=is_windows_os, rce_confirmed=rce_proof.get("is_rce_proved", False)
+            )
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
             if rce_proof.get("is_rce_proved"):
                 cve_note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
@@ -813,7 +849,11 @@ async def probe_endpoint(
                 "matched_cves": matched_cves
             }
         elif is_node:
-            vuln, note = evaluate_node_security(node_version_str, has_brotli)
+            vuln, note = evaluate_node_security(
+                node_version_str,
+                has_brotli=has_brotli,
+                accepts_untrusted_brotli=brotli_probe.get("brotli_request_accepted")
+            )
             deep_audit["node_audit"] = getattr(vuln, "details", {})
             if sev_order.get(nginx_sev, 0) > sev_order.get(vuln, 0):
                 vuln = nginx_sev
@@ -873,7 +913,10 @@ async def probe_endpoint(
                 note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
             elif nginx_cves:
                 note += f" | {nginx_note}"
-            matched_cves = collect_target_cves(True, False, vuln, "Secure", php_version_str, "", False, nginx_cves, has_lfi_active, is_fpm)
+            matched_cves = collect_target_cves(
+                True, False, vuln, "Secure", php_version_str, "", False, nginx_cves,
+                has_lfi_active, is_fpm, is_windows=is_windows_os, rce_confirmed=rce_proof.get("is_rce_proved", False)
+            )
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,
