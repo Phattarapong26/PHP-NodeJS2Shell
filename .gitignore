@@ -8,3 +8,7 @@ host_network.json
 active_hosts.txt
 active_hosts.json
 reports/last_scan.json
+build/
+dist/
+*.spec
+*.zip

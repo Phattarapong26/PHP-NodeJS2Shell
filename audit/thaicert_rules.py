@@ -418,21 +418,47 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         matched_groups.append(8)
         group_labels.append(f"กลุ่ม 8: บริการภายนอก/Cloud ({', '.join(g8_markers)})")
         group_evidence.extend(g8_markers)
-    if g8_markers:
-        matched_groups.append(8)
-        group_labels.append(f"กลุ่ม 8: บริการภายนอก/Cloud ({', '.join(g8_markers)})")
-        group_evidence.extend(g8_markers)
 
-    # Fallback if no specific group matched
+    # Intelligent Fallback: correctly classifies Web, API, Windows, Containers, and Dev ports
     if not matched_groups:
         if is_php:
             matched_groups = [1]
             group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (General PHP Web)"]
             group_evidence = ["General PHP Web Application"]
-        else:
+        elif is_node:
+            if any(k in host_lower or k in headers_str for k in ["/api", "api.", "backend", "application/json"]):
+                matched_groups = [2]
+                group_labels = ["กลุ่ม 2: ระบบหลังบ้านแอปมือถือ และ API (Node.js API)"]
+                group_evidence = ["Node.js API Service"]
+            else:
+                matched_groups = [1]
+                group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Node.js Web App)"]
+                group_evidence = ["Node.js Web Application"]
+        elif any(k in server_lower for k in ["microsoft-iis", "windows", "win32", "win64"]):
+            matched_groups = [6]
+            group_labels = ["กลุ่ม 6: Windows Server Application"]
+            group_evidence = ["Windows Architecture"]
+        elif port in [3000, 5000, 5173, 8000, 8080, 8888, 4000]:
+            matched_groups = [7]
+            group_labels = [f"กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง (Development Port {port})"]
+            group_evidence = [f"Development Port {port}"]
+        elif any(k in server_lower for k in ["apache", "nginx", "caddy", "litespeed", "lighttpd"]) or port in [80, 443, 8008, 8081]:
+            if "application/json" in headers_str or "/api" in host_lower:
+                matched_groups = [2]
+                group_labels = ["กลุ่ม 2: ระบบหลังบ้านแอปมือถือ และ API (Web API)"]
+                group_evidence = ["REST Web API"]
+            else:
+                matched_groups = [1]
+                group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Web Service)"]
+                group_evidence = ["Web Application Service"]
+        elif any(k in host_lower for k in [".1", ".254"]) or port in [53, 67, 161, 554]:
             matched_groups = [4]
-            group_labels = ["ไม่สามารถระบุกลุ่มระบบได้จากข้อมูลที่มี (Unclassified Host)"]
-            group_evidence = ["General Network Service"]
+            group_labels = ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Network Device / Gateway)"]
+            group_evidence = ["Network Infrastructure Device"]
+        else:
+            matched_groups = [1]
+            group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Web Service)"]
+            group_evidence = ["Web Service"]
 
     primary = group_labels[0]
     unique_groups = sorted(list(set(matched_groups)))

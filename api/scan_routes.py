@@ -636,6 +636,32 @@ def scan():
                         "probe_steps": probe_steps
                     }
 
+                    # Dynamic ThaiCERT asset classification for LAN hosts
+                    if any(p in open_ports for p in [3000, 5000, 5173, 8000, 8080, 8888, 4000]):
+                        h_groups = [7]
+                        h_primary = "กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง (Dev Service)"
+                        h_labels = ["กลุ่ม 7: ระบบทดสอบ ระบบเก่า และระบบสำรอง (Development Host)"]
+                    elif any(p in open_ports for p in [445, 139, 3389]) or "windows" in dev_name.lower():
+                        h_groups = [6]
+                        h_primary = "กลุ่ม 6: Windows Environment / Workstation"
+                        h_labels = ["กลุ่ม 6: สภาพแวดล้อมระบบปฏิบัติการ Windows (Workstation / Client)"]
+                    elif any(p in open_ports for p in [2375, 9000, 9443]) or "docker" in dev_name.lower():
+                        h_groups = [5]
+                        h_primary = "กลุ่ม 5: Container & Microservices"
+                        h_labels = ["กลุ่ม 5: สภาพแวดล้อม Container และ Docker Image"]
+                    elif is_gw or any(k in dev_type.lower() for k in ["router", "gateway", "nas", "printer", "cctv", "camera", "switch"]):
+                        h_groups = [4]
+                        h_primary = f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"
+                        h_labels = [f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"]
+                    elif is_mobile or "mobile" in dev_type.lower():
+                        h_groups = [2]
+                        h_primary = "กลุ่ม 2: ระบบที่เชื่อมต่อกับโมบายไคลเอนต์ (Mobile Client Endpoint)"
+                        h_labels = ["กลุ่ม 2: อุปกรณ์และไคลเอนต์แอปมือถือ (Mobile Client)"]
+                    else:
+                        h_groups = [4]
+                        h_primary = f"กลุ่ม 4: อุปกรณ์เครือข่ายและระบบสำเร็จรูป ({dev_type})"
+                        h_labels = [f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"]
+
                     all_active.append({
                         "is_php": False,
                         "is_node": False,
@@ -656,9 +682,9 @@ def scan():
                         "vulnerability": "Secure",
                         "cveNote": cve_note,
                         "probe_log": mv_probe_log,
-                        "thaicert_groups": [4],
-                        "primary_group": "กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์ทั่วไปในเครือข่าย",
-                        "group_labels": ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Network Device)"],
+                        "thaicert_groups": h_groups,
+                        "primary_group": h_primary,
+                        "group_labels": h_labels,
                         "deep_audit": {
                             "waf": "None (Internal LAN Device)",
                             "cms": dev_name,
@@ -669,9 +695,9 @@ def scan():
                             "expose_php_status": "N/A",
                             "host_verify_cmd": "N/A",
                             "safe_criteria": "ปลอดภัยจาก php2shell และ Node2Shell",
-                            "thaicert_groups": [4],
-                            "primary_group": "กลุ่ม 4: อุปกรณ์เครือข่าย/สำเร็จรูป",
-                            "group_labels": ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป"],
+                            "thaicert_groups": h_groups,
+                            "primary_group": h_primary,
+                            "group_labels": h_labels,
                             "security_chains": {
                                 "applicable": False,
                                 "overall_status": "Non-PHP Device",
@@ -721,6 +747,24 @@ def scan():
                                 {"step": "2. Web Port Verification", "desc": "ตรวจสอบพอร์ตบริการเว็บมาตรฐาน (ไม่พบเปิดบริการเว็บ — ปลอดภัย)", "status": "pass"}
                             ]
                         }
+                        # Dynamic ThaiCERT asset classification for ARP discovered host
+                        if is_gw or any(k in dev_type.lower() for k in ["router", "gateway", "nas", "printer", "cctv", "camera"]):
+                            arp_groups = [4]
+                            arp_primary = f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"
+                            arp_labels = [f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"]
+                        elif is_mobile or "mobile" in dev_type.lower():
+                            arp_groups = [2]
+                            arp_primary = "กลุ่ม 2: ระบบที่เชื่อมต่อกับโมบายไคลเอนต์ (Mobile Client Endpoint)"
+                            arp_labels = ["กลุ่ม 2: อุปกรณ์และไคลเอนต์แอปมือถือ (Mobile Client)"]
+                        elif "windows" in dev_name.lower() or "windows" in dev_type.lower():
+                            arp_groups = [6]
+                            arp_primary = "กลุ่ม 6: Windows Workstation / Client"
+                            arp_labels = ["กลุ่ม 6: สภาพแวดล้อมระบบปฏิบัติการ Windows (Workstation / Client)"]
+                        else:
+                            arp_groups = [4]
+                            arp_primary = f"กลุ่ม 4: อุปกรณ์เครือข่ายและระบบสำเร็จรูป ({dev_type})"
+                            arp_labels = [f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"]
+
                         all_active.append({
                             "is_php": False,
                             "is_node": False,
@@ -741,9 +785,9 @@ def scan():
                             "vulnerability": "Secure",
                             "cveNote": cve_note,
                             "probe_log": arp_probe_log,
-                            "thaicert_groups": [4],
-                            "primary_group": "กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์ทั่วไปในเครือข่าย",
-                            "group_labels": ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Network Device)"],
+                            "thaicert_groups": arp_groups,
+                            "primary_group": arp_primary,
+                            "group_labels": arp_labels,
                             "deep_audit": {
                                 "waf": "None (Internal LAN Device)",
                                 "cms": dev_name,
@@ -754,9 +798,9 @@ def scan():
                                 "expose_php_status": "N/A",
                                 "host_verify_cmd": "N/A",
                                 "safe_criteria": "ปลอดภัยจาก php2shell และ Node2Shell",
-                                "thaicert_groups": [4],
-                                "primary_group": "กลุ่ม 4: อุปกรณ์เครือข่าย/สำเร็จรูป",
-                                "group_labels": ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป"],
+                                "thaicert_groups": arp_groups,
+                                "primary_group": arp_primary,
+                                "group_labels": arp_labels,
                                 "security_chains": {
                                     "applicable": False,
                                     "overall_status": "Non-PHP Device",

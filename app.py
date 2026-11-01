@@ -26,6 +26,11 @@ Architecture & Directory Structure:
 """
 
 import os
+import sys
+import secrets
+import threading
+import time
+import webbrowser
 from flask import Flask, send_from_directory, request
 
 from api.scan_routes import scan_bp
@@ -107,20 +112,24 @@ def handle_options(subpath):
     return "", 200
 
 
+# Resolve frozen bundle base directory for PyInstaller standalone executables
+BASE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+
+
 # Static Frontend Routes
 @app.route("/")
 def index():
-    return send_from_directory(".", "GUI.html")
+    return send_from_directory(BASE_DIR, "GUI.html")
 
 
 @app.route("/diagram")
 def diagram_page():
-    return send_from_directory(".", "diagram.html")
+    return send_from_directory(BASE_DIR, "diagram.html")
 
 
 @app.route("/fonts/<path:filename>")
 def serve_font(filename):
-    return send_from_directory("fonts", filename)
+    return send_from_directory(os.path.join(BASE_DIR, "fonts"), filename)
 
 
 # Register Blueprints
@@ -130,5 +139,20 @@ app.register_blueprint(report_bp)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))
-    print(f"[*] Starting OPScaner Web Server on http://0.0.0.0:{port}...")
+    url = f"http://127.0.0.1:{port}"
+    print(f"============================================================")
+    print(f"  OPScaner - Web Vulnerability Scanner & Security Auditor   ")
+    print(f"  ThaiCERT & NCSA Thailand Security Audit Framework         ")
+    print(f"============================================================")
+    print(f"[*] Starting local audit server: {url}")
+    print(f"[*] Opening default browser...")
+
+    def open_browser():
+        time.sleep(1.2)
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+    threading.Thread(target=open_browser, daemon=True).start()
     app.run(host="0.0.0.0", port=port, debug=False)
