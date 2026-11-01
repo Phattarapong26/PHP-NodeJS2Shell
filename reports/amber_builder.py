@@ -831,6 +831,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         
         da = h.get("deep_audit") or {}
         grp = da.get("primary_group") or "ไม่สามารถระบุกลุ่มระบบได้จากข้อมูลที่มี (Unclassified)"
+        rce_p = h.get("rce_proof") or da.get("rce_proof") or {}
+        rce_st = rce_p.get("proof_status", "")
         
         # Determine highest severity
         sev = "ยังไม่พบความเสี่ยงตามขอบเขตที่ตรวจสอบ (No Finding Within Scope)"
@@ -838,11 +840,14 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         v_php = h.get("vulnerability")
         v_node = h.get("vulnerabilityNode")
         v_nginx = (da.get("nginx_audit") or {}).get("severity")
-        if "Critical" in [v_php, v_node, v_nginx]:
+        if rce_p.get("is_rce_proved") or rce_st == "RCE_CONFIRMED":
+            sev = "วิกฤต (Critical - RCE Confirmed)"
+            badge_cls = "adv-item-badge-crit"
+        elif "Critical" in [v_php, v_node, v_nginx]:
             sev = "วิกฤต (Critical)"
             badge_cls = "adv-item-badge-crit"
-        elif "High" in [v_php, v_node, v_nginx]:
-            sev = "สูง (High)"
+        elif rce_st in ("CANARY_CONFIRMED", "CONFIRMED_LFI") or "High" in [v_php, v_node, v_nginx]:
+            sev = "สูง (High - LFI Confirmed)" if rce_st in ("CANARY_CONFIRMED", "CONFIRMED_LFI") else "สูง (High)"
             badge_cls = "adv-item-badge-high"
         elif "Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]:
             sev = "ปานกลาง (Medium)"
@@ -911,6 +916,28 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 {f'<div style="color: #f59e0b; font-size: 9pt; margin-top: 6px; border-top: 1px dashed #334155; padding-top: 4px;">คำสั่งทดสอบจริง (CLI): {html.escape(rce_proof.get("reproduce_curl", ""))}</div>' if rce_proof.get("reproduce_curl") else ''}
                 {trail_html}
               </div>
+            </div>
+            """
+        elif status_val == "NOT_CONFIRMED":
+            findings_html += f"""
+            <div style="margin-top: 14px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
+              <div style="font-size: 14pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
+                ผลการทดสอบ Active Canary PoC บนพอร์ต {html.escape(str(h.get('port','-')))}: [NOT CONFIRMED / NO SINK IN SCOPE]
+              </div>
+              <p class="adv-para" style="color: #475569; margin-bottom: 0;">
+                ระบบได้ส่งคำขอทดสอบ LFI และ Session Upload Progress Canary แบบไม่ทำลายข้อมูลแล้ว ไม่พบจุดรับคำสั่งเพื่อรันโค้ดภายใต้ขอบเขตพารามิเตอร์ที่ตรวจสอบจากภายนอก
+              </p>
+            </div>
+            """
+        elif status_val == "PROBING_DISABLED_BY_SAFETY_GATE":
+            findings_html += f"""
+            <div style="margin-top: 14px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
+              <div style="font-size: 14pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
+                การประเมินสิทธิ์ความปลอดภัย (Safety Gate Protection) บนพอร์ต {html.escape(str(h.get('port','-')))}
+              </div>
+              <p class="adv-para" style="color: #475569; margin-bottom: 0;">
+                การตรวจสอบในรอบนี้ดำเนินการในโหมด Safe Passive Banner Inspection โดยระงับการส่ง Active Exploit ตามข้อกำหนดความปลอดภัย หากต้องการพิสูจน์ RCE ในเชิงประจักษ์ ต้องได้รับการยืนยันสิทธิ์จากผู้ดูแลระบบตามระเบียบ
+              </p>
             </div>
             """
         if matrix:

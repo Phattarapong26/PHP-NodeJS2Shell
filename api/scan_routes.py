@@ -26,6 +26,7 @@ from core.network import (
 from core.multi_vector_discovery import MultiVectorDiscoveryEngine
 from core.database import CVE_DATABASE
 from audit.probe_audit import probe_endpoint, check_tcp_port
+from audit.rce_prover import probe_active_rce_proof
 from api.report_routes import set_last_scan_result
 
 scan_bp = Blueprint("scan_api", __name__)
@@ -371,6 +372,83 @@ def verify_asan_memory():
         return jsonify(result)
     except Exception as e:
         return jsonify({"status": "ERROR", "message": str(e), "error": str(e), "is_vulnerable": False}), 500
+
+
+@scan_bp.route("/api/verify-rce", methods=["POST"])
+def verify_rce_route():
+    """
+    On-demand Active RCE PoC Verification Endpoint for a specific target.
+    Guarded by strict Safety Gate for RFC1918 LAN and explicit public affirmation.
+    """
+    data = request.get_json(silent=True) or {}
+    raw_target = str(data.get("target") or data.get("ip") or "").strip()
+    raw_port = data.get("port") or 80
+    is_php = bool(data.get("is_php", True))
+    allow_active_rce = bool(data.get("allow_active_rce", True))
+    i_own_this_target = bool(data.get("i_own_this_target", False))
+    consent_phrase = str(data.get("consent_phrase", "")).strip()
+    operator = str(data.get("operator", "web-operator")).strip()
+    server_hdr = str(data.get("server", "")).strip()
+
+    if not raw_target:
+        return jsonify({"error": "Target IP or hostname is required"}), 400
+
+    try:
+        port = int(raw_port)
+    except (ValueError, TypeError):
+        port = 80
+
+    clean_target = re.sub(r"^https?://", "", raw_target).split("/")[0].split(":")[0].strip()
+
+    # Safety Gate for Public Targets
+    if is_public_target(clean_target):
+        if not i_own_this_target or consent_phrase != "I_CONFIRM_TARGET_OWNERSHIP":
+            return jsonify({
+                "status": "SAFETY_GATE_BLOCKED",
+                "is_rce_proved": False,
+                "proof_status": "SAFETY_GATE_BLOCKED",
+                "proof_badge": "🛡️ Safety Gate: Public Target Blocked",
+                "impact_statement": "Safety Gate: เป้าหมายเป็น Public IP / ภายนอกเครือข่าย ต้องระบุ i_own_this_target=True และ consent_phrase='I_CONFIRM_TARGET_OWNERSHIP' ก่อนทดสอบ Active PoC เพื่อป้องกันการละเมิดกฎหมาย",
+                "operator": operator
+            }), 403
+
+    net_info = get_host_network_info()
+    is_docker = net_info.get("is_docker", False)
+    host_ip = net_info.get("ip", "")
+    docker_gw = get_docker_gateway() if is_docker else None
+
+    # Connect host resolution for local loopback in Docker
+    connect_host = clean_target
+    if is_docker and (clean_target in ("127.0.0.1", "localhost", "0.0.0.0") or clean_target == host_ip):
+        if docker_gw:
+            connect_host = docker_gw
+        else:
+            connect_host = "host.docker.internal"
+
+    scheme = "https" if port in (443, 8443) else "http"
+    base_url = f"{scheme}://{connect_host}:{port}"
+
+    async def _run_probe():
+        async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
+            return await probe_active_rce_proof(
+                client=client,
+                base_url=base_url,
+                port=port,
+                server=server_hdr,
+                is_php=is_php,
+                allow_active_rce=allow_active_rce,
+                operator=operator
+            )
+
+    try:
+        rce_result = asyncio.run(_run_probe())
+        return jsonify({
+            "status": "ok",
+            "target": f"{clean_target}:{port}",
+            "rce_proof": rce_result
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @scan_bp.route("/api/scan", methods=["POST"])

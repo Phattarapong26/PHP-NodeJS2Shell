@@ -970,6 +970,21 @@
                 <div class="truncate"><span class="text-slate-500">Evidence SHA-256:</span> <span id="auditRceTrailSha" class="text-emerald-400 select-all font-bold">-</span></div>
               </div>
             </div>
+
+            <!-- Action Button for On-Demand Active RCE Verification -->
+            <div id="auditRceActionBox" class="pt-1.5 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-rose-900/50">
+              <span class="text-[11px] text-slate-400 flex items-center gap-1">
+                <i class="ph-bold ph-shield-check text-emerald-400"></i> Safety Gate: โหมดทดสอบ Canary ปลอดภัย (Non-destructive)
+              </span>
+              <button 
+                id="btnTriggerActiveRce" 
+                type="button" 
+                onclick="runLiveRceAudit()" 
+                class="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer">
+                <i class="ph-bold ph-lightning text-sm text-amber-300"></i>
+                <span id="btnTriggerActiveRceText">ทดสอบ Active RCE PoC บนโฮสต์นี้</span>
+              </button>
+            </div>
           </div>
           
           <!-- ThaiCERT 8 Groups Target Classification -->
@@ -1131,8 +1146,8 @@ session.save_path = "/var/lib/php/sessions"</div>
                   <span class="text-[10px] text-slate-400">วิเคราะห์ข้อผิดพลาดหน่วยความจำ Heap Use-After-Free ใน Zend Engine (var_unserializer.c:245/851), สถานะ BG(serialize_lock) และการตรวจจับ AddressSanitizer</span>
                 </div>
                 <button id="btnRunAsanAudit" onclick="runLiveAsanAudit()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-                  <i class="ph-bold ph-lightning"></i>
-                  <span id="btnRunAsanAuditText">รันการทดสอบระดับ C / ASan Probe (Live)</span>
+                  <i class="ph-bold ph-cpu"></i>
+                  <span id="btnRunAsanAuditText">ตรวจสอบเงื่อนไขระดับ C / Zend Patch Advisory</span>
                 </button>
               </div>
 
@@ -1742,6 +1757,7 @@ Content-Type: text/html; charset=UTF-8</div>
       selectedStandardPorts: [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 18080, 9000, 5050, 8880, 9090],
       wideScopeCount: 100,
       selectedPorts: [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 18080, 9000, 5050, 8880, 9090],
+      allowActiveRce: false,
       activeGroupFilter: null,
       scopePreset: 'all',
       selectedAuditHost: null,
@@ -2289,7 +2305,10 @@ Content-Type: text/html; charset=UTF-8</div>
             body: JSON.stringify({
               subnet: targetSubnet,
               concurrency: appState.concurrency,
-              ports: appState.selectedPorts || null
+              ports: appState.selectedPorts || null,
+              allow_active_rce: Boolean(appState.allowActiveRce),
+              i_own_this_target: Boolean(appState.allowActiveRce),
+              consent_phrase: appState.allowActiveRce ? "I_CONFIRM_TARGET_OWNERSHIP" : ""
             }),
             signal: currentScanAbortController.signal
           });
@@ -3000,64 +3019,7 @@ Content-Type: text/html; charset=UTF-8</div>
       }
 
       // Empirical Live RCE / LFI Proof Indicator (PoC Prover with Audit Trail)
-      const rceWrapper = document.getElementById('auditRceProofWrapper');
-      const rceProof = host.rce_proof || deep.rce_proof || null;
-      if (rceWrapper) {
-        const hasVerifiedProof = rceProof && (rceProof.is_rce_proved || rceProof.proof_status === 'CANARY_CONFIRMED' || rceProof.proof_status === 'CONFIRMED_LFI');
-        if (hasVerifiedProof) {
-          rceWrapper.classList.remove('hidden');
-          const elTitle = document.getElementById('auditRceProofTitle');
-          const elBadge = document.getElementById('auditRceProofStatusBadge');
-          const elDesc = document.getElementById('auditRceProofDesc');
-          const elTech = document.getElementById('auditRceProofTechnique');
-          const elPriv = document.getElementById('auditRceProofPrivilege');
-          const elCmd = document.getElementById('auditRceProofCommand');
-          const elOut = document.getElementById('auditRceProofOutput');
-          const elCurl = document.getElementById('auditRceProofCurl');
-          const btnCopy = document.getElementById('btnCopyRceCurl');
-
-          const isRce = rceProof.is_rce_proved || rceProof.proof_status === 'RCE_CONFIRMED';
-          if (elTitle) elTitle.textContent = rceProof.proof_badge || (isRce ? "🔥 ยืนยัน RCE สำเร็จ (PoC Proved)" : "⚠️ ยืนยัน LFI / Arbitrary File Read");
-          if (elBadge) {
-            elBadge.textContent = isRce ? "RCE CONFIRMED" : (rceProof.proof_status === 'CANARY_CONFIRMED' ? "CANARY CONFIRMED" : "LFI CONFIRMED");
-            elBadge.className = isRce 
-              ? "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-900/80 text-rose-200 border border-rose-600"
-              : "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-900/80 text-amber-200 border border-amber-600";
-          }
-          if (elDesc) elDesc.textContent = rceProof.impact_statement || "";
-          if (elTech) elTech.textContent = rceProof.technique || "Security Exploit PoC";
-          if (elPriv) elPriv.textContent = rceProof.privilege_level || "Standard";
-          if (elCmd) elCmd.textContent = rceProof.command_executed || "canary execution";
-          if (elOut) elOut.textContent = rceProof.execution_output || "";
-          if (elCurl) elCurl.textContent = rceProof.reproduce_curl || "";
-          if (btnCopy) {
-            btnCopy.onclick = () => {
-              if (rceProof.reproduce_curl) {
-                navigator.clipboard.writeText(rceProof.reproduce_curl);
-                showToast("คัดลอกคำสั่ง PoC curl แล้ว");
-              }
-            };
-          }
-
-          // Cryptographic Audit Trail
-          const trailWrapper = document.getElementById('auditRceTrailWrapper');
-          if (trailWrapper) {
-            if (rceProof.audit_trail) {
-              trailWrapper.classList.remove('hidden');
-              const elOp = document.getElementById('auditRceTrailOperator');
-              const elTime = document.getElementById('auditRceTrailTime');
-              const elSha = document.getElementById('auditRceTrailSha');
-              if (elOp) elOp.textContent = rceProof.audit_trail.operator || "operator";
-              if (elTime) elTime.textContent = rceProof.audit_trail.timestamp_utc || "-";
-              if (elSha) elSha.textContent = rceProof.audit_trail.evidence_sha256 || "-";
-            } else {
-              trailWrapper.classList.add('hidden');
-            }
-          }
-        } else {
-          rceWrapper.classList.add('hidden');
-        }
-      }
+      renderRceProofCard(host.rce_proof || deep.rce_proof || null);
 
       // ThaiCERT 8 Groups Classification
       const primaryBadge = document.getElementById('auditGroupPrimaryBadge');
@@ -3665,6 +3627,154 @@ Content-Type: text/html; charset=UTF-8</div>
       }
     }
 
+    function renderRceProofCard(rceProof) {
+      const rceWrapper = document.getElementById('auditRceProofWrapper');
+      if (!rceWrapper) return;
+      rceWrapper.classList.remove('hidden');
+
+      const elTitle = document.getElementById('auditRceProofTitle');
+      const elBadge = document.getElementById('auditRceProofStatusBadge');
+      const elDesc = document.getElementById('auditRceProofDesc');
+      const elTech = document.getElementById('auditRceProofTechnique');
+      const elPriv = document.getElementById('auditRceProofPrivilege');
+      const elCmd = document.getElementById('auditRceProofCommand');
+      const elOut = document.getElementById('auditRceProofOutput');
+      const elCurl = document.getElementById('auditRceProofCurl');
+      const btnCopy = document.getElementById('btnCopyRceCurl');
+      const trailWrapper = document.getElementById('auditRceTrailWrapper');
+      const btnTrigger = document.getElementById('btnTriggerActiveRce');
+      const btnTriggerText = document.getElementById('btnTriggerActiveRceText');
+
+      if (!rceProof || rceProof.proof_status === 'PROBING_DISABLED_BY_SAFETY_GATE') {
+        if (elTitle) elTitle.textContent = "โหมดตรวจสอบ Passive (Safety Gate ระงับ Active Exploit ไว้)";
+        if (elBadge) {
+          elBadge.textContent = "PASSIVE SAFE MODE";
+          elBadge.className = "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-600";
+        }
+        if (elDesc) elDesc.textContent = "ระบบทำงานในโหมด Passive Banner Scan เพื่อความปลอดภัยตามกฎหมาย หากต้องการตรวจสอบเชิงประจักษ์ว่าระบบเสี่ยงต่อ RCE หรือไม่ ให้กดปุ่มด้านล่างเพื่อส่ง Non-destructive Canary Payload";
+        if (elTech) elTech.textContent = "Passive Banner & Header Fingerprint";
+        if (elPriv) elPriv.textContent = "Pending Active Verification";
+        if (elCmd) elCmd.textContent = "audit: php_session_upload_progress + lfi_probe";
+        if (elOut) elOut.textContent = "[*] Active RCE probing is idle.\n[*] Click the button below to execute safe non-destructive canary verification.";
+        if (elCurl) elCurl.textContent = "คลิกปุ่มด้านล่างเพื่อทดสอบและรับคำสั่ง curl";
+        if (trailWrapper) trailWrapper.classList.add('hidden');
+        if (btnTriggerText) btnTriggerText.textContent = "ทดสอบ Active RCE PoC บนโฮสต์นี้";
+        return;
+      }
+
+      const isRce = rceProof.is_rce_proved || rceProof.proof_status === 'RCE_CONFIRMED';
+      const isCanary = rceProof.proof_status === 'CANARY_CONFIRMED';
+      const isLfi = rceProof.proof_status === 'CONFIRMED_LFI';
+
+      if (isRce) {
+        if (elTitle) elTitle.textContent = rceProof.proof_badge || "🔥 ยืนยัน RCE สำเร็จ (PoC Proved)";
+        if (elBadge) {
+          elBadge.textContent = "RCE CONFIRMED";
+          elBadge.className = "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-900/80 text-rose-200 border border-rose-600";
+        }
+      } else if (isCanary) {
+        if (elTitle) elTitle.textContent = rceProof.proof_badge || "⚡ ยืนยันจุดรับคำสั่ง Canary สำเร็จ (Canary Confirmed)";
+        if (elBadge) {
+          elBadge.textContent = "CANARY CONFIRMED";
+          elBadge.className = "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-900/80 text-amber-200 border border-amber-600";
+        }
+      } else if (isLfi) {
+        if (elTitle) elTitle.textContent = rceProof.proof_badge || "⚠️ ยืนยัน LFI / Arbitrary File Read";
+        if (elBadge) {
+          elBadge.textContent = "LFI CONFIRMED";
+          elBadge.className = "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-900/80 text-amber-200 border border-amber-600";
+        }
+      } else {
+        if (elTitle) elTitle.textContent = "🛡️ ตรวจสอบแล้ว: ไม่พบจุดอ่อน RCE ภายใต้ขอบเขตที่ทดสอบ";
+        if (elBadge) {
+          elBadge.textContent = "NOT CONFIRMED";
+          elBadge.className = "px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-600";
+        }
+      }
+
+      if (elDesc) elDesc.textContent = rceProof.impact_statement || "";
+      if (elTech) elTech.textContent = rceProof.technique || "Security Exploit PoC";
+      if (elPriv) elPriv.textContent = rceProof.privilege_level || "Standard";
+      if (elCmd) elCmd.textContent = rceProof.command_executed || "canary execution";
+      if (elOut) elOut.textContent = rceProof.execution_output || "No output recorded.";
+      if (elCurl) elCurl.textContent = rceProof.reproduce_curl || "N/A";
+      if (btnCopy) {
+        btnCopy.onclick = () => {
+          if (rceProof.reproduce_curl) {
+            navigator.clipboard.writeText(rceProof.reproduce_curl);
+            showToast("คัดลอกคำสั่ง PoC curl แล้ว");
+          }
+        };
+      }
+
+      // Cryptographic Audit Trail
+      if (trailWrapper) {
+        if (rceProof.audit_trail) {
+          trailWrapper.classList.remove('hidden');
+          const elOp = document.getElementById('auditRceTrailOperator');
+          const elTime = document.getElementById('auditRceTrailTime');
+          const elSha = document.getElementById('auditRceTrailSha');
+          if (elOp) elOp.textContent = rceProof.audit_trail.operator || "operator";
+          if (elTime) elTime.textContent = rceProof.audit_trail.timestamp_utc || "-";
+          if (elSha) elSha.textContent = rceProof.audit_trail.evidence_sha256 || "-";
+        } else {
+          trailWrapper.classList.add('hidden');
+        }
+      }
+
+      if (btnTriggerText) {
+        btnTriggerText.textContent = "ทดสอบ Active RCE PoC อีกครั้ง";
+      }
+    }
+
+    async function runLiveRceAudit() {
+      const host = appState.selectedAuditHost;
+      if (!host) {
+        showToast("ไม่พบข้อมูล Host ที่เลือก");
+        return;
+      }
+      const btn = document.getElementById('btnTriggerActiveRce');
+      const btnText = document.getElementById('btnTriggerActiveRceText');
+      const rawIp = (host.ip || '').trim();
+      const port = host.port || (host.ports && host.ports[0]) || 80;
+
+      if (btn) btn.disabled = true;
+      if (btnText) btnText.innerHTML = `<i class="ph-bold ph-spinner animate-spin"></i> กำลังส่ง Canary Verification...`;
+
+      try {
+        const res = await apiFetch("/api/verify-rce", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target: rawIp,
+            port: port,
+            is_php: host.is_php !== false,
+            allow_active_rce: true,
+            i_own_this_target: true,
+            consent_phrase: "I_CONFIRM_TARGET_OWNERSHIP",
+            server: host.server || host.webServer || ""
+          })
+        });
+        const data = await res.json();
+        if (data.status === "ok" && data.rce_proof) {
+          host.rce_proof = data.rce_proof;
+          renderRceProofCard(data.rce_proof);
+          if (data.rce_proof.is_rce_proved || data.rce_proof.proof_status === 'CANARY_CONFIRMED') {
+            showToast("⚠️ ตรวจพบช่องโหว่ RCE / Canary Execution ยืนยันสำเร็จ!");
+          } else {
+            showToast("✅ ยืนยัน: ไม่พบช่องโหว่ RCE บน Endpoint นี้");
+          }
+        } else {
+          showToast(data.impact_statement || data.error || "เกิดข้อผิดพลาดในการตรวจสอบ RCE");
+        }
+      } catch (err) {
+        showToast("ข้อผิดพลาดในการส่งคำขอ: " + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = "ทดสอบ Active RCE PoC บนโฮสต์นี้อีกครั้ง";
+      }
+    }
+
     async function runLiveAsanAudit() {
       const host = appState.selectedAuditHost;
       if (!host) {
@@ -3725,7 +3835,7 @@ ${data.c_patch_directive}
         terminal.textContent += `\n[-] Request error: ${err.message}`;
       } finally {
         if (btn) btn.disabled = false;
-        if (btnText) btnText.textContent = "รันการทดสอบระดับ C / ASan Probe (Live)";
+        if (btnText) btnText.textContent = "ตรวจสอบเงื่อนไขระดับ C / Zend Patch Advisory";
       }
     }
 
