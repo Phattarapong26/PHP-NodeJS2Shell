@@ -954,25 +954,36 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             </div>
             """
 
-        # Architectural & Behavioral Preconditions Matrix per host
+        # Architectural & Behavioral Preconditions Matrix per host (Strict Stack Isolation)
         br_pre = da.get("brotli_preconditions") or {}
         nx_pre = da.get("nginx_preconditions") or {}
-        if br_pre or nx_pre:
+        srv_str = (h.get("webServer", "") + " " + str(h.get("server", "")) + " " + str(da.get("nginx_audit", {}).get("server", ""))).lower()
+        is_host_nginx = "nginx" in srv_str
+        is_host_node = bool(h.get("is_node")) or "node" in (str(h.get("runtime", "")) + " " + str(h.get("runtime_version", ""))).lower()
+
+        rows_html = ""
+        if is_host_node and br_pre:
             br_status = "ยอมรับและถอดรหัสบิตสตรีมเข้า (Active Decompression Confirmed)" if br_pre.get("brotli_request_accepted") else ("รองรับ Brotli ผ่านส่วนหัว (Header Hint Observed)" if br_pre.get("brotli_supported") else "ปฏิเสธ / ไม่พบการใช้งาน (Precondition Absent)")
+            rows_html += f"""<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; width: 35%; color: #475569;">Brotli Stream Processing (CVE-2026-111497 / CWE-20):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(br_status)}</td></tr>"""
+
+        if is_host_nginx and nx_pre:
             h3_status = "ยืนยันพอร์ต UDP 443 ผ่านแพ็กเก็ต RFC 9000 (Active QUIC Listener Confirmed)" if nx_pre.get("http3_udp_verified") else "ไม่พบการตอบสนองของ QUIC UDP บนพอร์ต 443"
             alias_status = f"ตรวจพบพฤติกรรม Traversal: {nx_pre.get('alias_evidence')}" if nx_pre.get("alias_traversal_observed") else "ปกติ (ไม่พบความผิดปกติจากคำขอ /dir../ เทียบกับ 404 Baseline)"
             ssi_status = f"พบไฟล์: {', '.join(nx_pre.get('ssi_files', []))}" if nx_pre.get("ssi_files") else "ไม่พบไฟล์ .shtml/.shtm บนระบบ"
+            rows_html += f"""
+                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">HTTP/3 QUIC UDP Transport (CVE-2026-95101 / CWE-400):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(h3_status)}</td></tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">NGINX Alias Path Traversal (CVE-2026-15176 / CWE-22):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(alias_status)}</td></tr>
+                <tr><td style="padding: 5px 8px; font-weight: bold; color: #475569;">SSI Directive Exposure (CVE-2026-97205 / CWE-97):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(ssi_status)}</td></tr>
+            """
 
+        if rows_html:
             findings_html += f"""
             <div style="margin-top: 10px; margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
               <div style="font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 6px;">
                 ตารางประเมินเงื่อนไขจำเป็นทางสถาปัตยกรรม (Architectural & Behavioral Preconditions) บนพอร์ต {html.escape(str(h.get('port','-')))}
               </div>
               <table style="width: 100%; font-size: 9pt; border-collapse: collapse;">
-                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; width: 35%; color: #475569;">Brotli Stream Processing (CVE-2026-111497):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(br_status)}</td></tr>
-                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">HTTP/3 QUIC UDP Transport (CVE-2026-95101):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(h3_status)}</td></tr>
-                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">NGINX Alias Path Traversal (CVE-2026-15176):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(alias_status)}</td></tr>
-                <tr><td style="padding: 5px 8px; font-weight: bold; color: #475569;">SSI Directive Exposure (CVE-2026-97205):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(ssi_status)}</td></tr>
+                {rows_html}
               </table>
             </div>
             """

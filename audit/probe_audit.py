@@ -769,16 +769,24 @@ async def probe_endpoint(
         deep_audit["rce_proof"] = rce_proof
 
         # Step 4.9: Behavioral Precondition Probing (Brotli decompression & NGINX hints)
-        brotli_probe = await probe_brotli_preconditions(client, base_url, headers)
-        if brotli_probe.get("brotli_request_accepted") or brotli_probe.get("brotli_supported"):
-            has_brotli = True
+        # Strict Isolation: Only probe Brotli if target has Node.js or announces Brotli
+        if is_node or "br" in content_encoding:
+            brotli_probe = await probe_brotli_preconditions(client, base_url, headers)
+            if brotli_probe.get("brotli_request_accepted") or brotli_probe.get("brotli_supported"):
+                has_brotli = True
+        else:
+            brotli_probe = {}
         deep_audit["brotli_preconditions"] = brotli_probe
 
-        nginx_hints = await probe_nginx_preconditions(client, base_url, headers=headers)
+        # Strict Isolation: Only probe NGINX if server banner or headers identify as NGINX
+        is_server_nginx = "nginx" in (server or "").lower()
+        if is_server_nginx:
+            nginx_hints = await probe_nginx_preconditions(client, base_url, headers=headers)
+            nginx_sev, nginx_cves, nginx_note = evaluate_nginx_security(server or "", headers, hints=nginx_hints)
+        else:
+            nginx_hints = {}
+            nginx_sev, nginx_cves, nginx_note = "Secure", [], "ไม่ใช่บริการ NGINX"
         deep_audit["nginx_preconditions"] = nginx_hints
-
-        # Multi-Stack CVE Mapping (NGINX, PHP, Node.js) with verified hints
-        nginx_sev, nginx_cves, nginx_note = evaluate_nginx_security(server or "", headers, hints=nginx_hints)
         deep_audit["nginx_audit"] = {
             "server": server or "",
             "severity": nginx_sev,
@@ -804,7 +812,10 @@ async def probe_endpoint(
                 vuln = "Critical"
             matched_cves = collect_target_cves(
                 is_php, is_node, v_php, v_node, php_version_str, node_version_str, has_brotli, nginx_cves,
-                has_lfi_active, is_fpm, is_windows=is_windows_os, rce_confirmed=rce_proof.get("is_rce_proved", False)
+                has_lfi_active, is_fpm, is_windows=is_windows_os,
+                rce_confirmed=rce_proof.get("is_rce_proved", False),
+                rce_technique=rce_proof.get("technique", ""),
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
             if rce_proof.get("is_rce_proved"):
@@ -862,7 +873,13 @@ async def probe_endpoint(
                 note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
             elif nginx_cves:
                 note += f" | {nginx_note}"
-            matched_cves = collect_target_cves(False, True, "Secure", vuln, "", node_version_str, has_brotli, nginx_cves, False, False)
+            matched_cves = collect_target_cves(
+                False, True, "Secure", vuln, "", node_version_str, has_brotli, nginx_cves,
+                False, False, is_windows=is_windows_os,
+                rce_confirmed=rce_proof.get("is_rce_proved", False),
+                rce_technique=rce_proof.get("technique", ""),
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
+            )
             display_ver = node_version_str
             if has_brotli and "[Brotli]" not in display_ver:
                 display_ver += " [Brotli]"
@@ -915,7 +932,10 @@ async def probe_endpoint(
                 note += f" | {nginx_note}"
             matched_cves = collect_target_cves(
                 True, False, vuln, "Secure", php_version_str, "", False, nginx_cves,
-                has_lfi_active, is_fpm, is_windows=is_windows_os, rce_confirmed=rce_proof.get("is_rce_proved", False)
+                has_lfi_active, is_fpm, is_windows=is_windows_os,
+                rce_confirmed=rce_proof.get("is_rce_proved", False),
+                rce_technique=rce_proof.get("technique", ""),
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
             return {
                 "target_id": f"{display_ip}:{port}",
@@ -980,7 +1000,16 @@ async def probe_endpoint(
             elif any(k in device_desc.lower() for k in ["camera", "dahua", "hikvision", "axis", "nvr", "dvr"]):
                 device_desc = "CCTV Camera"
 
-            matched_cves = collect_target_cves(False, False, "Secure", "Secure", "", "", False, nginx_cves, False, False)
+            if rce_proof.get("is_rce_proved"):
+                vuln = "Critical"
+                cve_note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
+            matched_cves = collect_target_cves(
+                False, False, "Secure", "Secure", "", "", False, nginx_cves,
+                False, False, is_windows=is_windows_os,
+                rce_confirmed=rce_proof.get("is_rce_proved", False),
+                rce_technique=rce_proof.get("technique", ""),
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
+            )
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,

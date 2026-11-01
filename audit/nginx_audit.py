@@ -106,11 +106,14 @@ def collect_target_cves(
     has_lfi_active: bool = False,
     is_fpm: bool = False,
     is_windows: bool = False,
-    rce_confirmed: bool = False
+    rce_confirmed: bool = False,
+    rce_technique: str = "",
+    rce_endpoint: str = ""
 ) -> list:
     """
     Aggregates all matched CVE findings across NGINX, PHP, and Node.js for a target.
-    Enforces strict OS boundaries (e.g. CVE-2024-4577 only applies to Windows)
+    Enforces strict OS boundaries (e.g. CVE-2024-4577 only applies to Windows),
+    ensures finding-to-evidence coherence (e.g. Command Injection on .aspx is CWE-78, not PHP-CGI),
     and updates confidence/status when RCE is empirically confirmed.
     """
     cves = []
@@ -118,6 +121,29 @@ def collect_target_cves(
     # 1. Add NGINX CVEs if any
     if nginx_cves:
         cves.extend(nginx_cves)
+
+    # Coherence classification
+    is_cgi_rce = bool(rce_confirmed and ("CVE-2024-4577" in rce_technique or "PHP-CGI" in rce_technique))
+    is_session_rce = bool(rce_confirmed and ("Session Upload Progress" in rce_technique or "LFI" in rce_technique))
+    is_cmd_inj = bool(rce_confirmed and ("Command Injection" in rce_technique or "CWE-78" in rce_technique or "cmd=" in (rce_endpoint or "") or ".aspx" in (rce_endpoint or "") or "Diagnostic" in rce_technique or "Web Shell" in rce_technique))
+
+    # Dedicated Command Injection Finding (e.g. Web Shell, ASPX, or Diagnostic cmd parameter)
+    if is_cmd_inj:
+        cves.append({
+            "id": "CWE-78",
+            "cve": "CWE-78",
+            "name": "ช่องโหว่ระดับวิกฤตประเภท OS Command Injection ผ่าน Web Application Endpoint",
+            "category": "Web Application",
+            "severity": "Critical",
+            "cvss": 9.8,
+            "reason": f"ตรวจพบและพิสูจน์ทราบการสั่งรันคำสั่งระบบ (Live RCE Proof) ผ่าน endpoint {rce_endpoint or 'เป้าหมาย'} สำเร็จ",
+            "host_check": "ตรวจสอบซอร์สโค้ดและ endpoint ที่เรียกใช้ฟังก์ชันระบบภายนอก (เช่น Process.Start, exec, system)",
+            "confirm_vuln": "อนุญาตให้ส่งคำสั่งระบบผ่านพารามิเตอร์โดยไม่มีการตรวจสอบสิทธิ์หรือกรองอักขระควบคุม",
+            "confirm_safe": "ยกเลิกหรือจำกัดสิทธิ์การเข้าถึง endpoint สั่งการ และปรับปรุงมาใช้ Parameterized Execution API",
+            "confidence": "Confirmed",
+            "confirmed": True,
+            "verification_status": "RCE_CONFIRMED"
+        })
         
     # 2. PHP CVE Mapping
     if is_php:
@@ -130,13 +156,13 @@ def collect_target_cves(
                 "category": "PHP",
                 "severity": "Critical",
                 "cvss": 9.8,
-                "reason": f"PHP ({php_ver}) บนระบบปฏิบัติการ Windows เสี่ยงต่อ CVE-2024-4577 ผ่านการแปลง Best-fit mapping",
+                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ส่ง directives ผ่าน PHP-CGI Argument Injection และสั่งประมวลผลโค้ดสำเร็จ" if is_cgi_rce else f"PHP ({php_ver}) บนระบบปฏิบัติการ Windows เสี่ยงต่อ CVE-2024-4577 ผ่านการแปลง Best-fit mapping",
                 "host_check": "php -v && (php -i | grep 'Server API')",
                 "confirm_vuln": "PHP < 8.2.20 / 8.3.8 บน Windows CGI/FastCGI",
                 "confirm_safe": "PHP ≥ 8.2.20 / 8.3.8 หรือย้ายไปรันบนระบบปฏิบัติการ Linux",
-                "confidence": "Confirmed" if rce_confirmed else "Likely",
-                "confirmed": bool(rce_confirmed),
-                "verification_status": "RCE_CONFIRMED" if rce_confirmed else "SUSPECTED_RISK"
+                "confidence": "Confirmed" if is_cgi_rce else "Likely",
+                "confirmed": is_cgi_rce,
+                "verification_status": "RCE_CONFIRMED" if is_cgi_rce else "SUSPECTED_RISK"
             })
         
         # CVE-2026-109618 & 109619 (PHP 8.2/8.3 UAF memory corruption)
@@ -146,7 +172,7 @@ def collect_target_cves(
                 cves.append({
                     "id": "CVE-2026-109618",
                     "cve": "CVE-2026-109618",
-                    "name": "ช่องโหว่ระดับวิกฤตประเภท Use-After-Free จากเงื่อนไข OOM Multipart Bailout บน PHP",
+                    "name": "ช่องโหว่ระดับวิกฤตประเภท Use-After-Free จากเงื่อนไข OOM Multipart Bailout บน PHP (CWE-416)",
                     "category": "PHP",
                     "severity": "Critical",
                     "cvss": 9.8,
@@ -160,7 +186,7 @@ def collect_target_cves(
                 cves.append({
                     "id": "CVE-2026-109619",
                     "cve": "CVE-2026-109619",
-                    "name": "ช่องโหว่ระดับวิกฤตประเภท Stale Global State ผ่าน Session Upload Progress บน PHP",
+                    "name": "ช่องโหว่ระดับวิกฤตประเภท Stale Global State ผ่าน Session Upload Progress บน PHP (CWE-665)",
                     "category": "PHP",
                     "severity": "Critical",
                     "cvss": 9.8,
@@ -172,22 +198,22 @@ def collect_target_cves(
                     "verification_status": "SUSPECTED_RISK"
                 })
                 
-        # CVE-2026-115560 (Session Upload Progress)
-        if has_lfi_active or rce_confirmed:
+        # CVE-2026-115560 (Session Upload Progress - CWE-98 / CWE-94)
+        if has_lfi_active or is_session_rce:
             cves.append({
                 "id": "CVE-2026-115560",
                 "cve": "CVE-2026-115560",
-                "name": "ช่องโหว่การสลับรูปแบบ Serializer ผ่าน Session Upload Progress บน PHP",
+                "name": "ช่องโหว่การสลับรูปแบบ Serializer ผ่าน Session Upload Progress (CWE-98 / CWE-94)",
                 "category": "PHP",
-                "severity": "Critical" if rce_confirmed else "Medium-High",
-                "cvss": 9.8 if rce_confirmed else 8.1,
-                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ตรวจพบ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด Canary ใน Session Upload Progress สำเร็จ" if rce_confirmed else "ตรวจพบเงื่อนไข Session Upload Progress เสี่ยงต่อการสลับ serialize_handler",
+                "severity": "Critical" if is_session_rce else "Medium-High",
+                "cvss": 9.8 if is_session_rce else 8.1,
+                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ตรวจพบ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด Canary ใน Session Upload Progress สำเร็จ" if is_session_rce else "ตรวจพบเงื่อนไข Session Upload Progress เสี่ยงต่อการสลับ serialize_handler",
                 "host_check": "php -i | grep -E 'session.serialize_handler|session.upload_progress'",
-                "confirm_vuln": "แอปสลับ serialize_handler ข้ามรูปแบบตอน runtime",
-                "confirm_safe": "session.upload_progress.enabled = Off",
-                "confirmed": bool(rce_confirmed),
-                "confidence": "Confirmed" if rce_confirmed else "Conditional",
-                "verification_status": "RCE_CONFIRMED" if rce_confirmed else "PRECONDITION_IDENTIFIED"
+                "confirm_vuln": "แอปสลับ serialize_handler ข้ามรูปแบบตอน runtime หรือเปิดรับ LFI parameter สู่ session directory",
+                "confirm_safe": "session.upload_progress.enabled = Off หรือปิดการเข้าถึง Local File Inclusion",
+                "confirmed": is_session_rce,
+                "confidence": "Confirmed" if is_session_rce else "Conditional",
+                "verification_status": "RCE_CONFIRMED" if is_session_rce else "PRECONDITION_IDENTIFIED"
             })
             
         # CVE-2019-11043 (PHP-FPM underflow)
@@ -195,7 +221,7 @@ def collect_target_cves(
             cves.append({
                 "id": "CVE-2019-11043",
                 "cve": "CVE-2019-11043",
-                "name": "ช่องโหว่ระดับวิกฤตประเภท Buffer Underflow บน PHP-FPM FastCGI ร่วมกับ NGINX",
+                "name": "ช่องโหว่ระดับวิกฤตประเภท Buffer Underflow บน PHP-FPM FastCGI ร่วมกับ NGINX (CWE-124)",
                 "category": "PHP",
                 "severity": "Critical",
                 "cvss": 9.8,
@@ -213,7 +239,7 @@ def collect_target_cves(
             cves.append({
                 "id": "CVE-2026-111497",
                 "cve": "CVE-2026-111497",
-                "name": "ช่องโหว่การประมวลผล Brotli Decoder บนสภาพแวดล้อม Node.js",
+                "name": "ช่องโหว่การประมวลผล Brotli Decoder บนสภาพแวดล้อม Node.js (CWE-20 / Node2Shell)",
                 "alias": "Node2Shell",
                 "category": "Node.js",
                 "severity": "High",
@@ -229,7 +255,7 @@ def collect_target_cves(
             cves.append({
                 "id": "CVE-2026-105482",
                 "cve": "CVE-2026-105482",
-                "name": "Node.js DNS NUL Domain Validation Bypass",
+                "name": "Node.js DNS NUL Domain Validation Bypass (CWE-20)",
                 "category": "Node.js",
                 "severity": "High",
                 "cvss": 7.5,
@@ -241,7 +267,7 @@ def collect_target_cves(
             cves.append({
                 "id": "CVE-2026-105483",
                 "cve": "CVE-2026-105483",
-                "name": "Node.js TLS Cert Validation (Unicode IP)",
+                "name": "Node.js TLS Cert Validation (Unicode IP / CWE-295)",
                 "category": "Node.js",
                 "severity": "High",
                 "cvss": 7.5,
