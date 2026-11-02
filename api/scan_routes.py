@@ -455,11 +455,21 @@ def verify_rce_route():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
+TOP_100_WIDE_PORTS = [
+    80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 8081, 18080, 9000, 8088, 5050,
+    8880, 9090, 8008, 8082, 8083, 8084, 8085, 8086, 8087, 8089, 8090, 8181, 8282, 8383, 8881,
+    8882, 8889, 9001, 9002, 9080, 9443, 10000, 18081, 28080, 3001, 3002, 4200, 5001, 7000, 7001,
+    7070, 7443, 9999, 81, 82, 83, 84, 85, 88, 8001, 8002, 8003, 8004, 8005, 8006, 8007, 8009,
+    8010, 8099, 8100, 8200, 8300, 8400, 8500, 8600, 8700, 8800, 8900, 9005, 9010, 9020, 9030,
+    9050, 9081, 9091, 9200, 9300, 9400, 9500, 9600, 9700, 9800, 9900, 10001, 10080, 11000, 12000,
+    13000, 14000, 15000, 16000, 17000, 19000, 20000, 25000, 30000
+]
+
+
 @scan_bp.route("/api/scan", methods=["POST"])
 def scan():
     data = request.json or {}
     subnet_str = data.get("subnet", "").strip()
-    concurrency = min(max(int(data.get("concurrency", 120)), 20), 200)
     custom_ports = data.get("ports", None)
     allow_active_rce = bool(data.get("allow_active_rce", False))
     i_own_this_target = bool(data.get("i_own_this_target", False))
@@ -469,6 +479,19 @@ def scan():
     net_info = get_host_network_info()
     from core.profile_db import get_active_profile
     active_profile = get_active_profile()
+
+    if "concurrency" in data and data["concurrency"]:
+        try:
+            concurrency = min(max(int(data["concurrency"]), 10), 200)
+        except (ValueError, TypeError):
+            concurrency = 60
+    elif active_profile and active_profile.get("concurrency"):
+        try:
+            concurrency = min(max(int(active_profile["concurrency"]), 10), 200)
+        except (ValueError, TypeError):
+            concurrency = 60
+    else:
+        concurrency = 60
 
     if not subnet_str and active_profile and active_profile.get("network_target"):
         subnet_str = active_profile["network_target"].strip()
@@ -501,6 +524,17 @@ def scan():
             except (ValueError, TypeError):
                 continue
         ports = valid_ports if valid_ports else [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
+    elif active_profile and active_profile.get("port_mode") == "wide":
+        ports = TOP_100_WIDE_PORTS
+    elif active_profile and active_profile.get("port_mode") == "custom" and active_profile.get("custom_ports"):
+        parsed_ports = []
+        for p_item in str(active_profile.get("custom_ports", "")).split(","):
+            p_item = p_item.strip()
+            if p_item.isdigit():
+                val = int(p_item)
+                if 1 <= val <= 65535 and val not in parsed_ports:
+                    parsed_ports.append(val)
+        ports = parsed_ports if parsed_ports else [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
     else:
         ports = [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
 

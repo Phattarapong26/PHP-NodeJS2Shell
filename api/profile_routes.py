@@ -121,6 +121,8 @@ def edit_profile(profile_id: int):
     custom_ports = data.get("custom_ports")
     scope_preset = data.get("scope_preset")
     is_active = data.get("is_active")
+    if is_active is None and "set_active" in data:
+        is_active = 1 if data.get("set_active") else 0
 
     try:
         updated = update_profile(

@@ -1631,9 +1631,9 @@ Content-Type: text/html; charset=UTF-8</div>
             />
             <div class="flex items-center gap-2">
               <span class="text-[10px] text-slate-400">ทางลัด CIDR:</span>
-              <button type="button" class="cidr-preset-btn px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer" data-cidr="24">/24 (254 Hosts)</button>
-              <button type="button" class="cidr-preset-btn px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer" data-cidr="28">/28 (14 Hosts)</button>
-              <button type="button" class="cidr-preset-btn px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer" data-cidr="32">/32 (เครื่องเดียว)</button>
+              <button type="button" id="btnCidr24" class="cidr-preset-btn px-2.5 py-0.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer transition-all" data-cidr="24">/24 (254 Hosts)</button>
+              <button type="button" id="btnCidr28" class="cidr-preset-btn px-2.5 py-0.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer transition-all" data-cidr="28">/28 (14 Hosts)</button>
+              <button type="button" id="btnCidr32" class="cidr-preset-btn px-2.5 py-0.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer transition-all" data-cidr="32">/32 (เครื่องเดียว)</button>
             </div>
             <!-- VPN Reminder inside form -->
             <div class="p-2 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 text-[10.5px] flex items-start gap-1.5">
@@ -1650,9 +1650,9 @@ Content-Type: text/html; charset=UTF-8</div>
                 <span>กำหนดความเร็วการสแกน (Speed & Concurrency)</span>
               </label>
               <div class="flex items-center gap-1.5">
-                <button type="button" id="btnPresetSpeedStealth" class="px-2 py-0.5 rounded-lg neu-pill-btn text-[10px] font-semibold text-slate-600 cursor-pointer">Stealth (20 reqs)</button>
-                <button type="button" id="btnPresetSpeedBalanced" class="px-2 py-0.5 rounded-lg neu-pill-btn active text-[10px] font-semibold text-blue-700 cursor-pointer">มาตรฐาน (60 reqs)</button>
-                <button type="button" id="btnPresetSpeedTurbo" class="px-2 py-0.5 rounded-lg neu-pill-btn text-[10px] font-semibold text-slate-600 cursor-pointer">Turbo (120 reqs)</button>
+                <button type="button" id="btnPresetSpeedStealth" class="speed-preset-btn px-2.5 py-1 rounded-lg border text-[10px] font-semibold text-slate-600 bg-white hover:bg-slate-50 border-slate-200 cursor-pointer transition-all">Stealth (20 reqs)</button>
+                <button type="button" id="btnPresetSpeedBalanced" class="speed-preset-btn px-2.5 py-1 rounded-lg border text-[10px] font-bold text-blue-700 bg-blue-100 border-blue-400 shadow-inner cursor-pointer transition-all">มาตรฐาน (60 reqs)</button>
+                <button type="button" id="btnPresetSpeedTurbo" class="speed-preset-btn px-2.5 py-1 rounded-lg border text-[10px] font-semibold text-slate-600 bg-white hover:bg-slate-50 border-slate-200 cursor-pointer transition-all">Turbo (120 reqs)</button>
               </div>
             </div>
 
@@ -1695,7 +1695,7 @@ Content-Type: text/html; charset=UTF-8</div>
             <!-- User-Agent Selection -->
             <div>
               <label class="block font-semibold text-slate-700 mb-1 text-[11px]">เลือก User-Agent ในการสแกน:</label>
-              <select id="profileFormUaPreset" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white font-medium text-xs">
+              <select id="profileFormUaPreset" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white font-medium text-xs cursor-pointer">
                 <option value="chrome">🌐 Google Chrome บน Windows 10 (Mozilla/5.0 Windows NT 10.0...)</option>
                 <option value="edge">🌐 Microsoft Edge (Edg/124.0...)</option>
                 <option value="safari">🍏 Safari บน Apple macOS</option>
@@ -1709,7 +1709,7 @@ Content-Type: text/html; charset=UTF-8</div>
                   id="profileFormCustomUa" 
                   type="text" 
                   placeholder="ระบุ User-Agent string แบบกำหนดเอง..." 
-                  class="w-full px-3 py-1.5 rounded-xl border border-indigo-300 font-mono text-[11px] bg-white"
+                  class="w-full px-3 py-1.5 rounded-xl border border-indigo-300 font-mono text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -1719,9 +1719,10 @@ Content-Type: text/html; charset=UTF-8</div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block font-semibold text-slate-700 text-[11px]">Custom Request Headers (คั่นด้วยบรรทัดใหม่):</label>
                 <div class="flex items-center gap-1">
-                  <button type="button" id="btnHeaderPresetXff" class="px-2 py-0.5 rounded bg-white hover:bg-indigo-50 text-indigo-700 font-mono text-[9.5px] border border-indigo-200 cursor-pointer">+ X-Forwarded-For</button>
-                  <button type="button" id="btnHeaderPresetRef" class="px-2 py-0.5 rounded bg-white hover:bg-indigo-50 text-indigo-700 font-mono text-[9.5px] border border-indigo-200 cursor-pointer">+ Internal Referer</button>
-                  <button type="button" id="btnHeaderPresetProxy" class="px-2 py-0.5 rounded bg-white hover:bg-indigo-50 text-indigo-700 font-mono text-[9.5px] border border-indigo-200 cursor-pointer">+ Bypass Proxy</button>
+                  <button type="button" id="btnHeaderPresetXff" class="px-2 py-0.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 font-mono text-[9.5px] border border-indigo-200 cursor-pointer transition shadow-xs">+ X-Forwarded-For</button>
+                  <button type="button" id="btnHeaderPresetRef" class="px-2 py-0.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 font-mono text-[9.5px] border border-indigo-200 cursor-pointer transition shadow-xs">+ Internal Referer</button>
+                  <button type="button" id="btnHeaderPresetProxy" class="px-2 py-0.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 font-mono text-[9.5px] border border-indigo-200 cursor-pointer transition shadow-xs">+ Bypass Proxy</button>
+                  <button type="button" id="btnClearCustomHeaders" class="px-2 py-0.5 rounded-lg bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 font-mono text-[9.5px] border border-slate-200 cursor-pointer transition" title="ล้าง Headers ทั้งหมด"><i class="ph-bold ph-trash"></i> ล้าง</button>
                 </div>
               </div>
               <textarea 
@@ -1741,24 +1742,24 @@ Content-Type: text/html; charset=UTF-8</div>
               <span>รูปแบบพอร์ตการตรวจสอบ (Port Mode)</span>
             </label>
             <div class="grid grid-cols-3 gap-2">
-              <label class="flex flex-col p-2.5 rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition bg-white">
+              <label id="cardPortStandard" data-port-mode="standard" class="port-mode-card flex flex-col p-2.5 rounded-xl border border-blue-500 bg-blue-50/70 shadow-xs cursor-pointer transition ring-1 ring-blue-400/40">
                 <div class="flex items-center gap-1.5 mb-1">
-                  <input type="radio" name="profile_port_mode" value="standard" checked class="accent-blue-600">
-                  <span class="font-bold text-slate-800 text-[11px]">มาตรฐาน Dev</span>
+                  <input type="radio" name="profile_port_mode" value="standard" checked class="accent-blue-600 cursor-pointer">
+                  <span class="font-bold text-blue-900 text-[11px] port-card-title">มาตรฐาน Dev</span>
                 </div>
-                <span class="text-[10px] text-slate-400">23 พอร์ตยอดนิยม (80, 443, 8080, 8000, 3000, ฯลฯ)</span>
+                <span class="text-[10px] text-slate-500">23 พอร์ตยอดนิยม (80, 443, 8080, 8000, 3000, ฯลฯ)</span>
               </label>
-              <label class="flex flex-col p-2.5 rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition bg-white">
+              <label id="cardPortWide" data-port-mode="wide" class="port-mode-card flex flex-col p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-300 cursor-pointer transition">
                 <div class="flex items-center gap-1.5 mb-1">
-                  <input type="radio" name="profile_port_mode" value="wide" class="accent-blue-600">
-                  <span class="font-bold text-slate-800 text-[11px]">สแกนกว้าง (Wide)</span>
+                  <input type="radio" name="profile_port_mode" value="wide" class="accent-blue-600 cursor-pointer">
+                  <span class="font-semibold text-slate-700 text-[11px] port-card-title">สแกนกว้าง (Wide)</span>
                 </div>
                 <span class="text-[10px] text-slate-400">Top 100 พอร์ตบริการทั่วไป</span>
               </label>
-              <label class="flex flex-col p-2.5 rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition bg-white">
+              <label id="cardPortCustom" data-port-mode="custom" class="port-mode-card flex flex-col p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-300 cursor-pointer transition">
                 <div class="flex items-center gap-1.5 mb-1">
-                  <input type="radio" name="profile_port_mode" value="custom" class="accent-blue-600">
-                  <span class="font-bold text-slate-800 text-[11px]">กำหนดเอง (Custom)</span>
+                  <input type="radio" name="profile_port_mode" value="custom" class="accent-blue-600 cursor-pointer">
+                  <span class="font-semibold text-slate-700 text-[11px] port-card-title">กำหนดเอง (Custom)</span>
                 </div>
                 <span class="text-[10px] text-slate-400">ระบุหมายเลขพอร์ตเฉพาะ</span>
               </label>
@@ -1768,7 +1769,7 @@ Content-Type: text/html; charset=UTF-8</div>
                 id="profileFormCustomPorts" 
                 type="text" 
                 placeholder="ระบุพอร์ต เช่น 80, 443, 8080, 9000, 18080" 
-                class="w-full px-3 py-1.5 rounded-xl border border-slate-300 font-mono text-xs bg-white"
+                class="w-full px-3 py-1.5 rounded-xl border border-slate-300 font-mono text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -1780,21 +1781,21 @@ Content-Type: text/html; charset=UTF-8</div>
               <span>ขอบเขตการประเมิน (ThaiCERT Enterprise Scope)</span>
             </label>
             <div class="grid grid-cols-2 gap-2 text-[11px]">
-              <label class="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 cursor-pointer">
-                <input type="radio" name="profile_scope_preset" value="all" checked class="accent-indigo-600">
-                <span class="font-semibold text-slate-800">🌟 ครบทั้ง 8 กลุ่มระบบ</span>
+              <label id="cardScopeAll" data-scope-preset="all" class="scope-preset-card flex items-center gap-2 p-2 rounded-xl border border-indigo-500 bg-indigo-50/70 ring-1 ring-indigo-400/40 text-indigo-950 font-bold cursor-pointer transition shadow-xs">
+                <input type="radio" name="profile_scope_preset" value="all" checked class="accent-indigo-600 cursor-pointer">
+                <span>🌟 ครบทั้ง 8 กลุ่มระบบ</span>
               </label>
-              <label class="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 cursor-pointer">
-                <input type="radio" name="profile_scope_preset" value="windows" class="accent-indigo-600">
-                <span class="font-semibold text-slate-800">🪟 เน้นกลุ่ม 6: Windows IIS/PHP</span>
+              <label id="cardScopeWindows" data-scope-preset="windows" class="scope-preset-card flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 text-slate-700 font-medium cursor-pointer transition">
+                <input type="radio" name="profile_scope_preset" value="windows" class="accent-indigo-600 cursor-pointer">
+                <span>🪟 เน้นกลุ่ม 6: Windows IIS/PHP</span>
               </label>
-              <label class="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 cursor-pointer">
-                <input type="radio" name="profile_scope_preset" value="web_api" class="accent-indigo-600">
-                <span class="font-semibold text-slate-800">🌐 เน้นกลุ่ม 1 & 2: Web & API</span>
+              <label id="cardScopeWebApi" data-scope-preset="web_api" class="scope-preset-card flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 text-slate-700 font-medium cursor-pointer transition">
+                <input type="radio" name="profile_scope_preset" value="web_api" class="accent-indigo-600 cursor-pointer">
+                <span>🌐 เน้นกลุ่ม 1 & 2: Web & API</span>
               </label>
-              <label class="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 cursor-pointer">
-                <input type="radio" name="profile_scope_preset" value="dev_shadow" class="accent-indigo-600">
-                <span class="font-semibold text-slate-800">🕒 เน้นกลุ่ม 7: Dev/Shadow IT</span>
+              <label id="cardScopeDevShadow" data-scope-preset="dev_shadow" class="scope-preset-card flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 text-slate-700 font-medium cursor-pointer transition">
+                <input type="radio" name="profile_scope_preset" value="dev_shadow" class="accent-indigo-600 cursor-pointer">
+                <span>🕒 เน้นกลุ่ม 7: Dev/Shadow IT</span>
               </label>
             </div>
           </div>
@@ -2547,7 +2548,10 @@ Content-Type: text/html; charset=UTF-8</div>
               ports: appState.selectedPorts || null,
               allow_active_rce: Boolean(appState.allowActiveRce),
               i_own_this_target: Boolean(appState.allowActiveRce),
-              consent_phrase: appState.allowActiveRce ? "I_CONFIRM_TARGET_OWNERSHIP" : ""
+              consent_phrase: appState.allowActiveRce ? "I_CONFIRM_TARGET_OWNERSHIP" : "",
+              user_agent: appState.customUserAgent || (appState.activeProfile ? appState.activeProfile.user_agent : null),
+              custom_headers: appState.customHeaders || (appState.activeProfile ? appState.activeProfile.custom_headers : null),
+              timeout: appState.scanTimeout || (appState.activeProfile ? appState.activeProfile.timeout : 2.2)
             }),
             signal: currentScanAbortController.signal
           });
@@ -5852,8 +5856,12 @@ ${data.c_patch_directive}
         const data = await res.json();
         if (data.status === 'ok') {
           appState.profilesList = data.profiles || [];
-          appState.activeProfile = data.active_profile || null;
-          updateHeaderProfileUI();
+          if (data.active_profile) {
+            syncProfileToAppState(data.active_profile);
+          } else {
+            appState.activeProfile = null;
+            updateHeaderProfileUI();
+          }
           renderProfileList();
         }
       } catch (err) {
@@ -5971,8 +5979,7 @@ ${data.c_patch_directive}
         const res = await fetch(`/api/profiles/${profileId}/select`, { method: 'POST' });
         const data = await res.json();
         if (data.status === 'ok') {
-          appState.activeProfile = data.active_profile;
-          updateHeaderProfileUI();
+          syncProfileToAppState(data.active_profile);
           renderProfileList();
           showToast(`เลือกใช้งาน Profile: ${data.active_profile.title}`);
           closeProfileDrawer();
@@ -6274,6 +6281,221 @@ ${data.c_patch_directive}
       }
     }
 
+    // ==========================================
+    // COMPREHENSIVE PROFILE FORM CONTROLS & SYNC
+    // ==========================================
+
+    function syncProfileToAppState(profile) {
+      if (!profile) return;
+      appState.activeProfile = profile;
+
+      // 1. Target Subnet Sync
+      if (profile.network_target && profile.network_target.trim()) {
+        const net = profile.network_target.trim();
+        appState.subnet = net;
+        if (mainSubnetInput) {
+          mainSubnetInput.value = net;
+        }
+        if (typeof recalculateSubnet === 'function') {
+          recalculateSubnet(net);
+        }
+      }
+
+      // 2. Concurrency & Timeout
+      if (profile.concurrency) {
+        appState.concurrency = parseInt(profile.concurrency, 10);
+      }
+      if (profile.timeout) {
+        appState.scanTimeout = parseFloat(profile.timeout);
+      }
+
+      // 3. Port Mode & Port List
+      const pMode = profile.port_mode || 'standard';
+      appState.portMode = pMode;
+      if (pMode === 'standard') {
+        appState.selectedPorts = [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 18080, 9000, 5050, 8880, 9090];
+      } else if (pMode === 'wide') {
+        appState.selectedPorts = WIDE_PORTS_COLLECTION.slice(0, 100);
+      } else if (pMode === 'custom') {
+        const customStr = profile.custom_ports || '';
+        const parsed = customStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= 65535);
+        appState.selectedPorts = parsed.length > 0 ? parsed : [80, 443, 8080, 8000, 18080];
+      }
+
+      const portCountBadge = document.getElementById('portCountBadge');
+      if (portCountBadge && appState.selectedPorts) {
+        portCountBadge.textContent = `${appState.selectedPorts.length} พอร์ตที่เลือก`;
+      }
+
+      // 4. Scope Preset
+      appState.scopePreset = profile.scope_preset || 'all';
+
+      // 5. User-Agent & Custom Headers
+      appState.customUserAgent = profile.user_agent || UA_PRESETS.chrome;
+      appState.customHeaders = profile.custom_headers || '';
+
+      // 6. Header Profile UI
+      updateHeaderProfileUI();
+    }
+
+    function applySpeedPreset(preset) {
+      const btnStealth = document.getElementById('btnPresetSpeedStealth');
+      const btnBalanced = document.getElementById('btnPresetSpeedBalanced');
+      const btnTurbo = document.getElementById('btnPresetSpeedTurbo');
+
+      const presets = {
+        stealth: { el: btnStealth, conc: 20, tout: 5.0 },
+        balanced: { el: btnBalanced, conc: 60, tout: 2.2 },
+        turbo: { el: btnTurbo, conc: 120, tout: 1.2 }
+      };
+
+      Object.entries(presets).forEach(([key, cfg]) => {
+        if (!cfg.el) return;
+        if (key === preset) {
+          cfg.el.className = "speed-preset-btn px-2.5 py-1 rounded-lg border text-[10px] font-bold text-blue-700 bg-blue-100 border-blue-400 shadow-inner cursor-pointer transition-all";
+          if (profileFormConcurrency) {
+            profileFormConcurrency.value = cfg.conc;
+            if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = `${cfg.conc} workers`;
+          }
+          if (profileFormTimeout) {
+            profileFormTimeout.value = cfg.tout;
+            if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = `${cfg.tout.toFixed(1)}s`;
+          }
+        } else {
+          cfg.el.className = "speed-preset-btn px-2.5 py-1 rounded-lg border text-[10px] font-semibold text-slate-600 bg-white hover:bg-slate-50 border-slate-200 cursor-pointer transition-all";
+        }
+      });
+
+      if (preset === 'custom') {
+        Object.values(presets).forEach(cfg => {
+          if (cfg.el) {
+            cfg.el.className = "speed-preset-btn px-2.5 py-1 rounded-lg border text-[10px] font-semibold text-slate-600 bg-white hover:bg-slate-50 border-slate-200 cursor-pointer transition-all";
+          }
+        });
+      }
+    }
+
+    function checkSpeedPresetMatch() {
+      if (!profileFormConcurrency || !profileFormTimeout) return;
+      const conc = parseInt(profileFormConcurrency.value, 10);
+      const tout = parseFloat(profileFormTimeout.value);
+      if (conc === 20 && Math.abs(tout - 5.0) < 0.2) {
+        applySpeedPreset('stealth');
+      } else if (conc === 60 && Math.abs(tout - 2.2) < 0.2) {
+        applySpeedPreset('balanced');
+      } else if (conc === 120 && Math.abs(tout - 1.2) < 0.2) {
+        applySpeedPreset('turbo');
+      } else {
+        applySpeedPreset('custom');
+      }
+    }
+
+    function applyPortMode(mode) {
+      const radio = document.querySelector(`input[name="profile_port_mode"][value="${mode}"]`);
+      if (radio) radio.checked = true;
+
+      document.querySelectorAll('.port-mode-card').forEach(card => {
+        const cardMode = card.getAttribute('data-port-mode');
+        const titleSpan = card.querySelector('.port-card-title') || card.querySelector('span');
+        if (cardMode === mode) {
+          card.className = "port-mode-card flex flex-col p-2.5 rounded-xl border border-blue-500 bg-blue-50/70 shadow-xs cursor-pointer transition ring-1 ring-blue-400/40";
+          if (titleSpan) {
+            titleSpan.className = "font-bold text-blue-900 text-[11px] port-card-title";
+          }
+        } else {
+          card.className = "port-mode-card flex flex-col p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-300 cursor-pointer transition";
+          if (titleSpan) {
+            titleSpan.className = "font-semibold text-slate-700 text-[11px] port-card-title";
+          }
+        }
+      });
+
+      if (profileFormCustomPortsWrapper) {
+        if (mode === 'custom') {
+          profileFormCustomPortsWrapper.classList.remove('hidden');
+          if (profileFormCustomPorts && !profileFormCustomPorts.value.trim()) {
+            profileFormCustomPorts.value = "80, 443, 8080, 8000, 18080";
+          }
+          if (profileFormCustomPorts) profileFormCustomPorts.focus();
+        } else {
+          profileFormCustomPortsWrapper.classList.add('hidden');
+        }
+      }
+    }
+
+    function applyScopePreset(scope) {
+      const radio = document.querySelector(`input[name="profile_scope_preset"][value="${scope}"]`);
+      if (radio) radio.checked = true;
+
+      document.querySelectorAll('.scope-preset-card').forEach(card => {
+        const cardScope = card.getAttribute('data-scope-preset');
+        if (cardScope === scope) {
+          card.className = "scope-preset-card flex items-center gap-2 p-2 rounded-xl border border-indigo-500 bg-indigo-50/70 ring-1 ring-indigo-400/40 text-indigo-950 font-bold cursor-pointer transition shadow-xs";
+        } else {
+          card.className = "scope-preset-card flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 text-slate-700 font-medium cursor-pointer transition";
+        }
+      });
+    }
+
+    function applyCidrPreset(cidr) {
+      if (!profileFormNetwork) return;
+      let raw = profileFormNetwork.value.trim();
+      if (!raw) {
+        raw = appState.subnet || appState.hostIp || '192.168.1.0';
+      }
+      let baseIp = raw.replace(/\/\d+$/, '').trim();
+      if (baseIp.includes(':')) {
+        baseIp = baseIp.split(':')[0];
+      }
+      const parts = baseIp.split('.');
+      let result = `${baseIp}/${cidr}`;
+      if (parts.length === 4 && parts.every(p => !isNaN(parseInt(p, 10)))) {
+        if (cidr === '24') {
+          parts[3] = '0';
+          result = `${parts.join('.')}/24`;
+        } else if (cidr === '28') {
+          const fourth = parseInt(parts[3], 10) || 0;
+          const block = Math.floor(fourth / 16) * 16;
+          parts[3] = block.toString();
+          result = `${parts.join('.')}/28`;
+        } else if (cidr === '32') {
+          result = `${parts.join('.')}/32`;
+        }
+      }
+      profileFormNetwork.value = result;
+
+      document.querySelectorAll('.cidr-preset-btn').forEach(btn => {
+        const c = btn.getAttribute('data-cidr');
+        if (c === cidr) {
+          btn.className = "cidr-preset-btn px-2.5 py-0.5 rounded-lg border border-blue-400 bg-blue-100 text-blue-800 font-mono text-[10px] font-bold shadow-xs cursor-pointer transition-all";
+        } else {
+          btn.className = "cidr-preset-btn px-2.5 py-0.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer transition-all";
+        }
+      });
+    }
+
+    function appendCustomHeader(line) {
+      if (!profileFormCustomHeaders) return;
+      const current = profileFormCustomHeaders.value.trim();
+      const headerKey = line.split(':')[0].trim();
+      if (!current) {
+        profileFormCustomHeaders.value = line;
+        showToast(`เพิ่ม Header: ${headerKey} เรียบร้อย`);
+      } else if (current.toLowerCase().includes(headerKey.toLowerCase() + ':')) {
+        showToast(`มี Header "${headerKey}" อยู่ในรายการแล้ว`);
+      } else {
+        profileFormCustomHeaders.value = current + '\n' + line;
+        showToast(`เพิ่ม Header: ${headerKey} เรียบร้อย`);
+      }
+    }
+
+    function clearCustomHeaders() {
+      if (profileFormCustomHeaders) {
+        profileFormCustomHeaders.value = '';
+        showToast("ล้าง Custom Headers เรียบร้อย");
+      }
+    }
+
     function handleOpenCreateProfile() {
       try {
         if (profileFormHeading) profileFormHeading.textContent = "เพิ่ม Profile การสแกน";
@@ -6282,29 +6504,32 @@ ${data.c_patch_directive}
         if (profileFormNetwork) profileFormNetwork.value = appState.subnet || "";
         if (profileFormDesc) profileFormDesc.value = "";
         
-        // Defaults
-        if (profileFormConcurrency) {
-          profileFormConcurrency.value = 60;
-          if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = "60 workers";
-        }
-        if (profileFormTimeout) {
-          profileFormTimeout.value = 2.2;
-          if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = "2.2s";
-        }
+        // Speed
+        applySpeedPreset('balanced');
+
+        // User-Agent
         if (profileFormUaPreset) profileFormUaPreset.value = "chrome";
         if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.add('hidden');
         if (profileFormCustomUa) profileFormCustomUa.value = "";
+
+        // Headers
         if (profileFormCustomHeaders) profileFormCustomHeaders.value = "";
-        
-        const portModeStd = document.querySelector('input[name="profile_port_mode"][value="standard"]');
-        if (portModeStd) portModeStd.checked = true;
-        if (profileFormCustomPortsWrapper) profileFormCustomPortsWrapper.classList.add('hidden');
+
+        // Port Mode
+        applyPortMode('standard');
         if (profileFormCustomPorts) profileFormCustomPorts.value = "";
 
-        const scopeAll = document.querySelector('input[name="profile_scope_preset"][value="all"]');
-        if (scopeAll) scopeAll.checked = true;
+        // Scope
+        applyScopePreset('all');
 
+        // Active Toggle
         if (profileFormSetActive) profileFormSetActive.checked = true;
+
+        // CIDR active highlight check
+        if (profileFormNetwork && profileFormNetwork.value) {
+          const match = profileFormNetwork.value.match(/\/(\d+)$/);
+          if (match) applyCidrPreset(match[1]);
+        }
 
         openProfileFormModal();
       } catch (err) {
@@ -6325,15 +6550,16 @@ ${data.c_patch_directive}
 
         // Speed
         const conc = p.concurrency || 60;
+        const tout = p.timeout || 2.2;
         if (profileFormConcurrency) {
           profileFormConcurrency.value = conc;
           if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = `${conc} workers`;
         }
-        const tout = p.timeout || 2.2;
         if (profileFormTimeout) {
           profileFormTimeout.value = tout;
           if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = `${tout}s`;
         }
+        checkSpeedPresetMatch();
 
         // User-Agent
         const uaKey = getUaKeyFromString(p.user_agent);
@@ -6351,21 +6577,18 @@ ${data.c_patch_directive}
 
         // Port Mode
         const pMode = p.port_mode || 'standard';
-        const rPort = document.querySelector(`input[name="profile_port_mode"][value="${pMode}"]`);
-        if (rPort) rPort.checked = true;
-        if (profileFormCustomPortsWrapper) {
-          if (pMode === 'custom') {
-            profileFormCustomPortsWrapper.classList.remove('hidden');
-          } else {
-            profileFormCustomPortsWrapper.classList.add('hidden');
-          }
-        }
+        applyPortMode(pMode);
         if (profileFormCustomPorts) profileFormCustomPorts.value = p.custom_ports || "";
 
         // Scope
         const sMode = p.scope_preset || 'all';
-        const rScope = document.querySelector(`input[name="profile_scope_preset"][value="${sMode}"]`);
-        if (rScope) rScope.checked = true;
+        applyScopePreset(sMode);
+
+        // CIDR Highlight
+        if (p.network_target) {
+          const match = p.network_target.match(/\/(\d+)$/);
+          if (match) applyCidrPreset(match[1]);
+        }
 
         if (profileFormSetActive) profileFormSetActive.checked = Boolean(p.is_active);
         openProfileFormModal();
@@ -6455,6 +6678,9 @@ ${data.c_patch_directive}
           showToast(data.message || 'บันทึก Profile เรียบร้อย');
           closeProfileFormModal();
           await loadProfiles();
+          if (set_active && data.profile) {
+            syncProfileToAppState(data.profile);
+          }
           if (pid) {
             await openProfileDetailDrawer(pid);
           }
@@ -6472,6 +6698,7 @@ ${data.c_patch_directive}
         if (profileFormConcurrencyDisplay) {
           profileFormConcurrencyDisplay.textContent = `${profileFormConcurrency.value} workers`;
         }
+        checkSpeedPresetMatch();
       });
     }
 
@@ -6480,6 +6707,7 @@ ${data.c_patch_directive}
         if (profileFormTimeoutDisplay) {
           profileFormTimeoutDisplay.textContent = `${parseFloat(profileFormTimeout.value).toFixed(1)}s`;
         }
+        checkSpeedPresetMatch();
       });
     }
 
@@ -6488,50 +6716,30 @@ ${data.c_patch_directive}
     const btnPresetSpeedTurbo = document.getElementById('btnPresetSpeedTurbo');
 
     if (btnPresetSpeedStealth) {
-      btnPresetSpeedStealth.addEventListener('click', () => {
-        if (profileFormConcurrency) {
-          profileFormConcurrency.value = 20;
-          if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = "20 workers";
-        }
-        if (profileFormTimeout) {
-          profileFormTimeout.value = 5.0;
-          if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = "5.0s";
-        }
-      });
+      btnPresetSpeedStealth.addEventListener('click', () => applySpeedPreset('stealth'));
     }
-
     if (btnPresetSpeedBalanced) {
-      btnPresetSpeedBalanced.addEventListener('click', () => {
-        if (profileFormConcurrency) {
-          profileFormConcurrency.value = 60;
-          if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = "60 workers";
-        }
-        if (profileFormTimeout) {
-          profileFormTimeout.value = 2.2;
-          if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = "2.2s";
-        }
-      });
+      btnPresetSpeedBalanced.addEventListener('click', () => applySpeedPreset('balanced'));
     }
-
     if (btnPresetSpeedTurbo) {
-      btnPresetSpeedTurbo.addEventListener('click', () => {
-        if (profileFormConcurrency) {
-          profileFormConcurrency.value = 120;
-          if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = "120 workers";
-        }
-        if (profileFormTimeout) {
-          profileFormTimeout.value = 1.5;
-          if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = "1.5s";
-        }
-      });
+      btnPresetSpeedTurbo.addEventListener('click', () => applySpeedPreset('turbo'));
     }
 
     if (profileFormUaPreset) {
       profileFormUaPreset.addEventListener('change', () => {
         if (profileFormUaPreset.value === 'custom') {
-          if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.remove('hidden');
+          if (profileFormCustomUaWrapper) {
+            profileFormCustomUaWrapper.classList.remove('hidden');
+            if (profileFormCustomUa && !profileFormCustomUa.value) {
+              profileFormCustomUa.value = UA_PRESETS.chrome;
+            }
+            if (profileFormCustomUa) profileFormCustomUa.focus();
+          }
         } else {
           if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.add('hidden');
+          if (profileFormCustomUa) {
+            profileFormCustomUa.value = UA_PRESETS[profileFormUaPreset.value] || "";
+          }
         }
       });
     }
@@ -6540,16 +6748,7 @@ ${data.c_patch_directive}
     const btnHeaderPresetXff = document.getElementById('btnHeaderPresetXff');
     const btnHeaderPresetRef = document.getElementById('btnHeaderPresetRef');
     const btnHeaderPresetProxy = document.getElementById('btnHeaderPresetProxy');
-
-    function appendCustomHeader(line) {
-      if (!profileFormCustomHeaders) return;
-      const current = profileFormCustomHeaders.value.trim();
-      if (!current) {
-        profileFormCustomHeaders.value = line;
-      } else if (!current.includes(line.split(':')[0])) {
-        profileFormCustomHeaders.value = current + '\n' + line;
-      }
-    }
+    const btnClearCustomHeaders = document.getElementById('btnClearCustomHeaders');
 
     if (btnHeaderPresetXff) {
       btnHeaderPresetXff.addEventListener('click', () => appendCustomHeader('X-Forwarded-For: 127.0.0.1'));
@@ -6563,39 +6762,67 @@ ${data.c_patch_directive}
         appendCustomHeader('X-Originating-IP: 127.0.0.1');
       });
     }
+    if (btnClearCustomHeaders) {
+      btnClearCustomHeaders.addEventListener('click', clearCustomHeaders);
+    }
 
     // CIDR Presets in Profile Form
     document.querySelectorAll('.cidr-preset-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const cidr = btn.getAttribute('data-cidr');
-        if (!profileFormNetwork) return;
-        let baseIp = appState.subnet ? appState.subnet.split('/')[0] : (appState.hostIp || '192.168.1.0');
-        const parts = baseIp.split('.');
-        if (parts.length === 4) {
-          if (cidr === '24') parts[3] = '0';
-          profileFormNetwork.value = `${parts.join('.')}/${cidr}`;
-        }
+        applyCidrPreset(cidr);
       });
     });
+
+    if (profileFormNetwork) {
+      profileFormNetwork.addEventListener('input', () => {
+        const val = profileFormNetwork.value.trim();
+        const match = val.match(/\/(\d+)$/);
+        document.querySelectorAll('.cidr-preset-btn').forEach(btn => {
+          const c = btn.getAttribute('data-cidr');
+          if (match && match[1] === c) {
+            btn.className = "cidr-preset-btn px-2.5 py-0.5 rounded-lg border border-blue-400 bg-blue-100 text-blue-800 font-mono text-[10px] font-bold shadow-xs cursor-pointer transition-all";
+          } else {
+            btn.className = "cidr-preset-btn px-2.5 py-0.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-semibold cursor-pointer transition-all";
+          }
+        });
+      });
+    }
 
     if (btnFormDetectNetwork) {
       btnFormDetectNetwork.addEventListener('click', () => {
         if (profileFormNetwork) {
-          profileFormNetwork.value = appState.subnet || appState.hostIp || '192.168.1.0/24';
+          const detected = appState.subnet || appState.hostIp || '192.168.1.0/24';
+          profileFormNetwork.value = detected;
+          const match = detected.match(/\/(\d+)$/);
+          if (match) applyCidrPreset(match[1]);
+          showToast(`ใช้เป้าหมายเครือข่ายปัจจุบัน: ${detected}`);
         }
       });
     }
 
-    document.querySelectorAll('input[name="profile_port_mode"]').forEach(r => {
-      r.addEventListener('change', () => {
-        if (profileFormCustomPortsWrapper) {
-          if (r.value === 'custom') {
-            profileFormCustomPortsWrapper.classList.remove('hidden');
-          } else {
-            profileFormCustomPortsWrapper.classList.add('hidden');
-          }
-        }
+    // Port Mode Selection Cards Click
+    document.querySelectorAll('.port-mode-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const mode = card.getAttribute('data-port-mode');
+        if (mode) applyPortMode(mode);
       });
+    });
+
+    document.querySelectorAll('input[name="profile_port_mode"]').forEach(r => {
+      r.addEventListener('change', () => applyPortMode(r.value));
+    });
+
+    // Scope Selection Cards Click
+    document.querySelectorAll('.scope-preset-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const scope = card.getAttribute('data-scope-preset');
+        if (scope) applyScopePreset(scope);
+      });
+    });
+
+    document.querySelectorAll('input[name="profile_scope_preset"]').forEach(r => {
+      r.addEventListener('change', () => applyScopePreset(r.value));
     });
 
     if (btnDrawerAutoDetect) {
