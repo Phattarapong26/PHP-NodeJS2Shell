@@ -883,7 +883,7 @@
         <div class="pt-3 border-t border-slate-200/70 flex items-center justify-between text-xs text-slate-500">
           <span class="flex items-center gap-1.5">
             <i class="ph-bold ph-shield-check text-emerald-600 text-sm"></i>
-            สอดคล้องตามเกณฑ์ ThaiCERT, NCSA และ CybersRMUTL Security Standards
+            สอดคล้องตามเกณฑ์มาตรฐานความมั่นคงปลอดภัยสากล (ThaiCERT & NCSA Thailand Framework)
           </span>
           <span class="font-mono text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded">SemVer Range Engine</span>
         </div>
@@ -1018,7 +1018,7 @@
             </div>
           </div>
 
-          <!-- Mapped CVE Vulnerability Warnings (from CybersRMUTL & ThaiCERT Catalog) -->
+          <!-- Mapped CVE Vulnerability Warnings (ThaiCERT & NCSA Catalog) -->
           <div id="auditMatchedCvesWrapper" class="hidden p-3.5 rounded-2xl bg-rose-50/90 border border-rose-200/90 shadow-sm space-y-2">
             <div class="flex items-center justify-between text-xs font-bold text-rose-950">
               <span class="flex items-center gap-1.5">
@@ -3102,7 +3102,7 @@ Content-Type: text/html; charset=UTF-8</div>
         }
       }
 
-      // Render Matched CVEs (CybersRMUTL Multi-Stack Mapping)
+      // Render Matched CVEs (Multi-Stack CVE Mapping)
       const cvesWrapper = document.getElementById('auditMatchedCvesWrapper');
       const cvesList = document.getElementById('auditMatchedCvesList');
       const cvesCountBadge = document.getElementById('auditMatchedCvesCountBadge');
@@ -4167,7 +4167,7 @@ ${data.c_patch_directive}
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // MULTI-STACK CVE DATABASE CATALOG CONTROLLER (CybersRMUTL & ThaiCERT)
+    // MULTI-STACK CVE DATABASE CATALOG CONTROLLER (ThaiCERT & NCSA)
     // ═══════════════════════════════════════════════════════════════════════
     let cveCatalogDatabase = [];
     let currentCveCategory = 'ALL';
