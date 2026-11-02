@@ -227,22 +227,38 @@ class TestRceVerifierAndSafetyGate(unittest.TestCase):
 
 
     def test_gui_html_javascript_syntax(self):
-        """Verify that GUI.html has valid JavaScript syntax with balanced braces and no parser errors."""
+        """Verify that frontend bundle (thaicert-scanner/dist or GUI.html) has valid JavaScript syntax."""
         import os, re, subprocess
-        gui_path = os.path.join(os.path.dirname(__file__), "..", "GUI.html")
-        with open(gui_path, "r", encoding="utf-8") as f:
-            html = f.read()
-        scripts = re.findall(r"<script>([\s\S]*?)</script>", html)
-        self.assertTrue(len(scripts) > 0, "No script tag found in GUI.html")
-        
-        # Test using jsc if available
-        jsc_bin = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
-        if os.path.exists(jsc_bin):
-            test_file = "/tmp/test_gui_syntax_check.js"
-            with open(test_file, "w", encoding="utf-8") as f:
-                f.write(scripts[0])
-            res = subprocess.run([jsc_bin, test_file], capture_output=True, text=True)
-            self.assertNotIn("SyntaxError", res.stderr + res.stdout, f"JavaScript SyntaxError in GUI.html: {res.stderr}")
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        dist_dir = os.path.join(base_dir, "thaicert-scanner", "dist")
+        gui_path = os.path.join(base_dir, "GUI.html")
+
+        if os.path.isdir(dist_dir) and os.path.isfile(os.path.join(dist_dir, "index.html")):
+            with open(os.path.join(dist_dir, "index.html"), "r", encoding="utf-8") as f:
+                html = f.read()
+            self.assertIn("ThaiCERT SCANNER", html)
+            assets_dir = os.path.join(dist_dir, "assets")
+            js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+            self.assertTrue(len(js_files) > 0, "No built JavaScript asset found in dist/assets")
+            
+            jsc_bin = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
+            if os.path.exists(jsc_bin):
+                res = subprocess.run([jsc_bin, os.path.join(assets_dir, js_files[0])], capture_output=True, text=True)
+                self.assertNotIn("SyntaxError", res.stderr + res.stdout, f"JavaScript SyntaxError in bundle: {res.stderr}")
+        elif os.path.isfile(gui_path):
+            with open(gui_path, "r", encoding="utf-8") as f:
+                html = f.read()
+            scripts = re.findall(r"<script>([\s\S]*?)</script>", html)
+            self.assertTrue(len(scripts) > 0, "No script tag found in GUI.html")
+            jsc_bin = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc"
+            if os.path.exists(jsc_bin):
+                test_file = "/tmp/test_gui_syntax_check.js"
+                with open(test_file, "w", encoding="utf-8") as f:
+                    f.write(scripts[0])
+                res = subprocess.run([jsc_bin, test_file], capture_output=True, text=True)
+                self.assertNotIn("SyntaxError", res.stderr + res.stdout, f"JavaScript SyntaxError in GUI.html: {res.stderr}")
+        else:
+            self.fail("Neither thaicert-scanner/dist nor GUI.html was found")
 
 
 if __name__ == "__main__":

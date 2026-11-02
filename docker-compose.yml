@@ -22,7 +22,7 @@ services:
     volumes:
       - ./host_network.json:/app/host_network.json:ro
       - ./active_hosts.txt:/app/active_hosts.txt:ro
-      - ./GUI.html:/app/GUI.html
+      - ./thaicert-scanner/dist:/app/thaicert-scanner/dist
       - ./app.py:/app/app.py
       - ./diagram.html:/app/diagram.html
       - ./core:/app/core

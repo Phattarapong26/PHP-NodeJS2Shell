@@ -8,8 +8,10 @@ host_network.json
 active_hosts.txt
 active_hosts.json
 reports/last_scan.json
-build/
-dist/
+/build/
+/dist/
+thaicert-scanner/node_modules/
+thaicert-scanner/src-tauri/target/
 *.spec
 *.zip
 *.dmg

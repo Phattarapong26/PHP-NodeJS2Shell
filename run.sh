@@ -171,7 +171,7 @@ if [ "$1" == "--docker" ] || [ ! -f "$DIR/venv/bin/python" ]; then
       -e DOCKER_CONTAINER="true" \
       -v "$DIR/host_network.json:/app/host_network.json:ro" \
       -v "$DIR/active_hosts.txt:/app/active_hosts.txt:ro" \
-      -v "$DIR/GUI.html:/app/GUI.html" \
+      -v "$DIR/thaicert-scanner/dist:/app/thaicert-scanner/dist" \
       -v "$DIR/app.py:/app/app.py" \
       -v "$DIR/diagram.html:/app/diagram.html" \
       -v "$DIR/core:/app/core" \

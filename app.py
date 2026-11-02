@@ -81,7 +81,14 @@ if allowed_origins_env:
 elif not is_production:
     allowed_origins = ["*"]
 else:
-    allowed_origins = ["http://127.0.0.1:5050", "http://localhost:5050", "http://0.0.0.0:5050"]
+    allowed_origins = [
+        "http://127.0.0.1:5050",
+        "http://localhost:5050",
+        "http://0.0.0.0:5050",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "http://localhost:1420"
+    ]
 
 
 @app.after_request
@@ -96,7 +103,7 @@ def add_security_headers(response):
         response.headers["Access-Control-Allow-Origin"] = allowed_origins[0]
 
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     # Production security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
@@ -110,12 +117,34 @@ def handle_options(subpath):
 
 # Resolve frozen bundle base directory for PyInstaller standalone executables
 BASE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+DIST_DIR = os.path.join(BASE_DIR, "thaicert-scanner", "dist")
 
 
-# Static Frontend Routes
+# Static Frontend Routes (Svelte + Vite + Tailwind + Tauri)
 @app.route("/")
 def index():
-    return send_from_directory(BASE_DIR, "GUI.html")
+    if os.path.isdir(DIST_DIR) and os.path.isfile(os.path.join(DIST_DIR, "index.html")):
+        return send_from_directory(DIST_DIR, "index.html")
+    if os.path.isfile(os.path.join(BASE_DIR, "GUI.html")):
+        return send_from_directory(BASE_DIR, "GUI.html")
+    return "Frontend bundle not found. Please build thaicert-scanner.", 404
+
+
+@app.route("/assets/<path:filename>")
+def serve_dist_assets(filename):
+    if os.path.isdir(DIST_DIR):
+        return send_from_directory(os.path.join(DIST_DIR, "assets"), filename)
+    return "", 404
+
+
+@app.route("/favicon.png")
+def serve_favicon():
+    if os.path.isdir(DIST_DIR) and os.path.isfile(os.path.join(DIST_DIR, "favicon.png")):
+        return send_from_directory(DIST_DIR, "favicon.png")
+    pub_dir = os.path.join(BASE_DIR, "thaicert-scanner", "public")
+    if os.path.isfile(os.path.join(pub_dir, "favicon.png")):
+        return send_from_directory(pub_dir, "favicon.png")
+    return "", 404
 
 
 @app.route("/diagram")
