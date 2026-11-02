@@ -470,8 +470,8 @@
     </footer>
 
     <!-- SLIDE-UP MODAL: Results Panel (Step 5 of Diagram) -->
-    <div id="resultsModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-30 opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-6">
-      <div class="neu-modal-surface w-full max-w-5xl max-h-[88vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300">
+    <div id="resultsModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-30 opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="neu-modal-surface w-full max-w-7xl max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300">
         
         <!-- Results Header matching Neumorphic Aesthetic -->
         <div class="px-6 py-4 bg-gradient-to-r from-white via-slate-50/90 to-blue-50/50 border-b border-slate-200/70 flex items-center justify-between gap-4">
@@ -552,35 +552,64 @@
             </div>
           </div>
           
-          <!-- Dual Visual Charts View (Radar Web Chart + Horizontal Lollipop Dot Plot) -->
+          <!-- Visual Analytics Charts View (Radar + Horizontal Lollipop + Top CVEs Horizontal Bars) -->
           <div id="thaicertChartsContainer" class="p-3 sm:p-4 rounded-2xl bg-white/95 border border-slate-200/90 shadow-xs mb-2">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 items-stretch">
               
               <!-- Left Chart: Radar Web Chart (Octagonal) -->
-              <div class="flex flex-col items-center justify-center relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
+              <div class="flex flex-col justify-between relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
                 <div class="w-full flex items-center justify-between mb-1 px-1">
                   <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                     <i class="ph-bold ph-chart-polar text-teal-600"></i>
-                    <span>Radar Web Chart (การกระจายตัว 8 กลุ่มความมั่นคง)</span>
+                    <span>Radar Web (กระจาย 8 กลุ่ม)</span>
                   </span>
-                  <span class="text-[10px] text-slate-400 font-mono">สเกลปริมาณเครื่อง</span>
+                  <span class="text-[10px] text-slate-400 font-mono">สเกลเครื่อง</span>
                 </div>
-                <div class="relative w-full max-w-[390px] aspect-[1/0.92] flex items-center justify-center">
+                <div class="relative w-full max-w-[340px] aspect-[1/0.92] flex items-center justify-center mx-auto my-auto">
                   <svg id="radarChartSvg" viewBox="0 0 460 410" class="w-full h-full overflow-visible select-none"></svg>
                 </div>
               </div>
 
-              <!-- Right Chart: Horizontal Lollipop Chart (Cleveland Dot Plot) -->
-              <div class="flex flex-col justify-center relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
+              <!-- Middle Chart: Horizontal Lollipop Chart (Cleveland Dot Plot) -->
+              <div class="flex flex-col justify-between relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
                 <div class="w-full flex items-center justify-between mb-1 px-1">
                   <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                     <i class="ph-bold ph-chart-bar-horizontal text-teal-600"></i>
-                    <span>Horizontal Lollipop Chart (จัดอันดับตามปริมาณเครื่อง)</span>
+                    <span>Lollipop (จัดอันดับตามปริมาณ)</span>
                   </span>
-                  <span class="text-[10px] text-slate-400 font-mono">Dot Plot เรียงลำดับ</span>
+                  <span class="text-[10px] text-slate-400 font-mono">Dot Plot</span>
                 </div>
-                <div class="relative w-full h-[325px] flex items-center justify-center">
+                <div class="relative w-full h-[320px] flex items-center justify-center my-auto">
                   <svg id="lollipopChartSvg" viewBox="0 0 500 310" class="w-full h-full overflow-visible select-none"></svg>
+                </div>
+              </div>
+
+              <!-- Right Chart: Top Detected CVEs Horizontal Bar Chart -->
+              <div class="flex flex-col justify-between relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60 overflow-hidden">
+                <div class="w-full flex items-center justify-between mb-1 px-1">
+                  <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <i class="ph-bold ph-bug text-rose-600"></i>
+                    <span>Top CVEs (ความถี่ช่องโหว่)</span>
+                  </span>
+                  <div class="flex items-center gap-1.5 text-[10px]">
+                    <span class="inline-flex items-center gap-1 font-semibold text-rose-700"><span class="w-2 h-2 rounded-full bg-rose-500"></span>วิกฤต</span>
+                    <span class="inline-flex items-center gap-1 font-semibold text-orange-700"><span class="w-2 h-2 rounded-full bg-orange-500"></span>สูง</span>
+                  </div>
+                </div>
+                <div class="relative w-full h-[320px] flex items-center justify-center my-auto">
+                  <svg id="cveBarChartSvg" viewBox="0 0 500 310" class="w-full h-full overflow-visible select-none"></svg>
+
+                  <!-- Empty State Dimmed Overlay matching user reference image -->
+                  <div id="cveEmptyOverlay" class="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center p-4 text-center cursor-pointer transition-opacity duration-200">
+                    <div class="w-12 h-12 rounded-2xl bg-white/10 text-emerald-400 flex items-center justify-center mb-2 shadow-inner">
+                      <i class="ph-bold ph-shield-check text-2xl"></i>
+                    </div>
+                    <div class="text-white text-base sm:text-lg font-extrabold tracking-wide drop-shadow-md">ไม่มีรายการที่ค้นพบ</div>
+                    <div class="text-emerald-300 text-xs font-medium mt-1">ปลอดภัย ไม่พบช่องโหว่ความเสี่ยงในเครือข่าย</div>
+                    <div class="text-[10px] text-slate-300/80 mt-2 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20 select-none">
+                      ชี้เมาส์เพื่อดูการประเมินความปลอดภัย
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -5554,19 +5583,166 @@ ${data.c_patch_directive}
       svg.innerHTML = html;
     }
 
-    function attachChartTooltips(stats) {
+    function getTopDetectedCves() {
+      const cveMap = {};
+      const allHosts = appState.allHosts || [];
+
+      allHosts.forEach(h => {
+        (h.matched_cves || []).forEach(c => {
+          const cveId = c.cve || c.id || 'CVE-UNKNOWN';
+          if (!cveMap[cveId]) {
+            cveMap[cveId] = {
+              id: cveId,
+              severity: c.severity || 'Critical',
+              title: c.title || c.description || 'ช่องโหว่ความเสี่ยงระดับสูงที่ตรวจพบ',
+              count: 0,
+              hosts: []
+            };
+          }
+          cveMap[cveId].count += 1;
+          if (!cveMap[cveId].hosts.includes(h.ip)) {
+            cveMap[cveId].hosts.push(h.ip);
+          }
+        });
+
+        if (h.kernel_audit && h.kernel_audit.cve) {
+          const cveId = h.kernel_audit.cve;
+          if (!cveMap[cveId]) {
+            cveMap[cveId] = {
+              id: cveId,
+              severity: 'High',
+              title: h.kernel_audit.note || 'Linux Kernel Network Vulnerability',
+              count: 0,
+              hosts: []
+            };
+          }
+          cveMap[cveId].count += 1;
+          if (!cveMap[cveId].hosts.includes(h.ip)) {
+            cveMap[cveId].hosts.push(h.ip);
+          }
+        }
+      });
+
+      const list = Object.values(cveMap);
+      list.sort((a, b) => b.count - a.count);
+      return list;
+    }
+
+    function renderCveBarChart(cves) {
+      const svg = document.getElementById('cveBarChartSvg');
+      const overlay = document.getElementById('cveEmptyOverlay');
+      if (!svg) return;
+
+      if (!cves || cves.length === 0) {
+        if (overlay) {
+          overlay.classList.remove('hidden');
+          overlay.classList.add('flex');
+        }
+
+        // Draw ghost bars matching user reference image
+        const ghostData = [
+          { label: 'Top 1', val: 3900 },
+          { label: '', val: 2500 },
+          { label: 'Top 2', val: 3200 },
+          { label: '', val: 1700 },
+          { label: 'Top 3', val: 2200 },
+          { label: '', val: 1200 }
+        ];
+        const maxVal = 4000;
+        const xStart = 55, xEnd = 450, W = 395;
+        const yStart = 26, rowH = 38;
+
+        let html = '';
+        [0, 1000, 2000, 3000, 4000].forEach(tick => {
+          const x = xStart + (tick / maxVal) * W;
+          html += `<line x1="${x.toFixed(1)}" y1="16" x2="${x.toFixed(1)}" y2="250" stroke="#cbd5e1" stroke-width="0.8" opacity="0.35" />`;
+          html += `<text x="${x.toFixed(1)}" y="270" font-size="9" font-family="monospace" fill="#94a3b8" text-anchor="middle" font-weight="600">${tick === 0 ? '0' : tick.toLocaleString()}</text>`;
+        });
+
+        ghostData.forEach((d, idx) => {
+          const y = yStart + idx * rowH;
+          const barW = (d.val / maxVal) * W;
+          if (d.label) {
+            html += `<text x="${xStart - 10}" y="${y + 16}" font-size="10" font-weight="700" fill="#94a3b8" text-anchor="end">${d.label}</text>`;
+          }
+          html += `<rect x="${xStart}" y="${y}" width="${barW.toFixed(1)}" height="24" rx="6" fill="#78716c" opacity="0.4" />`;
+        });
+
+        svg.innerHTML = html;
+        return;
+      }
+
+      // CVEs found: Render real frequency bars
+      if (overlay) {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+      }
+
+      const topCves = cves.slice(0, 6);
+      let maxCount = 0;
+      topCves.forEach(c => { if (c.count > maxCount) maxCount = c.count; });
+      const scaleMax = maxCount > 5 ? Math.ceil(maxCount / 5) * 5 : 5;
+
+      const xStart = 135, xEnd = 430, W = 295;
+      const yStart = 28, rowH = 42;
+
+      let html = '';
+
+      // Grid lines
+      const numTicks = 4;
+      for (let t = 0; t <= numTicks; t++) {
+        const frac = t / numTicks;
+        const x = xStart + frac * W;
+        const tickVal = Math.round(scaleMax * frac);
+        html += `<line x1="${x.toFixed(1)}" y1="16" x2="${x.toFixed(1)}" y2="${yStart + topCves.length * rowH + 6}" stroke="#f1f5f9" stroke-width="1.2" />`;
+        html += `<text x="${x.toFixed(1)}" y="${yStart + topCves.length * rowH + 22}" font-size="9" font-family="monospace" fill="#94a3b8" text-anchor="middle" font-weight="600">${tickVal}</text>`;
+      }
+      html += `<line x1="${xStart}" y1="${yStart + topCves.length * rowH + 6}" x2="${xEnd}" y2="${yStart + topCves.length * rowH + 6}" stroke="#cbd5e1" stroke-width="1.2" />`;
+      html += `<text x="${xEnd + 26}" y="${yStart + topCves.length * rowH + 22}" font-size="9" fill="#94a3b8" text-anchor="end">เครื่อง</text>`;
+
+      topCves.forEach((cve, idx) => {
+        const y = yStart + idx * rowH;
+        const barW = Math.max(14, (cve.count / scaleMax) * W);
+        
+        let barColor = '#e11d48'; // Critical
+        if (cve.severity === 'High') barColor = '#ea580c';
+        else if (cve.severity === 'Medium') barColor = '#d97706';
+
+        html += `
+          <g class="cursor-pointer chart-cve-bar" data-cve="${cve.id}">
+            <!-- CVE ID Label -->
+            <text x="${xStart - 10}" y="${y + 16}" font-size="10.5" font-weight="700" font-family="monospace" fill="#1e293b" text-anchor="end" class="select-none">${cve.id}</text>
+            
+            <!-- Track bar -->
+            <rect x="${xStart}" y="${y}" width="${W}" height="24" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+
+            <!-- Filled bar -->
+            <rect x="${xStart}" y="${y}" width="${barW.toFixed(1)}" height="24" rx="6" fill="${barColor}" class="transition-all duration-300 hover:opacity-90" />
+
+            <!-- Count text -->
+            <text x="${(xStart + barW + 8).toFixed(1)}" y="${y + 16}" font-size="10.5" font-weight="bold" font-family="monospace" fill="${barColor}">${cve.count}</text>
+          </g>
+        `;
+      });
+
+      svg.innerHTML = html;
+    }
+
+    function attachChartTooltips(stats, cves) {
       const tip = document.getElementById('chartHoverTooltip');
       const badge = document.getElementById('chartTipBadge');
       const title = document.getElementById('chartTipTitle');
       const riskPill = document.getElementById('chartTipRiskPill');
+      const totalLabel = document.getElementById('chartTipTotalLabel');
       const totalEl = document.getElementById('chartTipTotal');
       const vulnRow = document.getElementById('chartTipVulnRow');
       const vulnEl = document.getElementById('chartTipVuln');
       const noteEl = document.getElementById('chartTipNote');
+      const actionText = document.getElementById('chartTipActionText');
 
       if (!tip) return;
 
-      function handleEnter(e) {
+      function handleGroupEnter(e) {
         const target = e.target.closest('[data-group]');
         if (!target) return;
         const g = parseInt(target.getAttribute('data-group'), 10);
@@ -5574,22 +5750,67 @@ ${data.c_patch_directive}
         if (!meta) return;
 
         badge.textContent = meta.code;
+        badge.className = "font-bold text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-400/40 flex-shrink-0";
         title.textContent = meta.name;
+        if (totalLabel) totalLabel.textContent = "จำนวนเครื่องที่ตรวจพบ:";
         totalEl.textContent = `${meta.total} เครื่อง`;
         noteEl.textContent = `เกณฑ์การตรวจ: ${meta.note}`;
+        if (actionText) actionText.textContent = "คลิกเพื่อกรองอุปกรณ์เฉพาะกลุ่มนี้";
 
         if (meta.vuln > 0) {
           riskPill.textContent = `${meta.vuln} VULNERABLE`;
-          riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-rose-500/60 bg-rose-500/20 text-rose-300";
+          riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-rose-500/60 bg-rose-500/20 text-rose-300 flex-shrink-0";
           vulnRow.classList.remove('hidden');
           vulnRow.classList.add('flex');
           vulnEl.textContent = `${meta.vuln} เครื่อง`;
         } else {
           riskPill.textContent = "SECURE";
-          riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-400/60 bg-emerald-500/10 text-emerald-300";
+          riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-400/60 bg-emerald-500/10 text-emerald-300 flex-shrink-0";
           vulnRow.classList.add('hidden');
           vulnRow.classList.remove('flex');
         }
+
+        tip.classList.remove('hidden');
+        tip.classList.add('flex');
+      }
+
+      function handleCveEnter(e) {
+        const target = e.target.closest('[data-cve]');
+        if (!target) return;
+        const cveId = target.getAttribute('data-cve');
+        const cve = (cves || []).find(x => x.id === cveId);
+        if (!cve) return;
+
+        badge.textContent = cve.severity.toUpperCase();
+        badge.className = "font-bold text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-400/40 flex-shrink-0";
+        title.textContent = cve.id;
+        if (totalLabel) totalLabel.textContent = "จำนวนโฮสต์ที่ได้รับผลกระทบ:";
+        totalEl.textContent = `${cve.count} เครื่อง`;
+        vulnRow.classList.add('hidden');
+        noteEl.textContent = cve.title;
+        if (actionText) {
+          actionText.textContent = `พบที่ IP: ${cve.hosts.slice(0, 3).join(', ')}${cve.hosts.length > 3 ? ` และอีก ${cve.hosts.length - 3} เครื่อง` : ''}`;
+        }
+
+        riskPill.textContent = cve.severity.toUpperCase();
+        riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-rose-500/60 bg-rose-500/20 text-rose-300 flex-shrink-0";
+
+        tip.classList.remove('hidden');
+        tip.classList.add('flex');
+      }
+
+      function handleEmptyOverlayEnter() {
+        badge.textContent = "CLEAN";
+        badge.className = "font-bold text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 flex-shrink-0";
+        title.textContent = "สถานะความมั่นคงปลอดภัย";
+        if (totalLabel) totalLabel.textContent = "ช่องโหว่ CVE ที่ตรวจพบ:";
+        totalEl.textContent = "0 รายการ (ปลอดภัย 100%)";
+        vulnRow.classList.add('hidden');
+        noteEl.textContent = "ไม่พบช่องโหว่ความเสี่ยงระดับสูงหรือร้ายแรงในบรรดาอุปกรณ์ที่ตรวจสอบรอบนี้";
+        if (actionText) actionText.textContent = "สอดคล้องตามเกณฑ์มาตรฐาน ThaiCERT / สกมช.";
+
+        riskPill.textContent = "SECURE";
+        riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-400/60 bg-emerald-500/10 text-emerald-300 flex-shrink-0";
 
         tip.classList.remove('hidden');
         tip.classList.add('flex');
@@ -5618,18 +5839,36 @@ ${data.c_patch_directive}
       }
 
       document.querySelectorAll('.chart-radar-dot, .chart-group-label, .chart-lollipop-row').forEach(el => {
-        el.addEventListener('mouseenter', handleEnter);
+        el.addEventListener('mouseenter', handleGroupEnter);
         el.addEventListener('mousemove', handleMove);
         el.addEventListener('mouseleave', handleLeave);
       });
+
+      document.querySelectorAll('.chart-cve-bar').forEach(el => {
+        el.addEventListener('mouseenter', handleCveEnter);
+        el.addEventListener('mousemove', handleMove);
+        el.addEventListener('mouseleave', handleLeave);
+      });
+
+      const overlay = document.getElementById('cveEmptyOverlay');
+      if (overlay) {
+        overlay.addEventListener('mouseenter', handleEmptyOverlayEnter);
+        overlay.addEventListener('mousemove', handleMove);
+        overlay.addEventListener('mouseleave', handleLeave);
+      }
     }
 
     function renderThaiCertDualCharts() {
       const stats = getThaiCertGroupStats();
       renderRadarChart(stats);
       renderLollipopChart(stats);
-      attachChartTooltips(stats);
+
+      const cves = getTopDetectedCves();
+      renderCveBarChart(cves);
+
+      attachChartTooltips(stats, cves);
     }
+    const renderThaiCertVisualCharts = renderThaiCertDualCharts;
 
     function initThaiCertChartsControls() {
       const btnViewCharts = document.getElementById('btnViewCharts');
@@ -6027,29 +6266,29 @@ ${data.c_patch_directive}
     </div>
   </div>
 
-  <!-- Floating Tooltip for ThaiCERT Radar & Lollipop Charts -->
+  <!-- Floating Tooltip for ThaiCERT Radar, Lollipop & Top CVE Charts -->
   <div id="chartHoverTooltip" class="fixed hidden flex-col p-3 rounded-2xl bg-slate-900/95 text-white text-xs shadow-2xl border border-slate-700/80 backdrop-blur-md z-[99999] pointer-events-none transition-opacity duration-150 max-w-xs">
     <div class="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-slate-700/60">
-      <span class="flex items-center gap-1.5">
-        <span id="chartTipBadge" class="font-bold text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-400/40">ก.1</span>
+      <span class="flex items-center gap-1.5 min-w-0">
+        <span id="chartTipBadge" class="font-bold text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-400/40 flex-shrink-0">ก.1</span>
         <span id="chartTipTitle" class="font-bold text-slate-100 truncate">เว็บไซต์ / CMS</span>
       </span>
-      <span id="chartTipRiskPill" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-400/60 bg-emerald-500/10 text-emerald-300">SECURE</span>
+      <span id="chartTipRiskPill" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-400/60 bg-emerald-500/10 text-emerald-300 flex-shrink-0">SECURE</span>
     </div>
     <div class="text-[11px] text-slate-300 flex items-center justify-between gap-3 mb-1">
-      <span class="text-slate-400">จำนวนเครื่องที่ตรวจพบ:</span>
+      <span id="chartTipTotalLabel" class="text-slate-400">จำนวนเครื่องที่ตรวจพบ:</span>
       <span id="chartTipTotal" class="font-bold font-mono text-teal-400">0 เครื่อง</span>
     </div>
     <div id="chartTipVulnRow" class="hidden text-[11px] text-rose-300 items-center justify-between gap-3 mb-1">
-      <span class="text-rose-400 font-semibold">มีความเสี่ยง / ช่องโหว่:</span>
+      <span id="chartTipVulnLabel" class="text-rose-400 font-semibold">มีความเสี่ยง / ช่องโหว่:</span>
       <span id="chartTipVuln" class="font-bold font-mono text-rose-300">0 เครื่อง</span>
     </div>
     <p class="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 mt-1 leading-relaxed" id="chartTipNote">
       เกณฑ์การตรวจ: WordPress, Drupal, Joomla, CMS
     </p>
-    <div class="text-[9px] text-blue-300 font-semibold pt-1 flex items-center gap-1">
+    <div id="chartTipActionWrap" class="text-[9px] text-blue-300 font-semibold pt-1 flex items-center gap-1">
       <i class="ph ph-cursor-click"></i>
-      <span>คลิกเพื่อกรองอุปกรณ์เฉพาะกลุ่มนี้</span>
+      <span id="chartTipActionText">คลิกเพื่อกรองอุปกรณ์เฉพาะกลุ่มนี้</span>
     </div>
   </div>
 </body>
