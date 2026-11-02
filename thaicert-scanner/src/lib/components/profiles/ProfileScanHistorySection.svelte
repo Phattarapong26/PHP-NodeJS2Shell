@@ -1,27 +1,28 @@
 <!--
   @component ProfileScanHistorySection
-  Enterprise Scan History Timeline & Latest Scan Summary Card.
-  Designed 1:1 against ThaiCERT enterprise security operations reference.
+  Scan History Timeline with circular success percentage rings and latest report card.
+  Styled 1:1 against the OP Scanner enterprise design.
 -->
-<div class="space-y-4 pt-2">
+<div class="rounded-3xl bg-white border border-slate-200/80 p-5 shadow-xs space-y-4">
   <!-- Section Header -->
-  <div class="flex items-center justify-between border-b border-slate-200/60 pb-3">
+  <div class="flex items-center justify-between border-b border-slate-100 pb-3">
     <div class="flex items-center gap-2.5">
       <div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-200/70 flex items-center justify-center text-blue-600 shadow-2xs">
-        <i class="ph-bold ph-clock-counter-clockwise text-base"></i>
+        <i class="ph-bold ph-clock text-base"></i>
       </div>
-      <div>
-        <h3 class="font-bold text-slate-800 text-xs md:text-sm tracking-tight flex items-center gap-2">
-          <span>ประวัติการสแกน (Scan History Timeline)</span>
-          <span id="detailHistoryCountBadge" class="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">0 รอบ</span>
+      <div class="flex items-center gap-2">
+        <h3 class="font-bold text-slate-800 text-xs md:text-sm tracking-tight">
+          ประวัติการสแกน (Scan History Timeline)
         </h3>
+        <span id="detailHistoryCountBadge" class="font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
+          0 รายการล่าสุด
+        </span>
       </div>
     </div>
 
     <!-- Dropdown Selector: Show Latest N Items -->
     <div class="relative inline-flex items-center">
-      <i class="ph-bold ph-calendar text-slate-400 absolute left-3 pointer-events-none text-xs"></i>
-      <select id="detailHistoryLimitSelect" class="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl pl-8 pr-7 py-1.5 shadow-2xs hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer appearance-none transition-all">
+      <select id="detailHistoryLimitSelect" class="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-1.5 pr-7 shadow-2xs hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer appearance-none transition-all">
         <option value="5" selected>แสดงล่าสุด 5 รายการ</option>
         <option value="10">แสดงล่าสุด 10 รายการ</option>
         <option value="20">แสดงล่าสุด 20 รายการ</option>
@@ -64,7 +65,7 @@
     </div>
   </div>
 
-  <!-- Bottom Card: รายละเอียดการสแกนล่าสุด (Latest Scan Summary Banner) -->
+  <!-- Bottom Card: รายงานล่าสุด (Latest Scan Summary Banner) -->
   <div id="detailLatestScanSummaryCard" class="hidden mt-4 rounded-2xl border border-blue-200/90 bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-blue-50/80 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
     <!-- Left: 3D Shield Graphic with Sparkles -->
     <div class="relative flex items-center justify-center shrink-0 w-16 h-16">
@@ -79,14 +80,15 @@
 
     <!-- Center: 4-Column Metric Summary Grid -->
     <div class="flex-1 w-full">
-      <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2">
-        <i class="ph-bold ph-chart-bar text-blue-600 text-sm"></i>
-        <span>รายละเอียดการสแกนล่าสุด</span>
-      </div>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
         <div>
-          <div class="text-[11px] text-slate-500 flex items-center gap-1">📅 วันที่และเวลา</div>
-          <div class="font-bold text-slate-800 mt-0.5" id="detailLatestSummaryDateTime">-</div>
+          <div class="text-[11px] text-slate-500 flex items-center gap-1">📅 รายงานล่าสุด</div>
+          <div class="font-bold text-slate-800 mt-0.5 tracking-tight" id="detailLatestSummaryDateTime">-</div>
+          <div class="mt-1">
+            <span class="inline-flex items-center gap-1 px-2 py-0.2 rounded-full bg-emerald-100/80 text-emerald-800 text-[10px] font-bold">
+              <i class="ph-bold ph-check text-[10px]"></i> สำเร็จ
+            </span>
+          </div>
         </div>
         <div>
           <div class="text-[11px] text-slate-500 flex items-center gap-1">⏱️ ระยะเวลาสแกน</div>
@@ -98,8 +100,8 @@
         </div>
         <div>
           <div class="text-[11px] text-slate-500 flex items-center gap-1">🛡️ ผลการสแกน</div>
-          <div class="font-bold mt-0.5 flex items-center gap-1" id="detailLatestSummaryVerdict">
-            <i class="ph-fill ph-check-circle text-emerald-500"></i>
+          <div class="font-bold mt-0.5 flex items-center gap-1.5" id="detailLatestSummaryVerdict">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
             <span class="text-emerald-700">ไม่พบช่องโหว่</span>
           </div>
         </div>
@@ -109,8 +111,8 @@
     <!-- Right: Quick Action Button -->
     <div class="shrink-0">
       <button id="btnLatestScanAction" type="button" class="neu-pill-btn active px-4 py-2.5 rounded-xl text-white font-bold text-xs shadow-xs flex items-center gap-2 cursor-pointer hover:scale-[1.02] transition">
-        <i class="ph-bold ph-file-text text-sm"></i>
-        <span>ดูผลสแกนรอบนี้</span>
+        <i class="ph-bold ph-download-simple text-sm"></i>
+        <span>ดาวน์โหลดรายงาน</span>
       </button>
     </div>
   </div>
