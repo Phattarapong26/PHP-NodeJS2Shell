@@ -142,8 +142,9 @@ export function renderResultsTable() {
   if (filteredList.length === 0) {
     resultsTableContainer.classList.add('hidden');
     resultsEmptyState.classList.remove('hidden');
+    resultsEmptyState.classList.add('flex');
 
-    const targetVal = mainSubnetInput ? mainSubnetInput.value : (appState.subnetPrefix + '0/24');
+    const targetVal = (mainSubnetInput && mainSubnetInput.value.trim()) || appState.subnet || (appState.activeProfile && appState.activeProfile.network_target) || 'เครือข่ายนี้';
     if (emptyStateTitle) {
       if (appState.activeFilter === 'node_only' && totalNode === 0) {
         emptyStateTitle.textContent = `ไม่พบเซิร์ฟเวอร์ Node.js ในวง ${targetVal}`;
@@ -175,6 +176,7 @@ export function renderResultsTable() {
 
   resultsTableContainer.classList.remove('hidden');
   resultsEmptyState.classList.add('hidden');
+  resultsEmptyState.classList.remove('flex');
 
   filteredList.forEach(item => {
     const row = document.createElement('tr');
@@ -553,7 +555,8 @@ export function exportToCsv() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `ThaiCERT_Network_Scan_${appState.subnetPrefix || 'scan_'}report.csv`);
+  const targetName = ((mainSubnetInput && mainSubnetInput.value.trim()) || appState.subnet || 'scan').replace(/[^a-zA-Z0-9_-]/g, '_');
+  link.setAttribute("download", `ThaiCERT_Network_Scan_${targetName}_report.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

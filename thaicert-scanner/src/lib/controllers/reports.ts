@@ -12,7 +12,7 @@ export async function downloadFullAmberPdfReport(btnElement = null) {
   }
   showToast("กำลังประมวลผลและสร้างรายงาน PDF ทางการ สกมช. (TLP:AMBER)...");
 
-  const targetVal = (mainSubnetInput ? mainSubnetInput.value : appState.subnetPrefix + '0/24') || 'Local Network';
+  const targetVal = (mainSubnetInput && mainSubnetInput.value.trim()) || appState.subnet || (appState.activeProfile && appState.activeProfile.network_target) || 'Local Network';
   const hostsToSend = appState.allHosts && appState.allHosts.length > 0 ? appState.allHosts : [];
 
   try {
@@ -57,7 +57,7 @@ export async function downloadEvidenceBundleReport(btnElement = null) {
   }
   showToast("กำลังรวบรวมหลักฐาน Forensic Evidence Bundle พร้อมดิจิทัลซิกเนเจอร์ SHA-256...");
 
-  const targetVal = (mainSubnetInput ? mainSubnetInput.value : appState.subnetPrefix + '0/24') || 'Local Network';
+  const targetVal = (mainSubnetInput && mainSubnetInput.value.trim()) || appState.subnet || (appState.activeProfile && appState.activeProfile.network_target) || 'Local Network';
   const hostsToSend = appState.allHosts && appState.allHosts.length > 0 ? appState.allHosts : [];
 
   try {
