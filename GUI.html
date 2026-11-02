@@ -470,11 +470,11 @@
     </footer>
 
     <!-- SLIDE-UP MODAL: Results Panel (Step 5 of Diagram) -->
-    <div id="resultsModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-30 opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div class="neu-modal-surface w-full max-w-7xl max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300">
+    <div id="resultsModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-30 opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+      <div class="neu-modal-surface w-full max-w-7xl max-h-[92vh] sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300 my-auto shadow-2xl">
         
-        <!-- Results Header matching Neumorphic Aesthetic -->
-        <div class="px-6 py-4 bg-gradient-to-r from-white via-slate-50/90 to-blue-50/50 border-b border-slate-200/70 flex items-center justify-between gap-4">
+        <!-- Results Header matching Neumorphic Aesthetic (Fixed at Top) -->
+        <div class="px-6 py-4 bg-gradient-to-r from-white via-slate-50/90 to-blue-50/50 border-b border-slate-200/70 flex items-center justify-between gap-4 flex-shrink-0 z-10">
           <div class="flex items-center gap-3.5 min-w-0">
             <div id="resultsHeaderIcon" class="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md flex-shrink-0">
               <i class="ph-bold ph-shield-check text-2xl"></i>
@@ -509,6 +509,9 @@
             </button>
           </div>
         </div>
+
+        <!-- Scrollable Modal Body (Contains Status Banner, 3 Visual Charts, Filter Bar, and Device Table) -->
+        <div id="resultsModalBody" class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 scroll-smooth">
 
         <!-- Dynamic Status Notification Banner -->
         <div id="resultsStatusBanner" class="px-6 py-2.5 bg-gradient-to-r from-emerald-50/95 via-emerald-50/60 to-white/90 border-b border-emerald-200/70 flex items-center justify-between text-xs text-emerald-950 backdrop-blur-sm transition-all duration-200">
@@ -793,9 +796,9 @@
           </div>
         </div>
 
-        <!-- Results Table Scrollable Area -->
-        <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/40 min-h-[300px]">
-          <div id="resultsTableContainer" class="rounded-2xl border border-white/80 bg-white/70 shadow-sm p-1 overflow-hidden">
+        <!-- Results Table Area -->
+        <div class="p-4 sm:p-6 bg-slate-50/40 flex-1 min-h-[250px]">
+          <div id="resultsTableContainer" class="rounded-2xl border border-white/80 bg-white/70 shadow-sm p-1 overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100/50">
@@ -835,8 +838,10 @@
           </div>
         </div>
 
-        <!-- Results Footer -->
-        <div class="px-6 py-3.5 bg-white/80 border-t border-slate-200/70 flex items-center justify-between text-xs text-slate-500">
+        </div> <!-- End #resultsModalBody (Full Scrollable Content) -->
+
+        <!-- Results Footer (Fixed at Bottom) -->
+        <div class="px-6 py-3.5 bg-white/95 border-t border-slate-200/70 flex items-center justify-between text-xs text-slate-500 flex-shrink-0 z-10 backdrop-blur-sm">
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span>เสร็จสิ้นใน <span id="scanElapsedDuration" class="font-bold text-slate-700">3.42 วินาที</span> (Concurrent Workers: 50)</span>
@@ -4339,6 +4344,8 @@ ${data.c_patch_directive}
     // Modal Control Functions
     function openResultsModal() {
       resultsModal.classList.remove('opacity-0', 'pointer-events-none');
+      const bodyEl = document.getElementById('resultsModalBody');
+      if (bodyEl) bodyEl.scrollTop = 0;
       if (typeof renderThaiCertDualCharts === 'function') {
         renderThaiCertDualCharts();
       }
