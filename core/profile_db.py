@@ -75,7 +75,103 @@ def init_profile_db():
                 FOREIGN KEY (profile_id) REFERENCES scan_profiles(id) ON DELETE SET NULL
             );
         """)
+
+        # IEEE MAC Vendor OUI Database Table (dynamic, non-hardcoded)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mac_vendors (
+                oui TEXT PRIMARY KEY,
+                vendor TEXT NOT NULL,
+                block_type TEXT DEFAULT ''
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_mac_vendors_oui ON mac_vendors(oui);")
         conn.commit()
+
+
+_MAC_VENDOR_CACHE: Dict[str, str] = {}
+
+
+def init_mac_vendor_db(csv_path: Optional[str] = None):
+    """
+    Initializes and populates mac_vendors table in SQLite from IEEE mac_vendor_mapping.csv.
+    Uses batch insertion for sub-second database ingestion and zero hardcoding.
+    """
+    with get_db_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mac_vendors (
+                oui TEXT PRIMARY KEY,
+                vendor TEXT NOT NULL,
+                block_type TEXT DEFAULT ''
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_mac_vendors_oui ON mac_vendors(oui);")
+
+        row = conn.execute("SELECT COUNT(1) AS cnt FROM mac_vendors;").fetchone()
+        if row and row["cnt"] > 1000:
+            return  # Already populated with 40,000+ vendors
+
+        candidates = [
+            csv_path,
+            os.path.join(os.path.dirname(__file__), "mac_vendor_mapping.csv"),
+            os.path.join(os.getcwd(), "mac_vendor_mapping.csv"),
+            "mac_vendor_mapping.csv",
+            "/app/mac_vendor_mapping.csv",
+            "/app/core/mac_vendor_mapping.csv"
+        ]
+        target_csv = None
+        for cand in candidates:
+            if cand and os.path.exists(cand):
+                target_csv = cand
+                break
+
+        if not target_csv:
+            return
+
+        import csv
+        batch = []
+        seen = set()
+        with open(target_csv, "r", encoding="utf-8", errors="ignore") as f:
+            reader = csv.reader(f)
+            next(reader, None)  # Skip CSV header
+            for r in reader:
+                if len(r) >= 4:
+                    raw_prefix = r[0].strip().lower().replace(":", "").replace("-", "")
+                    vendor = r[3].strip()
+                    block_type = r[4].strip() if len(r) >= 5 else ""
+                    if len(raw_prefix) >= 6:
+                        oui = raw_prefix[:6]
+                        if oui not in seen:
+                            seen.add(oui)
+                            batch.append((oui, vendor, block_type))
+
+        if batch:
+            conn.executemany("""
+                INSERT OR IGNORE INTO mac_vendors (oui, vendor, block_type)
+                VALUES (?, ?, ?)
+            """, batch)
+            conn.commit()
+
+
+def get_mac_vendor_from_db(oui: str) -> Optional[str]:
+    """Looks up vendor name from SQLite database with in-memory fast caching."""
+    global _MAC_VENDOR_CACHE
+    clean_oui = (oui or "").strip().lower().replace(":", "").replace("-", "")[:6]
+    if not clean_oui:
+        return None
+
+    if clean_oui in _MAC_VENDOR_CACHE:
+        return _MAC_VENDOR_CACHE[clean_oui]
+
+    try:
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT vendor FROM mac_vendors WHERE oui = ?;", (clean_oui,)).fetchone()
+            if row and row["vendor"]:
+                vendor_val = str(row["vendor"]).strip()
+                _MAC_VENDOR_CACHE[clean_oui] = vendor_val
+                return vendor_val
+    except Exception:
+        pass
+    return None
 
 
 def get_all_profiles() -> List[Dict[str, Any]]:

@@ -109,10 +109,12 @@ def resolve_device_details(ip_str: str, mac_str: str, is_gw: bool = False) -> Tu
     clean_mac = mac_str.lower().strip()
     parts = clean_mac.split(':')
 
+    from core.profile_db import get_mac_vendor_from_db
+
     if is_gw:
         if len(parts) >= 3:
             clean_oui = ''.join(f"{int(p, 16):02x}" for p in parts[:3])
-            vendor = OUI_DATABASE.get(clean_oui)
+            vendor = get_mac_vendor_from_db(clean_oui) or OUI_DATABASE.get(clean_oui)
             if vendor:
                 return f"{vendor} (Gateway Router)", "Gateway Router", False
         return "Gateway Router (เกตเวย์วงเครือข่าย)", "Gateway Router", False
@@ -122,9 +124,21 @@ def resolve_device_details(ip_str: str, mac_str: str, is_gw: bool = False) -> Tu
             clean_oui = ''.join(f"{int(p, 16):02x}" for p in parts[:3])
             first_byte = int(parts[0], 16)
             is_randomized = bool(first_byte & 0x02)  # Locally Administered Bit
-            vendor = OUI_DATABASE.get(clean_oui)
+            vendor = get_mac_vendor_from_db(clean_oui) or OUI_DATABASE.get(clean_oui)
             if vendor:
-                return vendor, "Workstation / Hardware", False
+                clean_v = vendor.strip().strip('"').strip("'")
+                if "apple" in clean_v.lower():
+                    return f"{clean_v} (Mac / iPhone / iPad)", "Workstation / Hardware", False
+                elif "intel" in clean_v.lower():
+                    return f"{clean_v} (Workstation / PC)", "Workstation / Hardware", False
+                elif "samsung" in clean_v.lower():
+                    return f"{clean_v} (Galaxy / Smart Device)", "Mobile Client", True
+                elif "synology" in clean_v.lower() or "qnap" in clean_v.lower():
+                    return f"{clean_v} (Network Storage / NAS)", "Network Appliance", False
+                elif "cisco" in clean_v.lower() or "ubiquiti" in clean_v.lower() or "mikrotik" in clean_v.lower():
+                    return f"{clean_v} (Network Infrastructure)", "Network Appliance", False
+                return f"{clean_v} (อุปกรณ์เครือข่าย)", "Workstation / Hardware", False
+
             if is_randomized:
                 return "อุปกรณ์ไร้สาย (Private Wi-Fi / Smartphone & Laptop)", "Mobile Client", True
             return f"เครื่องลูกข่ายเครือข่าย (OUI: {clean_oui.upper()})", "LAN Client", False
