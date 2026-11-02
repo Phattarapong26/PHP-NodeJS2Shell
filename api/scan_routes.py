@@ -6,6 +6,7 @@ and /api/verify-asan-memory.
 
 import asyncio
 import ipaddress
+import json
 import re
 import socket
 import time
@@ -517,6 +518,24 @@ def scan():
                 allow_active_rce = False
                 safety_gate_notice = "Safety Gate: Active RCE disabled for public/external target without explicit ownership affirmation (i_own_this_target=True, consent_phrase='I_CONFIRM_TARGET_OWNERSHIP')."
 
+    # Stealth and anti-detection settings from request or active profile
+    user_agent = data.get("user_agent") or (active_profile.get("user_agent") if active_profile else None)
+    try:
+        timeout_sec = float(data.get("timeout") or (active_profile.get("timeout") if active_profile else 2.2))
+    except (ValueError, TypeError):
+        timeout_sec = 2.2
+
+    custom_headers_raw = data.get("custom_headers") or (active_profile.get("custom_headers") if active_profile else "")
+    parsed_custom_headers = {}
+    if isinstance(custom_headers_raw, dict):
+        parsed_custom_headers = custom_headers_raw
+    elif isinstance(custom_headers_raw, str):
+        for line in custom_headers_raw.splitlines():
+            line = line.strip()
+            if line and ":" in line:
+                hk, hv = line.split(":", 1)
+                parsed_custom_headers[hk.strip()] = hv.strip()
+
     async def run_probes():
         limits = httpx.Limits(max_connections=concurrency, max_keepalive_connections=20)
         async with httpx.AsyncClient(verify=False, limits=limits) as client:
@@ -531,7 +550,10 @@ def scan():
                         is_docker=curr_is_docker,
                         docker_gw=curr_docker_gw,
                         allow_active_rce=allow_active_rce,
-                        operator=operator
+                        operator=operator,
+                        user_agent=user_agent,
+                        custom_headers=parsed_custom_headers,
+                        timeout=timeout_sec
                     )
 
             gw_ip = net_info.get("gateway", "")
@@ -951,6 +973,37 @@ def scan():
         "scanned_hosts": len(hosts),
         "profile": active_profile
     })
+
+    # Record scan history in SQLite database
+    try:
+        from core.profile_db import add_scan_history
+        prof_id = active_profile["id"] if active_profile and isinstance(active_profile, dict) else None
+        add_scan_history(
+            profile_id=prof_id,
+            target_subnet=subnet_str,
+            total_hosts=len(all_active_list),
+            php_hosts=len(php_list),
+            node_hosts=len(node_list),
+            vuln_hosts=len(vuln_list),
+            elapsed_seconds=elapsed,
+            scan_summary=f"พบทั้งหมด {len(all_active_list)} เครื่อง (PHP {len(php_list)}, Node {len(node_list)}, เสี่ยง {len(vuln_list)})",
+            scan_result_json=json.dumps({
+                "subnet": subnet_str,
+                "cidr": cidr,
+                "total_active_found": len(all_active_list),
+                "total_php_found": len(php_list),
+                "total_node_found": len(node_list),
+                "total_vuln_found": len(vuln_list),
+                "thaicert_summary": thaicert_summary,
+                "elapsed_seconds": elapsed,
+                "results": php_list,
+                "node_results": node_list,
+                "all_hosts": all_active_list,
+                "profile": active_profile
+            })
+        )
+    except Exception:
+        pass
 
     return jsonify({
         "subnet": subnet_str,

@@ -43,12 +43,39 @@ class TestProfileDBAndAPI(unittest.TestCase):
             title="HQ Office Network",
             description="Main corporate network in Bangkok",
             network_target="192.168.1.0/24",
-            set_active=True
+            set_active=True,
+            concurrency=80,
+            timeout=3.0,
+            user_agent="Mozilla/5.0 Googlebot",
+            custom_headers="X-Forwarded-For: 127.0.0.1",
+            port_mode="standard",
+            scope_preset="all"
         )
         self.assertIsNotNone(p1.get("id"))
         self.assertEqual(p1["title"], "HQ Office Network")
         self.assertEqual(p1["network_target"], "192.168.1.0/24")
+        self.assertEqual(p1["concurrency"], 80)
+        self.assertEqual(p1["timeout"], 3.0)
+        self.assertEqual(p1["user_agent"], "Mozilla/5.0 Googlebot")
+        self.assertEqual(p1["custom_headers"], "X-Forwarded-For: 127.0.0.1")
         self.assertTrue(p1["is_active"])
+
+        # Test scan history
+        hist = profile_db.add_scan_history(
+            profile_id=p1["id"],
+            target_subnet="192.168.1.0/24",
+            total_hosts=10,
+            php_hosts=2,
+            node_hosts=1,
+            vuln_hosts=0,
+            elapsed_seconds=1.5,
+            scan_summary="10 เครื่องตรวจสอบแล้ว",
+            scan_result_json='{"hosts": [{"ip": "192.168.1.5", "port": 80}]}'
+        )
+        self.assertIsNotNone(hist.get("id"))
+        history_list = profile_db.get_scan_history(profile_id=p1["id"])
+        self.assertEqual(len(history_list), 1)
+        self.assertEqual(history_list[0]["php_hosts"], 2)
 
         # 3. Create second profile without making active
         p2 = profile_db.create_profile(
@@ -97,11 +124,45 @@ class TestProfileDBAndAPI(unittest.TestCase):
             "title": "DataCenter Subnet",
             "description": "DC Tier 3",
             "network_target": "172.16.50.0/24",
-            "set_active": True
+            "set_active": True,
+            "concurrency": 100,
+            "timeout": 2.5,
+            "user_agent": "CustomTestUA/1.0",
+            "custom_headers": "Referer: https://internal.test\nX-Forwarded-For: 10.0.0.1",
+            "port_mode": "wide",
+            "scope_preset": "windows"
         })
         self.assertEqual(res_post.status_code, 201)
         created = res_post.get_json()["profile"]
         pid = created["id"]
+        self.assertEqual(created["concurrency"], 100)
+        self.assertEqual(created["user_agent"], "CustomTestUA/1.0")
+
+        # GET /api/profiles/<id>/history (empty initially)
+        res_hist_empty = self.client.get(f"/api/profiles/{pid}/history")
+        self.assertEqual(res_hist_empty.status_code, 200)
+        self.assertEqual(len(res_hist_empty.get_json()["history"]), 0)
+
+        # Add history record and test retrieval and restore
+        hist_rec = profile_db.add_scan_history(
+            profile_id=pid,
+            target_subnet="172.16.50.0/24",
+            total_hosts=25,
+            php_hosts=4,
+            node_hosts=2,
+            vuln_hosts=1,
+            elapsed_seconds=2.1,
+            scan_summary="25 hosts scanned",
+            scan_result_json='{"hosts": [{"ip": "172.16.50.10", "port": 80}]}'
+        )
+        res_hist = self.client.get(f"/api/profiles/{pid}/history")
+        self.assertEqual(res_hist.status_code, 200)
+        self.assertEqual(len(res_hist.get_json()["history"]), 1)
+
+        # POST /api/scan-history/<id>/restore
+        res_restore = self.client.post(f"/api/scan-history/{hist_rec['id']}/restore")
+        self.assertEqual(res_restore.status_code, 200)
+        self.assertEqual(res_restore.get_json()["history_record"]["total_hosts"], 25)
 
         # GET /api/profiles/<id>
         res_get = self.client.get(f"/api/profiles/{pid}")

@@ -121,7 +121,10 @@ async def probe_endpoint(
     is_docker: bool = False,
     docker_gw: str = None,
     allow_active_rce: bool = False,
-    operator: str = "security-auditor"
+    operator: str = "security-auditor",
+    user_agent: str = None,
+    custom_headers: dict = None,
+    timeout: float = 2.2
 ):
     """Deep inspection of a target IP and port for PHP and Node.js signatures and vulnerabilities."""
     scheme = "https" if port in (443, 8443) else "http"
@@ -161,11 +164,13 @@ async def probe_endpoint(
         t0 = time.perf_counter()
         req_headers = {
             "Accept-Encoding": "br, gzip, deflate",
-            "User-Agent": "ThaiCERT-OPScaner/2.0 (LAN Discovery & Security Audit)"
+            "User-Agent": user_agent or "ThaiCERT-OPScaner/2.0 (LAN Discovery & Security Audit)"
         }
+        if custom_headers and isinstance(custom_headers, dict):
+            req_headers.update(custom_headers)
         if connect_host != target_host:
             req_headers["Host"] = f"{target_host}:{port}"
-        resp = await client.get(f"{base_url}/", headers=req_headers, timeout=2.2, follow_redirects=True)
+        resp = await client.get(f"{base_url}/", headers=req_headers, timeout=timeout or 2.2, follow_redirects=True)
         latency = f"{(time.perf_counter() - t0) * 1000:.1f} ms"
 
         headers = resp.headers
