@@ -27,6 +27,7 @@ from core.multi_vector_discovery import MultiVectorDiscoveryEngine
 from core.database import CVE_DATABASE
 from audit.probe_audit import probe_endpoint, check_tcp_port
 from audit.rce_prover import probe_active_rce_proof
+from audit.kernel_audit import evaluate_cve_2026_98432
 from api.report_routes import set_last_scan_result
 
 scan_bp = Blueprint("scan_api", __name__)
@@ -662,6 +663,31 @@ def scan():
                         h_primary = f"กลุ่ม 4: อุปกรณ์เครือข่ายและระบบสำเร็จรูป ({dev_type})"
                         h_labels = [f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"]
 
+                    # Kernel & MPTCP Evaluation for LAN Node
+                    is_win_host = (6 in h_groups) or ("windows" in dev_name.lower()) or ("windows" in dev_type.lower())
+                    k_finding, k_note = evaluate_cve_2026_98432(
+                        is_windows=is_win_host,
+                        server=dev_name,
+                        open_ports=open_ports,
+                        mptcp_results={},
+                        is_container=False
+                    )
+                    matched_cves = [k_finding] if k_finding else []
+                    if k_finding and k_note:
+                        cve_note = f"{cve_note} | {k_note}"
+
+                    arch_matrix = [
+                        {
+                            "group_id": h_groups[0] if h_groups else 4,
+                            "group_name": h_primary,
+                            "sapi_detected": "Non-Web Network Client (L2/L3 Network Node)",
+                            "worker_model": "OS Native Daemon / Network Stack",
+                            "prerequisite_summary": "ไม่พบ Web Service มาตรฐาน — เฝ้าระวังเคอร์เนลและพอร์ตระดับเครือข่าย",
+                            "exploitability": "Conditional" if k_finding else "Not Applicable",
+                            "chains_applicable": ["Kernel TCP Inspection"] if k_finding else ["Non-Web Network Stack"]
+                        }
+                    ]
+
                     all_active.append({
                         "is_php": False,
                         "is_node": False,
@@ -681,6 +707,8 @@ def scan():
                         "latency": latency,
                         "vulnerability": "Secure",
                         "cveNote": cve_note,
+                        "matched_cves": matched_cves,
+                        "architecture_matrix": arch_matrix,
                         "probe_log": mv_probe_log,
                         "thaicert_groups": h_groups,
                         "primary_group": h_primary,
@@ -693,11 +721,18 @@ def scan():
                             "hsts": False,
                             "csp": False,
                             "expose_php_status": "N/A",
-                            "host_verify_cmd": "N/A",
+                            "host_verify_cmd": k_finding.get("host_check", "N/A") if k_finding else "N/A",
                             "safe_criteria": "ปลอดภัยจาก php2shell และ Node2Shell",
                             "thaicert_groups": h_groups,
                             "primary_group": h_primary,
                             "group_labels": h_labels,
+                            "architecture_matrix": arch_matrix,
+                            "kernel_audit": {
+                                "cve": "CVE-2026-98432",
+                                "mptcp_results": {},
+                                "note": k_note,
+                                "is_container": False
+                            } if k_finding else {},
                             "security_chains": {
                                 "applicable": False,
                                 "overall_status": "Non-PHP Device",
@@ -765,6 +800,31 @@ def scan():
                             arp_primary = f"กลุ่ม 4: อุปกรณ์เครือข่ายและระบบสำเร็จรูป ({dev_type})"
                             arp_labels = [f"กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป ({dev_type})"]
 
+                        # Kernel & MPTCP Evaluation for ARP LAN Node
+                        is_win_host = (6 in arp_groups) or ("windows" in dev_name.lower()) or ("windows" in dev_type.lower())
+                        k_finding, k_note = evaluate_cve_2026_98432(
+                            is_windows=is_win_host,
+                            server=dev_name,
+                            open_ports=open_ports,
+                            mptcp_results={},
+                            is_container=False
+                        )
+                        matched_cves = [k_finding] if k_finding else []
+                        if k_finding and k_note:
+                            cve_note = f"{cve_note} | {k_note}"
+
+                        arch_matrix = [
+                            {
+                                "group_id": arp_groups[0] if arp_groups else 4,
+                                "group_name": arp_primary,
+                                "sapi_detected": "Non-Web Network Client (L2/L3 Network Node)",
+                                "worker_model": "OS Native Daemon / Network Stack",
+                                "prerequisite_summary": "ไม่พบ Web Service มาตรฐาน — เฝ้าระวังเคอร์เนลและพอร์ตระดับเครือข่าย",
+                                "exploitability": "Conditional" if k_finding else "Not Applicable",
+                                "chains_applicable": ["Kernel TCP Inspection"] if k_finding else ["Non-Web Network Stack"]
+                            }
+                        ]
+
                         all_active.append({
                             "is_php": False,
                             "is_node": False,
@@ -784,6 +844,8 @@ def scan():
                             "latency": latency,
                             "vulnerability": "Secure",
                             "cveNote": cve_note,
+                            "matched_cves": matched_cves,
+                            "architecture_matrix": arch_matrix,
                             "probe_log": arp_probe_log,
                             "thaicert_groups": arp_groups,
                             "primary_group": arp_primary,
@@ -796,11 +858,18 @@ def scan():
                                 "hsts": False,
                                 "csp": False,
                                 "expose_php_status": "N/A",
-                                "host_verify_cmd": "N/A",
+                                "host_verify_cmd": k_finding.get("host_check", "N/A") if k_finding else "N/A",
                                 "safe_criteria": "ปลอดภัยจาก php2shell และ Node2Shell",
                                 "thaicert_groups": arp_groups,
                                 "primary_group": arp_primary,
                                 "group_labels": arp_labels,
+                                "architecture_matrix": arch_matrix,
+                                "kernel_audit": {
+                                    "cve": "CVE-2026-98432",
+                                    "mptcp_results": {},
+                                    "note": k_note,
+                                    "is_container": False
+                                } if k_finding else {},
                                 "security_chains": {
                                     "applicable": False,
                                     "overall_status": "Non-PHP Device",

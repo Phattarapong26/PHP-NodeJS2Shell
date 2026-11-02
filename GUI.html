@@ -2789,7 +2789,7 @@ Content-Type: text/html; charset=UTF-8</div>
           `;
         }
 
-        const isActionInspect = isPhp || isNode;
+        const isActionInspect = isPhp || isNode || (item.matched_cves && item.matched_cves.length > 0) || (item.deep_audit && item.deep_audit.kernel_audit);
         const targetPort = item.port || (item.ports && item.ports[0]) || null;
         const targetId = item.target_id || (targetPort ? `${item.ip}:${targetPort}` : item.ip);
         const webUrl = getWebTargetUrl(item, targetPort);
@@ -2993,9 +2993,14 @@ Content-Type: text/html; charset=UTF-8</div>
 
       const openWebBtn = document.getElementById('auditTargetOpenWebBtn');
       if (openWebBtn) {
-        const webUrl = getWebTargetUrl(host, targetPort);
-        openWebBtn.href = webUrl;
-        openWebBtn.title = `เปิดดูหน้าเว็บจริง (${webUrl})`;
+        if (targetPort || host.is_php || host.is_node) {
+          openWebBtn.classList.remove('hidden');
+          const webUrl = getWebTargetUrl(host, targetPort);
+          openWebBtn.href = webUrl;
+          openWebBtn.title = `เปิดดูหน้าเว็บจริง (${webUrl})`;
+        } else {
+          openWebBtn.classList.add('hidden');
+        }
       }
 
       // Sibling Ports Switcher inside Modal
