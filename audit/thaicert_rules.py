@@ -1,21 +1,27 @@
 """
-Heuristic Archetype Classification Rules
+Heuristic Archetype Classification Rules & Multi-Tier Evidence Engine
 Classifies targets into 8 organizational archetype profiles tailored for typical Thai IT & web infrastructure:
 1. เว็บไซต์และระบบภายในองค์กร (CMS / Internal Web)
-2. ระบบหลังบ้านแอปมือถือ และ API
-3. Hosting Control Panel
-4. ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance, NAS, IoT/SCADA)
-5. Container และ Docker Image
+2. ระบบหลังบ้านแอปมือถือ และ API (APIs / Frameworks)
+3. Hosting Control Panel (cPanel, Plesk, DirectAdmin, Webmin)
+4. ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance, Network, FW/VPN, IoT)
+5. Container และ Docker Image (Docker, Registry, K8s)
 6. Windows ที่มี PHP ติดตั้งอยู่ (CVE-2024-4577 Priority)
-7. ระบบทดสอบ ระบบเก่า และระบบสำรอง
-8. ระบบที่ผู้ให้บริการภายนอกดูแล
+7. ระบบทดสอบ ระบบเก่า และระบบสำรอง (Dev, UAT, Staging, Backup)
+8. ระบบที่ผู้ให้บริการภายนอกดูแล (Shared Hosting, Managed Cloud)
 
-NOTE: These 8 profiles are heuristic architectural archetypes formulated by this tool's author
-to categorize observed web assets. They do not constitute an officially published government standard by ThaiCERT/NCSA.
+Features Tiered Evidence Hierarchy (adapted from VASCAN8GROUP):
+- Tier 1: Passive Product & Service Fingerprinting (38 Signatures)
+- Tier 2: Per-Group Targeted Exposure Checklists (GROUP_CHECKS)
+- Tier 3: Soft-404 Anti-False-Positive Baseline Verification
+- Tier 4: Edge / WAF / Blocked Surface Classification
 """
 
 import re
-from typing import Dict, Any, List
+import hashlib
+import random
+import string
+from typing import Dict, Any, List, Optional, Tuple
 
 THAICERT_GROUP_PROFILES = {
     1: {
@@ -268,17 +274,293 @@ def evaluate_group_architecture_matrix(
     return matrix
 
 
-def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_text: str, cookies_str: str, port: int, is_php: bool, is_node: bool = False, cms_name: str = "") -> dict:
+# ==============================================================================
+# Tier 1 & Tier 2: Product Signatures, Edge / WAF, and Targeted Checklists
+# Adapted from VASCAN8GROUP for Enterprise ThaiCERT Architecture Classification
+# ==============================================================================
+
+GROUP_NAMES = {
+    1: "เว็บไซต์และระบบภายในองค์กร (CMS / Internal Web)",
+    2: "ระบบหลังบ้านแอปมือถือ และ API (APIs / Frameworks)",
+    3: "Hosting Control Panel (cPanel, Plesk, DirectAdmin, Webmin)",
+    4: "ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance, Network, FW/VPN, IoT)",
+    5: "Container และ Docker Image (Docker, Registry, K8s)",
+    6: "Windows ที่มี PHP ติดตั้งอยู่ (IIS, XAMPP, WampServer)",
+    7: "ระบบทดสอบ ระบบเก่า และระบบสำรอง (Dev, UAT, Staging, Backup)",
+    8: "ระบบที่ผู้ให้บริการภายนอกดูแล (Shared Hosting, Managed Cloud)"
+}
+
+_LEGACY_RE = re.compile(
+    r"(?:^|[.\-_])(dev|uat|stag|staging|test|qa|sandbox|sbx|old|legacy|beta|demo|backup|bak|tmp)(?:[.\-_]|$)",
+    re.I,
+)
+
+_PANEL_PORTS = {2082, 2083, 2086, 2087, 2095, 2096, 2222, 8880, 10000, 20000}
+_DOCKER_PORTS = {2375, 2376, 2379, 2380, 5000, 6443, 8001, 10250, 10255}
+_APPLIANCE_PORTS = {541, 542, 554, 830, 2000, 4433, 4443, 4786, 7443, 8006, 8291, 8728, 8729, 9443, 10443, 37777, 49152}
+_WINDOWS_PORTS = {135, 139, 445, 3389, 5985, 5986, 8172, 8530}
+
+# 38 Passive Product / Technology Signatures
+PRODUCT_SIGNATURES = [
+    # Group 4: Appliance / Network / FW-VPN / Surveillance
+    ("Fortinet", "FortiGate / FortiOS", [4], re.compile(r"\b(?:fortigate|fortios|fortinet)\b|/remote/fgt_lang", re.I)),
+    ("Palo Alto Networks", "GlobalProtect", [4], re.compile(r"global[ -]protect|palo alto networks|pan-os", re.I)),
+    ("Cisco", "Cisco ASA / AnyConnect", [4], re.compile(r"cisco anyconnect|cisco ssl vpn|webvpn|\+csc[o0]e\+", re.I)),
+    ("Citrix", "NetScaler / Citrix Gateway", [4], re.compile(r"netscaler|citrix adc|citrix gateway|/vpn/index\.html", re.I)),
+    ("Ivanti", "Connect Secure / Pulse Secure", [4], re.compile(r"ivanti connect secure|pulse secure|dana-na|dslaunch", re.I)),
+    ("SonicWall", "SonicOS / SSL-VPN", [4], re.compile(r"sonicwall|sonicos|sonicwall ssl-vpn", re.I)),
+    ("MikroTik", "RouterOS / WebFig", [4], re.compile(r"mikrotik|routeros|webfig", re.I)),
+    ("Check Point", "Gaia / Security Gateway", [4], re.compile(r"check point|checkpoint|gaia portal", re.I)),
+    ("Juniper", "Junos / Secure Gateway", [4], re.compile(r"juniper networks|junos pulse|juniper secure connect", re.I)),
+    ("Synology", "Synology DSM", [4], re.compile(r"synology|diskstation|\bdsm\b", re.I)),
+    ("QNAP", "QNAP QTS", [4], re.compile(r"qnap|qts", re.I)),
+    ("Hikvision", "Hikvision Camera / NVR", [4], re.compile(r"hikvision|web video server", re.I)),
+    ("Dahua", "Dahua Camera / NVR", [4], re.compile(r"dahua", re.I)),
+    ("Axis", "Axis Communications Device", [4], re.compile(r"axis communications|\baxis network\b", re.I)),
+    
+    # Group 3 & 8: Hosting Control Panels / Shared Hosting
+    ("cPanel", "cPanel / WHM", [3, 8], re.compile(r"cpanel|webhost manager|\bwhm\b", re.I)),
+    ("Plesk", "Plesk Panel", [3, 8], re.compile(r"plesk", re.I)),
+    ("DirectAdmin", "DirectAdmin", [3, 8], re.compile(r"directadmin", re.I)),
+    ("Webmin", "Webmin Panel", [3], re.compile(r"webmin|miniserv", re.I)),
+    ("CyberPanel", "CyberPanel", [3, 8], re.compile(r"cyberpanel", re.I)),
+    ("ISPConfig", "ISPConfig", [3, 8], re.compile(r"ispconfig", re.I)),
+
+    # Group 1: CMS & Web Applications
+    ("WordPress", "WordPress CMS", [1], re.compile(r"wordpress|wp-content|wp-includes|wp-json", re.I)),
+    ("Drupal", "Drupal CMS", [1], re.compile(r"drupal|sites/default/files", re.I)),
+    ("Joomla", "Joomla! CMS", [1], re.compile(r"joomla|/media/system/js/|/administrator/", re.I)),
+    ("Moodle", "Moodle LMS", [1], re.compile(r"moodle|moodlesession", re.I)),
+    ("Nextcloud", "Nextcloud", [1], re.compile(r"nextcloud|nc_same_site", re.I)),
+    ("Apache", "Apache HTTP Server", [1], re.compile(r"apache(?: httpd|/\d| server)", re.I)),
+    ("F5 NGINX", "NGINX / OpenResty", [1], re.compile(r"nginx|openresty", re.I)),
+
+    # Group 2: APIs & Backend Frameworks
+    ("Laravel", "Laravel Framework", [1, 2], re.compile(r"laravel|laravel_session|x-csrf-token", re.I)),
+    ("Symfony", "Symfony Framework", [1, 2], re.compile(r"symfony|_profiler|_sf2", re.I)),
+    ("CodeIgniter", "CodeIgniter Framework", [1, 2], re.compile(r"codeigniter|ci_session", re.I)),
+    ("Yii", "Yii Framework", [1, 2], re.compile(r"yii framework|_csrf", re.I)),
+    ("Express", "Node.js / Express", [2], re.compile(r"x-powered-by:\s*express|\bexpress\.js\b", re.I)),
+    ("Spring", "Spring Boot", [2], re.compile(r"spring boot|whitelabel error page", re.I)),
+    ("FastAPI", "FastAPI / Starlette", [2], re.compile(r"fastapi|starlette", re.I)),
+    ("Django", "Django Framework", [2], re.compile(r"django|csrftoken", re.I)),
+    ("Flask", "Flask / Werkzeug", [2], re.compile(r"werkzeug|flask", re.I)),
+    ("Ruby", "Ruby on Rails", [2], re.compile(r"ruby on rails|actioncontroller", re.I)),
+
+    # Group 5: Containers & Docker
+    ("Docker", "Docker Engine API", [5], re.compile(r"docker-distribution|docker engine|docker daemon", re.I)),
+    ("Harbor", "Harbor Container Registry", [5], re.compile(r"harbor container registry|goharbor", re.I)),
+    ("Red Hat", "OpenShift", [5], re.compile(r"openshift", re.I)),
+    ("Portainer", "Portainer Management", [5], re.compile(r"portainer", re.I)),
+    ("Kubernetes", "Kubernetes / Kubelet", [5], re.compile(r"kubernetes dashboard|kubelet|kubernetes api", re.I)),
+    ("Traefik", "Traefik Cloud Ingress", [5], re.compile(r"traefik", re.I)),
+
+    # Group 6: Windows & PHP
+    ("Microsoft", "IIS / ASP.NET", [6], re.compile(r"microsoft-iis|asp\.net|__viewstate|iis windows", re.I)),
+    ("Microsoft", "Exchange / OWA", [6], re.compile(r"outlook web app|\bowa\b|exchange server", re.I)),
+    ("Apache Friends", "XAMPP", [6, 7], re.compile(r"xampp", re.I)),
+    ("WampServer", "WampServer", [6, 7], re.compile(r"wampserver", re.I)),
+    ("Laragon", "Laragon Stack", [6, 7], re.compile(r"laragon", re.I)),
+
+    # Group 7: Dev, Test & CI/CD
+    ("Jenkins", "Jenkins CI/CD", [7], re.compile(r"\bjenkins\b|X-Jenkins", re.I)),
+    ("GitLab", "GitLab Server", [7], re.compile(r"gitlab", re.I)),
+    ("Grafana", "Grafana Labs", [7], re.compile(r"grafana", re.I)),
+
+    # Group 8: Managed & Cloud Hosting
+    ("LiteSpeed", "LiteSpeed Web Server", [8], re.compile(r"litespeed|lsws", re.I)),
+    ("CloudLinux", "CloudLinux / CageFS", [8], re.compile(r"cloudlinux|cagefs", re.I)),
+]
+
+EDGE_SIGNATURES = [
+    ("Cloudflare", "Cloudflare Edge CDN / WAF", re.compile(r"cf-ray|cf-mitigated|server:\s*cloudflare|cf_clearance", re.I)),
+    ("Akamai", "Akamai Edge WAF", re.compile(r"akamai-ghost|x-akamai|akamai-grn|ak_bmsc", re.I)),
+    ("Imperva", "Imperva Incapsula WAF", re.compile(r"x-iinfo|incap_ses|visid_incap|incapsula", re.I)),
+    ("F5", "F5 BIG-IP / Advanced WAF", re.compile(r"x-wa-info|bigipserver|\bts[0-9a-f]{5,}\b|f5 networks", re.I)),
+    ("Fortinet", "FortiWeb WAF", re.compile(r"fortiweb|fortiwafsid", re.I)),
+    ("Sucuri", "Sucuri Cloud WAF", re.compile(r"x-sucuri|server:\s*sucuri", re.I)),
+    ("ModSecurity", "ModSecurity WAF", re.compile(r"mod_security|modsecurity|noyb", re.I)),
+    ("AWS", "AWS CloudFront WAF", re.compile(r"cloudfront|x-amz-cf-id", re.I)),
+]
+
+# Targeted Sensitive Path Checklists per 8 ThaiCERT Groups
+GROUP_CHECKS = {
+    1: [
+        ("/.git/config", "Git Repository Exposure", "High", r"\[core\]|repositoryformatversion"),
+        ("/.env", ".env Environment File Exposure", "High", r"APP_KEY|DB_PASSWORD|APP_ENV|="),
+        ("/.svn/entries", "SVN Repository Exposure", "High", None),
+        ("/server-status", "Apache mod_status Telemetry", "Medium", r"Apache Server Status|Server uptime"),
+        ("/server-info", "Apache mod_info Telemetry", "Medium", r"Apache Server Information"),
+        ("/phpinfo.php", "phpinfo() Debug Script", "Medium", r"PHP Version|phpinfo\(\)"),
+        ("/info.php", "phpinfo() Debug Script", "Medium", r"PHP Version|phpinfo\(\)"),
+        ("/composer.lock", "composer.lock Exposure", "Low", r"packages|content-hash"),
+        ("/wp-login.php", "WordPress Admin Portal", "Info", r"WordPress|user_login"),
+        ("/wp-json/", "WordPress REST API", "Info", r"\"namespaces\"|wp/v2"),
+    ],
+    2: [
+        ("/swagger.json", "Swagger API Specification", "Medium", r"swagger|openapi"),
+        ("/openapi.json", "OpenAPI Specification", "Medium", r"openapi|paths"),
+        ("/swagger-ui.html", "Swagger UI Documentation", "Low", r"Swagger UI|swagger-ui"),
+        ("/api-docs", "API Documentation Endpoint", "Low", r"swagger|openapi|api"),
+        ("/graphql", "GraphQL Endpoint", "Medium", r"GraphQL|__schema|errors"),
+        ("/graphiql", "GraphiQL Interactive Console", "Medium", r"GraphiQL|graphiql"),
+        ("/_ignition/health-check", "Laravel Ignition Diagnostic", "High", r"ignition|health"),
+        ("/_profiler", "Symfony Web Profiler", "High", r"Symfony Profiler|profiler"),
+        ("/app_dev.php", "Symfony Dev Front-Controller", "High", r"Symfony|Whoops"),
+    ],
+    3: [
+        ("/cpanel", "cPanel Management Login", "Info", r"cPanel"),
+        ("/whm", "WHM WebHost Manager", "Info", r"WHM|WebHost Manager"),
+        ("/login_up.php", "Plesk Control Panel Login", "Info", r"Plesk"),
+        ("/phpmyadmin/", "phpMyAdmin Database Portal", "Medium", r"phpMyAdmin"),
+        ("/webmail", "Webmail Interface", "Info", r"webmail|Roundcube|Horde"),
+        ("/.cpanel", ".cpanel Directory Exposure", "Low", None),
+    ],
+    4: [
+        ("/remote/login", "FortiGate SSL-VPN Portal", "Info", r"SSL-VPN|fortinet|/remote/"),
+        ("/remote/fgt_lang", "FortiGate Endpoint", "Low", None),
+        ("/global-protect/login.esp", "Palo Alto GlobalProtect VPN", "Info", r"GlobalProtect|global-protect"),
+        ("/sslvpn/", "SSL-VPN Gateway", "Info", r"sslvpn|vpn|login"),
+        ("/vpn/index.html", "Citrix NetScaler Gateway", "Info", r"Citrix|NetScaler|vpn"),
+        ("/webfig/", "MikroTik WebFig Router Management", "Info", r"RouterOS|MikroTik|webfig"),
+    ],
+    5: [
+        ("/v2/", "Docker Registry API V2", "High", r"registry|Docker-Distribution"),
+        ("/v2/_catalog", "Docker Registry Catalog Exposure", "Critical", r"repositories"),
+        ("/containers/json", "Docker Engine Daemon API Exposure", "Critical", r"\[|Id|Image"),
+        ("/version", "Docker / K8s Engine Version", "Medium", r"ApiVersion|gitVersion|Version"),
+        ("/info", "Docker Daemon Host Info", "High", r"Containers|Images|ServerVersion"),
+        ("/pods", "Kubelet Pods Listing", "Critical", r"PodList|items"),
+    ],
+    6: [
+        ("/phpinfo.php", "PHP-CGI / Windows phpinfo()", "Medium", r"PHP Version|Server API"),
+        ("/dashboard/", "XAMPP Windows Control Dashboard", "Low", r"XAMPP"),
+        ("/xampp/", "XAMPP Root Console", "Low", r"XAMPP"),
+        ("/phpmyadmin/", "phpMyAdmin Database Manager", "Medium", r"phpMyAdmin"),
+    ],
+    7: [
+        ("/backup.zip", "Full Site Backup Archive Exposure", "High", None),
+        ("/backup.tar.gz", "Tar Gzip Backup Archive Exposure", "High", None),
+        ("/db.sql", "Database SQL Dump Exposure", "High", None),
+        ("/dump.sql", "SQL Database Dump Exposure", "High", None),
+        ("/site.bak", "Site Backup File Exposure", "High", None),
+        ("/web.config.bak", "web.config Backup Exposure", "High", None),
+        ("/.gitlab-ci.yml", "GitLab CI/CD Pipeline Exposure", "Medium", r"stages|script|image"),
+        ("/.env.dev", "Development Environment Secrets Exposure", "High", r"APP_KEY|DB_PASSWORD|="),
+    ],
+    8: [
+        ("/cpanel", "Multi-tenant cPanel Portal", "Info", r"cPanel"),
+        ("/webmail", "Shared Webmail Portal", "Info", r"webmail|Roundcube"),
+        ("/phpmyadmin/", "phpMyAdmin Multi-tenant Portal", "Medium", r"phpMyAdmin"),
+        ("/.well-known/", "ACME / PKI Discovery Directory", "Info", None),
+    ]
+}
+
+# L2 / MAC Vendor to Device Category and Port Sweep Rules
+DEVICE_RULES = [
+    (r"fortinet", "firewall", "Firewall / VPN (FortiGate)", [4], [541, 4443, 8443, 10443]),
+    (r"palo alto|sonicwall|watchguard|sophos|check ?point|barracuda|netgate|juniper|zyxel", "firewall", "Firewall / VPN", [4], [4433, 4443, 8443]),
+    (r"routerboard|mikrotik", "network", "Router (MikroTik)", [4], [8291, 8728, 8729]),
+    (r"hikvision|dahua|axis communications|hanwha|uniview", "camera", "IP Camera / NVR", [4], [554, 8000, 8554, 37777]),
+    (r"synology|qnap|asustor|terramaster|buffalo", "nas", "NAS / Storage", [4], [5000, 5001, 8080]),
+    (r"\bhp inc|\bbrother\b|\bcanon\b|seiko epson|kyocera|ricoh|xerox|lexmark", "printer", "Printer / MFP", [4], [631, 9100]),
+    (r"cisco|aruba|ruckus|ubiquiti|tp-link|d-link|netgear|ruijie", "network", "Network Infrastructure", [4], [22, 23, 80, 443, 8080, 8443]),
+]
+
+
+def generate_random_canary_path(length: int = 24) -> str:
+    """Generate random non-existent path to establish soft-404 baseline."""
+    chars = string.ascii_lowercase + string.digits
+    return "/_canary_" + "".join(random.choices(chars, k=length))
+
+
+def verify_checklist_hit(status_code: int, content_bytes: bytes, text_body: str, signature_regex: Optional[str], baseline_info: dict) -> bool:
     """
-    Classifies the target host into the 8 ThaiCERT / NCSA target system groups:
-    1. เว็บไซต์และระบบภายในองค์กร (WordPress, Drupal, Joomla, Moodle, Nextcloud)
-    2. ระบบหลังบ้านแอปมือถือ และ API (Laravel, Symfony, CodeIgniter, Yii, Slim, REST API)
-    3. Hosting Control Panel (cPanel, Plesk, DirectAdmin, Webmin)
-    4. ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Vendor Portal, Network Appliance, NAS, ระบบอุตสาหกรรม)
-    5. Container และ Docker Image (Docker, Kubernetes, Podman, Microservices)
-    6. Windows ที่มี PHP ติดตั้งอยู่ (Windows IIS, XAMPP, WampServer, Laragon - CVE-2024-4577 Priority)
-    7. ระบบทดสอบ ระบบเก่า และระบบสำรอง (Development, UAT, Staging, DR, Snapshot, Lingering)
-    8. ระบบที่ผู้ให้บริการภายนอกดูแล (Shared Hosting, Managed Hosting, Cloud VM, Outsourced)
+    Prevents false positives on Single Page Applications (SPA) and catch-all servers.
+    Validates that:
+    1. HTTP status is 200, 301, 302, 401, or 403.
+    2. Response length and MD5 hash differ from the soft-404 canary baseline.
+    3. Body matches signature_regex if specified.
+    """
+    if status_code not in (200, 301, 302, 401, 403):
+        return False
+
+    base_len = baseline_info.get("len", -1)
+    base_hash = baseline_info.get("hash", "")
+    curr_len = len(content_bytes)
+    curr_hash = hashlib.md5(content_bytes[:4096]).hexdigest()
+
+    # If status is 200 on an SPA catch-all, length and hash will match the random canary path
+    if status_code == 200 and base_len > 0:
+        if abs(curr_len - base_len) < 32 and curr_hash == base_hash:
+            return False
+
+    # Signature verification
+    if signature_regex:
+        if not re.search(signature_regex, text_body, re.IGNORECASE):
+            return False
+
+    return True
+
+
+def detect_edge_product(headers: dict, body: str = "") -> Optional[Dict[str, str]]:
+    """Detect Edge WAF / CDN signatures from response headers and body."""
+    headers_blob = " ".join(f"{k}: {v}" for k, v in (headers or {}).items())
+    sample = (headers_blob + " " + (body or "")[:12000]).lower()
+    for vendor, product, signature in EDGE_SIGNATURES:
+        match = signature.search(sample)
+        if match:
+            return {"vendor": vendor, "product": product, "evidence": match.group(0)[:100]}
+    return None
+
+
+def identify_products(headers: dict, body: str = "", server: str = "") -> List[Dict[str, Any]]:
+    """Passively identify technologies and vendors from HTTP banners, headers and body."""
+    headers_blob = " ".join(f"{k}: {v}" for k, v in (headers or {}).items())
+    sample = (server + " " + headers_blob + " " + (body or "")[:12000])
+    detections = []
+    seen = set()
+
+    for vendor, product, groups, signature in PRODUCT_SIGNATURES:
+        match = signature.search(sample)
+        if match:
+            key = (vendor, product)
+            if key not in seen:
+                seen.add(key)
+                detections.append({
+                    "vendor": vendor,
+                    "product": product,
+                    "groups": groups,
+                    "evidence": match.group(0)[:100],
+                    "confidence": "high" if signature.search(headers_blob) else "medium"
+                })
+
+    return detections
+
+
+def classify_thaicert_groups(
+    ip_or_host: str,
+    server: str,
+    headers: dict,
+    body_text: str,
+    cookies_str: str,
+    port: int,
+    is_php: bool,
+    is_node: bool = False,
+    cms_name: str = "",
+    checklist_hits: Optional[List[Dict[str, Any]]] = None,
+    products: Optional[List[Dict[str, Any]]] = None,
+    oui_vendor: Optional[str] = None
+) -> dict:
+    """
+    Tiered Evidence Classification of the target host into the 8 ThaiCERT / NCSA system groups.
+    Prioritizes:
+    1. Confirmed Exposure Checklist Hits (Verified Sensitive Files)
+    2. High-Confidence Product Signatures (38 Signatures)
+    3. Hardware / MAC OUI Device Rules (ARP L2 Intelligence)
+    4. Hostname Patterns (Dev / UAT / Staging / Backup prefixes)
+    5. Specific Management / Protocol Ports (Control Panel, Docker API, VPN, SMB/RDP)
+    6. Contextual Service Fallbacks (PHP / Node / Web / Gateway)
     """
     server_lower = (server or "").lower()
     body_lower = (body_text or "").lower()
@@ -286,14 +568,93 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
     cookies_lower = (cookies_str or "").lower()
     host_lower = (ip_or_host or "").lower()
 
-    matched_groups = []
-    group_labels = []
-    group_evidence = []
+    matched_groups: List[int] = []
+    group_labels: List[str] = []
+    group_evidence: List[str] = []
+    group_details: List[Dict[str, Any]] = []
+    seen_groups = set()
 
-    # --- Group 1: เว็บไซต์และระบบภายในองค์กร ---
+    def add_group(g_id: int, label_text: str, reason_text: str, source_type: str = "heuristic"):
+        if g_id not in seen_groups and g_id in GROUP_NAMES:
+            seen_groups.add(g_id)
+            matched_groups.append(g_id)
+            group_labels.append(label_text)
+            group_evidence.append(reason_text)
+            group_details.append({
+                "id": g_id,
+                "name": GROUP_NAMES[g_id],
+                "reason": reason_text,
+                "source": source_type
+            })
+
+    # --- Tier 1: Confirmed Checklist Hits (Definitive Proof) ---
+    for hit in (checklist_hits or []):
+        gid = hit.get("group_id") or hit.get("group")
+        if gid and gid in GROUP_NAMES:
+            add_group(
+                gid,
+                f"กลุ่ม {gid}: {GROUP_NAMES[gid]} ({hit.get('label', hit.get('path'))})",
+                f"Checklist Hit: {hit.get('path')} - {hit.get('label')}",
+                "checklist-verified"
+            )
+
+    # --- Tier 2: Product & Technology Signatures (High Confidence) ---
+    inferred_products = products or identify_products(headers, body_text, server)
+    for prod in inferred_products:
+        for gid in prod.get("groups", []):
+            add_group(
+                gid,
+                f"กลุ่ม {gid}: {GROUP_NAMES[gid]} ({prod['product']})",
+                f"Product Signature: {prod['vendor']} {prod['product']} ({prod.get('evidence', '')})",
+                "product-signature"
+            )
+
+    # --- Tier 3: Edge WAF / CDN Detection ---
+    edge_info = detect_edge_product(headers, body_text)
+    if edge_info:
+        add_group(
+            8,
+            f"กลุ่ม 8: บริการภายนอก/Cloud ({edge_info['product']})",
+            f"Edge Security: {edge_info['product']} ({edge_info['evidence']})",
+            "edge-signature"
+        )
+
+    # --- Tier 4: MAC OUI / L2 Hardware Architecture ---
+    if oui_vendor:
+        for v_regex, cat, dev_title, dev_groups, _ in DEVICE_RULES:
+            if re.search(v_regex, oui_vendor, re.IGNORECASE):
+                for gid in dev_groups:
+                    add_group(
+                        gid,
+                        f"กลุ่ม {gid}: {GROUP_NAMES[gid]} ({dev_title})",
+                        f"MAC OUI (ARP): {oui_vendor} → {dev_title}",
+                        "arp-oui"
+                    )
+
+    # --- Tier 5: Hostname & Subdomain Classification ---
+    if _LEGACY_RE.search(host_lower):
+        add_group(
+            7,
+            "กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง (Non-production Hostname)",
+            f"Hostname Indicator: {ip_or_host} สื่อถึง dev/test/staging/old/backup",
+            "hostname-pattern"
+        )
+
+    # --- Tier 6: Port-Based Surface Classification ---
+    if port in _PANEL_PORTS:
+        add_group(3, "กลุ่ม 3: Hosting Control Panel (Panel Port)", f"เปิดพอร์ตบริหารจัดการ Control Panel {port}", "port-signature")
+    if port in _DOCKER_PORTS:
+        add_group(5, "กลุ่ม 5: Container & Microservices (Docker/K8s Port)", f"เปิดพอร์ต Container/Registry API {port}", "port-signature")
+    if port in _APPLIANCE_PORTS:
+        add_group(4, "กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance Port)", f"เปิดพอร์ตเฉพาะ Appliance/VPN {port}", "port-signature")
+    if port in _WINDOWS_PORTS:
+        add_group(6, "กลุ่ม 6: Windows PHP Stacks (Windows Port)", f"เปิดพอร์ตโครงสร้างพื้นฐาน Windows {port} (SMB/RDP/WinRM)", "port-signature")
+
+    # --- Tier 7: Heuristic Framework / CMS Rules ---
+    # Group 1: CMS & Internal Web Portals
     g1_markers = []
     if any(k in body_lower or k in headers_str for k in ["wp-content", "wp-json", "wp-includes", "wordpress", "corppress"]):
-        g1_markers.append("CorpPress CMS" if "corppress" in body_lower else "WordPress / CMS")
+        g1_markers.append("WordPress / CMS")
     if any(k in body_lower or k in headers_str for k in ["drupal", "/sites/default/", "x-generator: drupal"]):
         g1_markers.append("Drupal")
     if any(k in body_lower or k in headers_str for k in ["joomla", "/administrator/"]):
@@ -303,17 +664,15 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
     if any(k in body_lower or k in headers_str for k in ["nextcloud", "nc_same_site"]):
         g1_markers.append("Nextcloud")
     if g1_markers or (is_php and any(k in cms_name.lower() for k in ["wordpress", "drupal", "joomla", "cms", "moodle"])):
-        matched_groups.append(1)
-        name = f"กลุ่ม 1: เว็บไซต์/ระบบภายใน ({', '.join(g1_markers) if g1_markers else 'CMS/Internal Web'})"
-        group_labels.append(name)
-        group_evidence.extend(g1_markers or ["Internal Web / CMS Portal"])
+        add_group(1, f"กลุ่ม 1: เว็บไซต์/ระบบภายใน ({', '.join(g1_markers) if g1_markers else 'CMS/Internal Web'})",
+                  f"CMS Markers: {', '.join(g1_markers) if g1_markers else cms_name}", "web-marker")
 
-    # --- Group 2: ระบบหลังบ้านแอปมือถือ และ API ---
+    # Group 2: APIs & Backend Frameworks
     g2_markers = []
-    if "laravel" in cookies_lower or "x-csrf-token" in headers_str or "laravel" in body_lower or "fieldops" in body_lower:
-        g2_markers.append("Laravel / FieldOps API Framework")
+    if "laravel" in cookies_lower or "x-csrf-token" in headers_str or "laravel" in body_lower:
+        g2_markers.append("Laravel Framework")
     if "symfony" in cookies_lower or "_sf2" in cookies_lower or "symfony" in headers_str:
-        g2_markers.append("Symfony")
+        g2_markers.append("Symfony Framework")
     if "ci_session" in cookies_lower or "codeigniter" in body_lower:
         g2_markers.append("CodeIgniter")
     if "yii" in body_lower or "_csrf" in cookies_lower and "yii" in headers_str:
@@ -323,58 +682,10 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
     if any(k in host_lower for k in ["api.", "/api", "backend.", "mobile."]) or "application/json" in headers_str:
         g2_markers.append("REST API Endpoint")
     if g2_markers:
-        matched_groups.append(2)
-        group_labels.append(f"กลุ่ม 2: หลังบ้านแอป & API ({', '.join(g2_markers)})")
-        group_evidence.extend(g2_markers)
+        add_group(2, f"กลุ่ม 2: หลังบ้านแอป & API ({', '.join(g2_markers)})",
+                  f"API/Framework Markers: {', '.join(g2_markers)}", "framework-marker")
 
-    # --- Group 3: Hosting Control Panel ---
-    g3_markers = []
-    if port in [2082, 2083, 2086, 2087] or "cpanel" in body_lower or "cpanel" in server_lower:
-        g3_markers.append("cPanel")
-    if port in [8443, 8880] or "plesk" in server_lower or "plesk" in headers_str:
-        g3_markers.append("Plesk Panel")
-    if port in [2222] or "directadmin" in body_lower or "directadmin" in server_lower:
-        g3_markers.append("DirectAdmin")
-    if port in [10000] or "webmin" in body_lower or "miniserv" in server_lower:
-        g3_markers.append("Webmin Panel")
-    if "hostadmin" in body_lower or "tenant panel" in body_lower:
-        g3_markers.append("HostAdmin Control Panel")
-    if g3_markers:
-        matched_groups.append(3)
-        group_labels.append(f"กลุ่ม 3: Hosting Control Panel ({', '.join(g3_markers)})")
-        group_evidence.extend(g3_markers)
-
-    # --- Group 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Appliance, NAS, IoT/SCADA) ---
-    g4_markers = []
-    if any(k in server_lower or k in body_lower for k in ["synology", "diskstation", "dsm", "qts", "qnap", "truenas"]):
-        g4_markers.append("NAS Storage Appliance")
-    if any(k in server_lower or k in body_lower for k in ["mikrotik", "webfig", "pfsense", "fortigate", "fortios", "openwrt", "unifi"]):
-        g4_markers.append("Network Appliance / Router")
-    if any(k in server_lower or k in body_lower for k in ["jetdirect", "canon", "ricoh", "xerox", "brother", "hikvision", "dahua"]):
-        g4_markers.append("Vendor Device / Peripheral")
-    if any(k in server_lower or k in body_lower for k in ["scada", "plc", "modbus", "siemens", "schneider"]):
-        g4_markers.append("Industrial ICS/SCADA Web")
-    if "netguard" in body_lower or "lighttpd" in server_lower:
-        g4_markers.append("NetGuard UTM Appliance (IoT/Embedded)")
-    if g4_markers:
-        matched_groups.append(4)
-        group_labels.append(f"กลุ่ม 4: อุปกรณ์สำเร็จรูป & Appliance ({', '.join(g4_markers)})")
-        group_evidence.extend(g4_markers)
-
-    # --- Group 5: Container และ Docker Image ---
-    g5_markers = []
-    if any(k in server_lower or k in headers_str for k in ["traefik", "k8s", "envoy", "kong", "ingress", "portainer"]):
-        g5_markers.append("Kubernetes / Ingress Gateway")
-    if any(k in host_lower for k in ["172.17.", "172.18.", "10.42.", "10.244."]) or port in [9000, 9443]:
-        g5_markers.append("Docker / Container Network")
-    if "order-api" in body_lower or "container runtime" in body_lower:
-        g5_markers.append("Docker Container Image (order-api)")
-    if g5_markers:
-        matched_groups.append(5)
-        group_labels.append(f"กลุ่ม 5: Container & Microservices ({', '.join(g5_markers)})")
-        group_evidence.extend(g5_markers)
-
-    # --- Group 6: Windows ที่มี PHP ติดตั้งอยู่ (CVE-2024-4577 High Priority) ---
+    # Group 6: Windows & IIS
     g6_markers = []
     if any(k in server_lower for k in ["microsoft-iis", "iis/"]):
         g6_markers.append("Windows IIS")
@@ -386,81 +697,38 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         g6_markers.append("WampServer")
     if any(k in body_lower or k in server_lower for k in ["laragon"]):
         g6_markers.append("Laragon Stack")
-    if "hr portal" in body_lower:
-        g6_markers.append("HR Portal (Windows IIS / PHP-CGI)")
     if g6_markers:
-        matched_groups.append(6)
-        group_labels.append(f"กลุ่ม 6: Windows PHP Stacks ({', '.join(g6_markers)})")
-        group_evidence.extend(g6_markers)
+        add_group(6, f"กลุ่ม 6: Windows PHP Stacks ({', '.join(g6_markers)})",
+                  f"Windows Platform: {', '.join(g6_markers)}", "platform-marker")
 
-    # --- Group 7: ระบบทดสอบ ระบบเก่า และระบบสำรอง (Dev, UAT, Staging, DR, Lingering) ---
-    g7_markers = []
-    if any(k in host_lower for k in ["dev.", "uat.", "test.", "stage.", "staging.", "dr.", "backup.", "old.", "lab."]):
-        g7_markers.append("Non-production Hostname Prefix")
-    if port in [3000, 5000, 5173, 4000, 8000, 8080, 8888, 18080]:
-        g7_markers.append(f"Development Port {port}")
+    # Group 7: Test / Staging / Debug
     if any(k in body_lower for k in ["phpmyadmin", "debug mode", "app_env=local", "staging environment", "dms staging"]):
-        g7_markers.append("DMS Staging / Debug Lingering System")
-    if g7_markers:
-        matched_groups.append(7)
-        group_labels.append(f"กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง ({', '.join(g7_markers)})")
-        group_evidence.extend(g7_markers)
+        add_group(7, "กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง (Debug/Staging Telemetry)", "Debug Mode / Staging Environment Telemetry", "telemetry-marker")
 
-    # --- Group 8: ระบบที่ผู้ให้บริการภายนอกดูแล (Cloud VM & Outsourced) ---
-    g8_markers = []
-    if any(k in server_lower or k in headers_str for k in ["cloudflare", "cloudfront", "fastly", "akamai"]):
-        g8_markers.append("Edge Cloud CDN/Proxy")
-    if any(k in host_lower for k in ["amazonaws.com", "googleusercontent.com", "azure.com", "digitalocean"]):
-        g8_markers.append("Cloud Provider VM")
-    if "cloudshare" in body_lower or "customer site" in body_lower:
-        g8_markers.append("CloudShare Multi-Tenant Shared Hosting")
-    if g8_markers:
-        matched_groups.append(8)
-        group_labels.append(f"กลุ่ม 8: บริการภายนอก/Cloud ({', '.join(g8_markers)})")
-        group_evidence.extend(g8_markers)
-
-    # Intelligent Fallback: correctly classifies Web, API, Windows, Containers, and Dev ports
+    # --- Tier 8: Intelligent Fallback Rules ---
     if not matched_groups:
         if is_php:
-            matched_groups = [1]
-            group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (General PHP Web)"]
-            group_evidence = ["General PHP Web Application"]
+            add_group(1, "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (General PHP Web)", "General PHP Web Application", "fallback")
         elif is_node:
             if any(k in host_lower or k in headers_str for k in ["/api", "api.", "backend", "application/json"]):
-                matched_groups = [2]
-                group_labels = ["กลุ่ม 2: ระบบหลังบ้านแอปมือถือ และ API (Node.js API)"]
-                group_evidence = ["Node.js API Service"]
+                add_group(2, "กลุ่ม 2: ระบบหลังบ้านแอปมือถือ และ API (Node.js API)", "Node.js REST API Service", "fallback")
             else:
-                matched_groups = [1]
-                group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Node.js Web App)"]
-                group_evidence = ["Node.js Web Application"]
+                add_group(1, "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Node.js Web App)", "Node.js Web Application", "fallback")
         elif any(k in server_lower for k in ["microsoft-iis", "windows", "win32", "win64"]):
-            matched_groups = [6]
-            group_labels = ["กลุ่ม 6: Windows Server Application"]
-            group_evidence = ["Windows Architecture"]
+            add_group(6, "กลุ่ม 6: Windows Server Application", "Windows Operating Environment", "fallback")
         elif port in [3000, 5000, 5173, 8000, 8080, 8888, 4000]:
-            matched_groups = [7]
-            group_labels = [f"กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง (Development Port {port})"]
-            group_evidence = [f"Development Port {port}"]
+            add_group(7, f"กลุ่ม 7: ระบบทดสอบ/ระบบเก่า/สำรอง (Development Port {port})", f"Development/Staging Port {port}", "fallback")
         elif any(k in server_lower for k in ["apache", "nginx", "caddy", "litespeed", "lighttpd"]) or port in [80, 443, 8008, 8081]:
             if "application/json" in headers_str or "/api" in host_lower:
-                matched_groups = [2]
-                group_labels = ["กลุ่ม 2: ระบบหลังบ้านแอปมือถือ และ API (Web API)"]
-                group_evidence = ["REST Web API"]
+                add_group(2, "กลุ่ม 2: ระบบหลังบ้านแอปมือถือ และ API (Web API)", "REST Web API Service", "fallback")
             else:
-                matched_groups = [1]
-                group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Web Service)"]
-                group_evidence = ["Web Application Service"]
+                add_group(1, "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Web Service)", "Web Application Service", "fallback")
         elif any(k in host_lower for k in [".1", ".254"]) or port in [53, 67, 161, 554]:
-            matched_groups = [4]
-            group_labels = ["กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Network Device / Gateway)"]
-            group_evidence = ["Network Infrastructure Device"]
+            add_group(4, "กลุ่ม 4: ซอฟต์แวร์และอุปกรณ์สำเร็จรูป (Network Device / Gateway)", "Network Infrastructure Device", "fallback")
         else:
-            matched_groups = [1]
-            group_labels = ["กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Web Service)"]
-            group_evidence = ["Web Service"]
+            add_group(1, "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร (Web Service)", "General Web Service", "fallback")
 
-    primary = group_labels[0]
+    primary = group_labels[0] if group_labels else "กลุ่ม 1: เว็บไซต์และระบบภายในองค์กร"
     unique_groups = sorted(list(set(matched_groups)))
     arch_matrix = evaluate_group_architecture_matrix(
         groups=unique_groups,
@@ -471,11 +739,14 @@ def classify_thaicert_groups(ip_or_host: str, server: str, headers: dict, body_t
         is_patched=False,
         is_fpm=("fpm" in server_lower or "nginx" in server_lower)
     )
+
     return {
         "groups": unique_groups,
         "primary_group": primary,
         "group_labels": group_labels,
         "evidence": list(set(group_evidence)),
+        "group_details": group_details,
+        "edge_product": edge_info,
         "profiles": [THAICERT_GROUP_PROFILES[g] for g in unique_groups if g in THAICERT_GROUP_PROFILES],
         "architecture_matrix": arch_matrix
     }

@@ -20,7 +20,14 @@ from core.network import resolve_device_details, get_fast_latency
 from audit.php_audit import evaluate_php_security, evaluate_security_chains
 from audit.node_audit import evaluate_node_security
 from audit.nginx_audit import evaluate_nginx_security, collect_target_cves
-from audit.thaicert_rules import classify_thaicert_groups, evaluate_group_architecture_matrix
+from audit.thaicert_rules import (
+    classify_thaicert_groups,
+    evaluate_group_architecture_matrix,
+    generate_random_canary_path,
+    verify_checklist_hit,
+    identify_products,
+    detect_edge_product,
+)
 from audit.sub_tools import (
     probe_strict_session_mode,
     probe_information_disclosure,
@@ -263,7 +270,10 @@ async def probe_endpoint(
 
         # Step 4.5: Deep Non-Destructive Security & Hardening Audit (CMS, WAF, Security Headers)
         waf_name = "None detected (Direct Access)"
-        if "x-cdn" in headers:
+        edge_detection = detect_edge_product(headers, body_text)
+        if edge_detection:
+            waf_name = f"{edge_detection['product']} ({edge_detection['vendor']})"
+        elif "x-cdn" in headers:
             waf_name = f"{headers.get('x-cdn')} Cloud WAF"
         elif "cf-ray" in headers or "cloudflare" in server.lower():
             waf_name = "Cloudflare Edge WAF"
@@ -273,6 +283,60 @@ async def probe_endpoint(
             waf_name = "AWS CloudFront WAF"
         elif "akamai" in server.lower():
             waf_name = "Akamai Edge WAF"
+
+        # Step 4.6: Soft-404 Baseline & Per-Group Exposure Checklist (Anti-False-Positive Engine)
+        canary_baseline = {"status": None, "len": -1, "hash": ""}
+        try:
+            canary_path = generate_random_canary_path()
+            canary_resp = await client.get(f"{base_url}{canary_path}", headers=req_headers, timeout=min(timeout or 2.2, 1.2))
+            canary_baseline = {
+                "status": canary_resp.status_code,
+                "len": len(canary_resp.content),
+                "hash": hashlib.md5(canary_resp.content[:4096]).hexdigest()
+            }
+        except Exception:
+            pass
+
+        # Targeted sensitive path probes across all 8 attack-surface groups
+        checklist_candidates = [
+            (1, "/.git/config", "Git Repository Exposed", "High", r"\[core\]|repositoryformatversion"),
+            (1, "/.env", ".env Credentials Exposed", "High", r"APP_KEY|DB_PASSWORD|APP_ENV|="),
+            (1, "/server-status", "Apache mod_status Telemetry", "Medium", r"Apache Server Status|Server uptime"),
+            (1, "/phpinfo.php", "phpinfo() Debug Script", "Medium", r"PHP Version|phpinfo\(\)"),
+            (2, "/swagger.json", "Swagger API Specification", "Medium", r"swagger|openapi"),
+            (2, "/openapi.json", "OpenAPI Specification", "Medium", r"openapi|paths"),
+            (2, "/_ignition/health-check", "Laravel Ignition Diagnostic", "High", r"ignition|health"),
+            (3, "/cpanel", "cPanel Management Portal", "Info", r"cPanel"),
+            (3, "/login_up.php", "Plesk Control Panel Login", "Info", r"Plesk"),
+            (4, "/remote/login", "FortiGate SSL-VPN Portal", "Info", r"SSL-VPN|fortinet|/remote/"),
+            (4, "/global-protect/login.esp", "Palo Alto GlobalProtect Portal", "Info", r"GlobalProtect|global-protect"),
+            (5, "/v2/_catalog", "Docker Registry Catalog", "Critical", r"repositories"),
+            (5, "/containers/json", "Docker Engine Daemon API", "Critical", r"\[|Id|Image"),
+            (7, "/backup.zip", "Backup Archive File", "High", None),
+            (7, "/db.sql", "SQL Database Dump", "High", None),
+        ]
+
+        async def _probe_single_check(g_id: int, c_path: str, c_label: str, c_sev: str, c_sig: Optional[str]):
+            try:
+                r_chk = await client.get(f"{base_url}{c_path}", headers=req_headers, timeout=min(timeout or 2.2, 1.2))
+                if verify_checklist_hit(r_chk.status_code, r_chk.content, r_chk.text, c_sig, canary_baseline):
+                    return {
+                        "group_id": g_id,
+                        "path": c_path,
+                        "label": c_label,
+                        "severity": c_sev,
+                        "status": r_chk.status_code,
+                        "length": len(r_chk.content)
+                    }
+            except Exception:
+                pass
+            return None
+
+        chk_tasks = [_probe_single_check(*c) for c in checklist_candidates]
+        chk_raw = await asyncio.gather(*chk_tasks, return_exceptions=True)
+        checklist_hits = [r for r in chk_raw if isinstance(r, dict) and r]
+
+        detected_products = identify_products(headers, body_text, server)
 
         cms_name = "Web Application"
         site_name = ""
@@ -304,7 +368,7 @@ async def probe_endpoint(
         has_hsts = "strict-transport-security" in headers
         has_csp = "content-security-policy" in headers
 
-        # ThaiCERT 8 System Target Groups Classification
+        # ThaiCERT 8 System Target Groups Classification (Tiered Evidence Hierarchy)
         thaicert_info = classify_thaicert_groups(
             ip_or_host=display_ip,
             server=server,
@@ -314,7 +378,9 @@ async def probe_endpoint(
             port=port,
             is_php=is_php,
             is_node=is_node,
-            cms_name=cms_name
+            cms_name=cms_name,
+            checklist_hits=checklist_hits,
+            products=detected_products
         )
 
         # Step 4.2: Dynamic Sub-Tools & Multi-Stack Active Probes
@@ -712,6 +778,34 @@ async def probe_endpoint(
             ]
         }
 
+        # Evaluating Exposure Checklist (Sensitive Files, Admin Panels, Spec Leaks):
+        exp_is_risky = len(checklist_hits) > 0
+        exp_status = f"VULNERABLE (ตรวจพบ {len(checklist_hits)} รายการไฟล์สำคัญ/สเปกเสี่ยงหลุดสู่สาธารณะ)" if exp_is_risky else "SECURE (ผ่านการตรวจสอบไฟล์หลุดตามมาตรฐาน สกมช. / ไม่พบไฟล์สำคัญหลุด)"
+        exp_badge = f"{len(checklist_hits)} EXPOSURES" if exp_is_risky else "CHECKLIST CLEAN"
+        exp_items = []
+        for chk in checklist_hits:
+            exp_items.append({
+                "directive": f"Exposure Path: {chk['path']}",
+                "discovered_val": f"HTTP {chk['status']} ({chk['length']} bytes) - {chk['label']} [กลุ่ม {chk['group_id']}]",
+                "is_risky": True
+            })
+            probe_log.append(f"[EXPOSURE HIT] ตรวจพบไฟล์สำคัญ: {chk['path']} ({chk['label']}) [กลุ่ม {chk['group_id']}]")
+        if not exp_items:
+            exp_items.append({
+                "directive": "ThaiCERT 8-Group Exposure Checklist",
+                "discovered_val": "SECURE (ทดสอบแล้วด้วย Soft-404 Canary Baseline ไม่พบไฟล์คอนฟิก, ฐานข้อมูล, หรือสเปก API หลุด)",
+                "is_risky": False
+            })
+
+        va_findings["chain_exposure"] = {
+            "chain_id": "chain_exposure",
+            "title": "ThaiCERT Attack Surface Checklist: การตรวจสอบไฟล์สำคัญและจุดเสี่ยงหลุด",
+            "status": exp_status,
+            "is_risky": exp_is_risky,
+            "badge": exp_badge,
+            "items": exp_items
+        }
+
         zend_c_telemetry = {
             "is_vulnerable": asan_is_vuln,
             "has_deser_sink": has_deser_sink,
@@ -751,6 +845,9 @@ async def probe_endpoint(
             "primary_group": thaicert_info["primary_group"],
             "group_labels": thaicert_info["group_labels"],
             "group_evidence": thaicert_info["evidence"],
+            "group_details": thaicert_info.get("group_details", []),
+            "checklist_hits": checklist_hits,
+            "detected_products": detected_products,
             "thaicert_profiles": thaicert_info.get("profiles", []),
             "architecture_matrix": thaicert_info.get("architecture_matrix", []),
             "security_chains": security_chains,

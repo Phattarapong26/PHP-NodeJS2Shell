@@ -82,8 +82,11 @@ export function openDeepAuditModal(host) {
       7: 'ph-clock-counter-clockwise text-orange-600',
       8: 'ph-cloud text-teal-600'
     };
+    const groupDetails = deep.group_details || [];
     groups.forEach((g, idx) => {
       const label = groupLabels[idx] || `กลุ่ม ${g}`;
+      const det = groupDetails.find((d: any) => d.id === g);
+      const reason = det ? det.reason : '';
       const isG6 = g === 6;
       const isVuln = host.vulnerability === 'Critical' || host.vulnerability === 'Warning';
       const pill = document.createElement('span');
@@ -92,7 +95,8 @@ export function openDeepAuditModal(host) {
           ? 'bg-rose-50 text-rose-800 border-rose-300 shadow-sm'
           : (isG6 ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-white text-slate-700 border-slate-200/90 shadow-sm')
       }`;
-      pill.innerHTML = `<i class="ph-bold ${groupIcons[g] || 'ph-squares-four'}"></i> <span>${label}</span>`;
+      pill.title = reason ? `หลักฐานที่ตรวจพบ: ${reason}` : label;
+      pill.innerHTML = `<i class="ph-bold ${groupIcons[g] || 'ph-squares-four'}"></i> <span>${escapeHtml(label)}</span>${reason ? `<span class="text-[9.5px] font-normal text-slate-400 font-sans hidden sm:inline truncate max-w-xs">· ${escapeHtml(reason)}</span>` : ''}`;
       groupListEl.appendChild(pill);
     });
   }
@@ -874,18 +878,18 @@ export function renderVaDiscoveredCards(host) {
   if (!container) return;
 
   const va = host.va_findings || (host.deep_audit && host.deep_audit.va_findings);
-  if (!va || Object.keys(va).length === 0 || !host.is_php) {
+  if (!va || Object.keys(va).length === 0) {
     container.innerHTML = `
       <div class="col-span-full p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-500 text-xs">
         <i class="ph-bold ph-shield-check text-2xl text-emerald-500 mb-1 inline-block"></i>
-        <p class="font-bold text-slate-700">ไม่พบความเสี่ยงด้านค่าคอนฟิก PHP (อุปกรณ์เครือข่ายทั่วไป)</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">อุปกรณ์นี้ไม่มีบริการ PHP Runtime รันอยู่ จึงปลอดภัยจากความเสี่ยงการเปิดเผยค่า INI และ Session Injection</p>
+        <p class="font-bold text-slate-700">ผ่านการตรวจสอบความมั่นคงปลอดภัย</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">ไม่พบความเสี่ยงด้านค่าคอนฟิก หรือไฟล์สำคัญหลุดสู่ภายนอก</p>
       </div>
     `;
     return;
   }
 
-  const order = ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e', 'chain_asan'];
+  const order = ['chain_a', 'chain_b', 'chain_c', 'chain_d', 'chain_e', 'chain_asan', 'chain_exposure'];
   container.innerHTML = order.map(k => {
     const section = va[k];
     if (!section) return '';
