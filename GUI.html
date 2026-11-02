@@ -1365,7 +1365,7 @@ Content-Type: text/html; charset=UTF-8</div>
             <i class="ph-bold ph-cards text-blue-600"></i>
             <span>รายการ Profile ทั้งหมด</span>
           </span>
-          <button id="btnOpenCreateProfileFromList" type="button" class="neu-pill-btn active px-3 py-1.5 rounded-xl text-white font-bold text-[11px] shadow-xs flex items-center gap-1 hover:scale-[1.02] transition cursor-pointer">
+          <button id="btnOpenCreateProfileFromList" type="button" onclick="handleOpenCreateProfile()" class="neu-pill-btn active px-3 py-1.5 rounded-xl text-white font-bold text-[11px] shadow-xs flex items-center gap-1 hover:scale-[1.02] transition cursor-pointer">
             <i class="ph-bold ph-plus text-xs"></i>
             <span>เพิ่ม Profile ใหม่</span>
           </button>
@@ -1380,7 +1380,7 @@ Content-Type: text/html; charset=UTF-8</div>
           <p class="text-xs text-slate-500 max-w-xs mb-3 leading-relaxed">
             กรุณาสร้าง Profile สำหรับกำหนดวง Subnet เป้าหมาย ความเร็ว และ Header อำพรางตัว
           </p>
-          <button id="btnEmptyCreateProfile" type="button" class="neu-pill-btn active px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-md flex items-center gap-1.5 hover:scale-[1.02] transition cursor-pointer">
+          <button id="btnEmptyCreateProfile" type="button" onclick="handleOpenCreateProfile()" class="neu-pill-btn active px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-md flex items-center gap-1.5 hover:scale-[1.02] transition cursor-pointer">
             <i class="ph-bold ph-plus-circle text-sm"></i>
             <span>+ สร้าง Profile แรก</span>
           </button>
@@ -1395,7 +1395,7 @@ Content-Type: text/html; charset=UTF-8</div>
 
       <!-- Drawer Footer -->
       <div class="p-4 border-t border-slate-200/70 flex items-center justify-between flex-shrink-0 bg-slate-50/50">
-        <button id="btnDrawerCreateProfile" type="button" class="neu-pill-btn active px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center gap-1.5 cursor-pointer">
+        <button id="btnDrawerCreateProfile" type="button" onclick="handleOpenCreateProfile()" class="neu-pill-btn active px-4 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center gap-1.5 cursor-pointer">
           <i class="ph-bold ph-plus text-xs"></i>
           <span>+ เพิ่ม Profile ใหม่</span>
         </button>
@@ -1565,7 +1565,7 @@ Content-Type: text/html; charset=UTF-8</div>
 
 
     <!-- 3. PROFILE CREATE / EDIT MODAL (Comprehensive Scan & Stealth Config) -->
-    <div id="profileFormModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
+    <div id="profileFormModal" onclick="if (event.target === this) closeProfileFormModal()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
       <div class="neu-modal-surface text-slate-700 w-full max-w-2xl rounded-3xl p-6 shadow-2xl max-h-[92vh] flex flex-col">
         
         <!-- Form Header -->
@@ -1579,7 +1579,7 @@ Content-Type: text/html; charset=UTF-8</div>
               <p class="text-[10px] text-slate-400">กำหนดเป้าหมายเครือข่าย, ความเร็ว, และ Header อำพรางตัว</p>
             </div>
           </div>
-          <button id="btnCloseProfileFormModal" class="w-7 h-7 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer">
+          <button id="btnCloseProfileFormModal" type="button" onclick="closeProfileFormModal()" class="w-7 h-7 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer">
             <i class="ph-bold ph-x text-sm"></i>
           </button>
         </div>
@@ -1809,7 +1809,7 @@ Content-Type: text/html; charset=UTF-8</div>
 
           <!-- Form Buttons -->
           <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/70">
-            <button id="btnCancelProfileForm" type="button" class="neu-pill-btn px-4 py-2 rounded-xl text-slate-600 hover:text-slate-800 font-semibold cursor-pointer">
+            <button id="btnCancelProfileForm" type="button" onclick="closeProfileFormModal()" class="neu-pill-btn px-4 py-2 rounded-xl text-slate-600 hover:text-slate-800 font-semibold cursor-pointer">
               ยกเลิก
             </button>
             <button id="btnSaveProfileForm" type="submit" class="neu-pill-btn active px-5 py-2 rounded-xl text-white font-bold shadow-sm flex items-center gap-1.5 cursor-pointer">
@@ -6249,95 +6249,130 @@ ${data.c_patch_directive}
     // PROFILE FORM MODAL CONTROLS (Create / Edit)
     // ==========================================
 
+    function openProfileFormModal() {
+      const modal = document.getElementById('profileFormModal');
+      if (modal) {
+        modal.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
+        modal.classList.add('opacity-100');
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
+        modal.style.visibility = 'visible';
+      }
+    }
+
+    function closeProfileFormModal() {
+      const modal = document.getElementById('profileFormModal');
+      if (modal) {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        modal.classList.remove('opacity-100');
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+        setTimeout(() => {
+          modal.style.display = 'none';
+        }, 150);
+      }
+    }
+
     function handleOpenCreateProfile() {
-      if (profileFormHeading) profileFormHeading.textContent = "เพิ่ม Profile การสแกน";
-      if (profileFormId) profileFormId.value = "";
-      if (profileFormTitle) profileFormTitle.value = "";
-      if (profileFormNetwork) profileFormNetwork.value = appState.subnet || "";
-      if (profileFormDesc) profileFormDesc.value = "";
-      
-      // Defaults
-      if (profileFormConcurrency) {
-        profileFormConcurrency.value = 60;
-        if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = "60 workers";
+      try {
+        if (profileFormHeading) profileFormHeading.textContent = "เพิ่ม Profile การสแกน";
+        if (profileFormId) profileFormId.value = "";
+        if (profileFormTitle) profileFormTitle.value = "";
+        if (profileFormNetwork) profileFormNetwork.value = appState.subnet || "";
+        if (profileFormDesc) profileFormDesc.value = "";
+        
+        // Defaults
+        if (profileFormConcurrency) {
+          profileFormConcurrency.value = 60;
+          if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = "60 workers";
+        }
+        if (profileFormTimeout) {
+          profileFormTimeout.value = 2.2;
+          if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = "2.2s";
+        }
+        if (profileFormUaPreset) profileFormUaPreset.value = "chrome";
+        if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.add('hidden');
+        if (profileFormCustomUa) profileFormCustomUa.value = "";
+        if (profileFormCustomHeaders) profileFormCustomHeaders.value = "";
+        
+        const portModeStd = document.querySelector('input[name="profile_port_mode"][value="standard"]');
+        if (portModeStd) portModeStd.checked = true;
+        if (profileFormCustomPortsWrapper) profileFormCustomPortsWrapper.classList.add('hidden');
+        if (profileFormCustomPorts) profileFormCustomPorts.value = "";
+
+        const scopeAll = document.querySelector('input[name="profile_scope_preset"][value="all"]');
+        if (scopeAll) scopeAll.checked = true;
+
+        if (profileFormSetActive) profileFormSetActive.checked = true;
+
+        openProfileFormModal();
+      } catch (err) {
+        console.error('Error in handleOpenCreateProfile:', err);
+        openProfileFormModal();
       }
-      if (profileFormTimeout) {
-        profileFormTimeout.value = 2.2;
-        if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = "2.2s";
-      }
-      if (profileFormUaPreset) profileFormUaPreset.value = "chrome";
-      if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.add('hidden');
-      if (profileFormCustomUa) profileFormCustomUa.value = "";
-      if (profileFormCustomHeaders) profileFormCustomHeaders.value = "";
-      
-      const portModeStd = document.querySelector('input[name="profile_port_mode"][value="standard"]');
-      if (portModeStd) portModeStd.checked = true;
-      if (profileFormCustomPortsWrapper) profileFormCustomPortsWrapper.classList.add('hidden');
-      if (profileFormCustomPorts) profileFormCustomPorts.value = "";
-
-      const scopeAll = document.querySelector('input[name="profile_scope_preset"][value="all"]');
-      if (scopeAll) scopeAll.checked = true;
-
-      if (profileFormSetActive) profileFormSetActive.checked = true;
-
-      if (profileFormModal) profileFormModal.classList.remove('opacity-0', 'pointer-events-none');
     }
 
     function handleEditProfile(profileId) {
-      const p = appState.profilesList.find(x => x.id === profileId);
-      if (!p) return;
-      if (profileFormHeading) profileFormHeading.textContent = "แก้ไข Profile การสแกน";
-      if (profileFormId) profileFormId.value = p.id;
-      if (profileFormTitle) profileFormTitle.value = p.title || "";
-      if (profileFormNetwork) profileFormNetwork.value = p.network_target || "";
-      if (profileFormDesc) profileFormDesc.value = p.description || "";
+      try {
+        const p = appState.profilesList.find(x => x.id === profileId);
+        if (!p) return;
+        if (profileFormHeading) profileFormHeading.textContent = "แก้ไข Profile การสแกน";
+        if (profileFormId) profileFormId.value = p.id;
+        if (profileFormTitle) profileFormTitle.value = p.title || "";
+        if (profileFormNetwork) profileFormNetwork.value = p.network_target || "";
+        if (profileFormDesc) profileFormDesc.value = p.description || "";
 
-      // Speed
-      const conc = p.concurrency || 60;
-      if (profileFormConcurrency) {
-        profileFormConcurrency.value = conc;
-        if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = `${conc} workers`;
-      }
-      const tout = p.timeout || 2.2;
-      if (profileFormTimeout) {
-        profileFormTimeout.value = tout;
-        if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = `${tout}s`;
-      }
-
-      // User-Agent
-      const uaKey = getUaKeyFromString(p.user_agent);
-      if (profileFormUaPreset) profileFormUaPreset.value = uaKey;
-      if (uaKey === 'custom') {
-        if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.remove('hidden');
-        if (profileFormCustomUa) profileFormCustomUa.value = p.user_agent || "";
-      } else {
-        if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.add('hidden');
-        if (profileFormCustomUa) profileFormCustomUa.value = "";
-      }
-
-      // Custom Headers
-      if (profileFormCustomHeaders) profileFormCustomHeaders.value = p.custom_headers || "";
-
-      // Port Mode
-      const pMode = p.port_mode || 'standard';
-      const rPort = document.querySelector(`input[name="profile_port_mode"][value="${pMode}"]`);
-      if (rPort) rPort.checked = true;
-      if (profileFormCustomPortsWrapper) {
-        if (pMode === 'custom') {
-          profileFormCustomPortsWrapper.classList.remove('hidden');
-        } else {
-          profileFormCustomPortsWrapper.classList.add('hidden');
+        // Speed
+        const conc = p.concurrency || 60;
+        if (profileFormConcurrency) {
+          profileFormConcurrency.value = conc;
+          if (profileFormConcurrencyDisplay) profileFormConcurrencyDisplay.textContent = `${conc} workers`;
         }
+        const tout = p.timeout || 2.2;
+        if (profileFormTimeout) {
+          profileFormTimeout.value = tout;
+          if (profileFormTimeoutDisplay) profileFormTimeoutDisplay.textContent = `${tout}s`;
+        }
+
+        // User-Agent
+        const uaKey = getUaKeyFromString(p.user_agent);
+        if (profileFormUaPreset) profileFormUaPreset.value = uaKey;
+        if (uaKey === 'custom') {
+          if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.remove('hidden');
+          if (profileFormCustomUa) profileFormCustomUa.value = p.user_agent || "";
+        } else {
+          if (profileFormCustomUaWrapper) profileFormCustomUaWrapper.classList.add('hidden');
+          if (profileFormCustomUa) profileFormCustomUa.value = "";
+        }
+
+        // Custom Headers
+        if (profileFormCustomHeaders) profileFormCustomHeaders.value = p.custom_headers || "";
+
+        // Port Mode
+        const pMode = p.port_mode || 'standard';
+        const rPort = document.querySelector(`input[name="profile_port_mode"][value="${pMode}"]`);
+        if (rPort) rPort.checked = true;
+        if (profileFormCustomPortsWrapper) {
+          if (pMode === 'custom') {
+            profileFormCustomPortsWrapper.classList.remove('hidden');
+          } else {
+            profileFormCustomPortsWrapper.classList.add('hidden');
+          }
+        }
+        if (profileFormCustomPorts) profileFormCustomPorts.value = p.custom_ports || "";
+
+        // Scope
+        const sMode = p.scope_preset || 'all';
+        const rScope = document.querySelector(`input[name="profile_scope_preset"][value="${sMode}"]`);
+        if (rScope) rScope.checked = true;
+
+        if (profileFormSetActive) profileFormSetActive.checked = Boolean(p.is_active);
+        openProfileFormModal();
+      } catch (err) {
+        console.error('Error in handleEditProfile:', err);
+        openProfileFormModal();
       }
-      if (profileFormCustomPorts) profileFormCustomPorts.value = p.custom_ports || "";
-
-      // Scope
-      const sMode = p.scope_preset || 'all';
-      const rScope = document.querySelector(`input[name="profile_scope_preset"][value="${sMode}"]`);
-      if (rScope) rScope.checked = true;
-
-      if (profileFormSetActive) profileFormSetActive.checked = Boolean(p.is_active);
-      if (profileFormModal) profileFormModal.classList.remove('opacity-0', 'pointer-events-none');
     }
 
     async function handleDeleteProfile(profileId) {
@@ -6418,7 +6453,7 @@ ${data.c_patch_directive}
         const data = await res.json();
         if (data.status === 'ok' || data.status === 201) {
           showToast(data.message || 'บันทึก Profile เรียบร้อย');
-          if (profileFormModal) profileFormModal.classList.add('opacity-0', 'pointer-events-none');
+          closeProfileFormModal();
           await loadProfiles();
           if (pid) {
             await openProfileDetailDrawer(pid);
@@ -6682,13 +6717,10 @@ ${data.c_patch_directive}
     }
 
     if (btnEmptyCreateProfile) btnEmptyCreateProfile.addEventListener('click', handleOpenCreateProfile);
-    if (btnOpenCreateProfileModal) btnOpenCreateProfileModal.addEventListener('click', handleOpenCreateProfile);
-    if (btnCloseProfileFormModal) btnCloseProfileFormModal.addEventListener('click', () => {
-      if (profileFormModal) profileFormModal.classList.add('opacity-0', 'pointer-events-none');
-    });
-    if (btnCancelProfileForm) btnCancelProfileForm.addEventListener('click', () => {
-      if (profileFormModal) profileFormModal.classList.add('opacity-0', 'pointer-events-none');
-    });
+    if (btnOpenCreateProfileFromList) btnOpenCreateProfileFromList.addEventListener('click', handleOpenCreateProfile);
+    if (btnDrawerCreateProfile) btnDrawerCreateProfile.addEventListener('click', handleOpenCreateProfile);
+    if (btnCloseProfileFormModal) btnCloseProfileFormModal.addEventListener('click', closeProfileFormModal);
+    if (btnCancelProfileForm) btnCancelProfileForm.addEventListener('click', closeProfileFormModal);
     if (profileForm) profileForm.addEventListener('submit', handleSaveProfile);
 
     if (btnHeaderUpdateBadge) btnHeaderUpdateBadge.addEventListener('click', openUpdateModal);
