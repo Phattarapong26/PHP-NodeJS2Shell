@@ -108,10 +108,11 @@ def collect_target_cves(
     is_windows: bool = False,
     rce_confirmed: bool = False,
     rce_technique: str = "",
-    rce_endpoint: str = ""
+    rce_endpoint: str = "",
+    extra_cves: list = None
 ) -> list:
     """
-    Aggregates all matched CVE findings across NGINX, PHP, and Node.js for a target.
+    Aggregates all matched CVE findings across NGINX, PHP, Node.js, and OS/Kernel for a target.
     Enforces strict OS boundaries (e.g. CVE-2024-4577 only applies to Windows),
     ensures finding-to-evidence coherence (e.g. Command Injection on .aspx is CWE-78, not PHP-CGI),
     and updates confidence/status when RCE is empirically confirmed.
@@ -121,6 +122,12 @@ def collect_target_cves(
     # 1. Add NGINX CVEs if any
     if nginx_cves:
         cves.extend(nginx_cves)
+
+    # 1.1 Add Extra CVEs (e.g. Linux Kernel CVE-2026-98432)
+    if extra_cves:
+        for ec in extra_cves:
+            if ec and ec not in cves:
+                cves.append(ec)
 
     # Coherence classification
     is_cgi_rce = bool(rce_confirmed and ("CVE-2024-4577" in rce_technique or "PHP-CGI" in rce_technique))
