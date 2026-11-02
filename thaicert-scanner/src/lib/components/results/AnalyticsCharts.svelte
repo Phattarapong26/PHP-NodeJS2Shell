@@ -10,41 +10,41 @@
     <!-- Left Chart: Radar Web Chart (Octagonal) -->
     <div class="flex flex-col justify-between relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
       <div class="w-full flex items-center justify-between mb-1 px-1">
-        <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        <span class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
           <i class="ph-bold ph-chart-polar text-teal-600"></i>
           <span>Radar Web (กระจาย 8 กลุ่ม)</span>
         </span>
-        <span class="text-[10px] text-slate-400 font-mono">สเกลเครื่อง</span>
+        <span class="text-[11px] text-slate-500 font-mono font-medium">สเกลเครื่อง</span>
       </div>
-      <div class="relative w-full max-w-[340px] aspect-[1/0.92] flex items-center justify-center mx-auto my-auto">
-        <svg id="radarChartSvg" viewBox="0 0 460 410" class="w-full h-full overflow-visible select-none"></svg>
+      <div class="relative w-full h-[320px] flex items-center justify-center mx-auto my-auto">
+        <svg id="radarChartSvg" viewBox="0 0 520 420" class="w-full h-full overflow-visible select-none"></svg>
       </div>
     </div>
 
     <!-- Middle Chart: Horizontal Lollipop Chart (Cleveland Dot Plot) -->
     <div class="flex flex-col justify-between relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
       <div class="w-full flex items-center justify-between mb-1 px-1">
-        <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        <span class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
           <i class="ph-bold ph-chart-bar-horizontal text-teal-600"></i>
           <span>Lollipop (จัดอันดับตามปริมาณ)</span>
         </span>
-        <span class="text-[10px] text-slate-400 font-mono">Dot Plot</span>
+        <span class="text-[11px] text-slate-500 font-mono font-medium">Dot Plot</span>
       </div>
       <div class="relative w-full h-[320px] flex items-center justify-center my-auto">
-        <svg id="lollipopChartSvg" viewBox="0 0 500 310" class="w-full h-full overflow-visible select-none"></svg>
+        <svg id="lollipopChartSvg" viewBox="0 0 530 320" class="w-full h-full overflow-visible select-none"></svg>
       </div>
     </div>
 
     <!-- Right Chart: Top Detected CVEs Horizontal Bar Chart -->
     <div class="flex flex-col justify-between relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60 overflow-hidden">
       <div class="w-full flex items-center justify-between mb-1 px-1">
-        <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        <span class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
           <i class="ph-bold ph-bug text-rose-600"></i>
           <span>Top CVEs (ความถี่ช่องโหว่)</span>
         </span>
-        <div class="flex items-center gap-1.5 text-[10px]">
-          <span class="inline-flex items-center gap-1 font-semibold text-rose-700"><span class="w-2 h-2 rounded-full bg-rose-500"></span>วิกฤต</span>
-          <span class="inline-flex items-center gap-1 font-semibold text-orange-700"><span class="w-2 h-2 rounded-full bg-orange-500"></span>สูง</span>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="inline-flex items-center gap-1 font-bold text-rose-700"><span class="w-2 h-2 rounded-full bg-rose-500"></span>วิกฤต</span>
+          <span class="inline-flex items-center gap-1 font-bold text-orange-700"><span class="w-2 h-2 rounded-full bg-orange-500"></span>สูง</span>
         </div>
       </div>
       <div class="relative w-full h-[320px] flex items-center justify-center my-auto">

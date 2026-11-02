@@ -78,15 +78,105 @@ export function initThaiCertTooltip() {
 // ==========================================
 // THAICERT 8 GROUPS DUAL CHARTS (RADAR & LOLLIPOP)
 // ==========================================
+// Cohesive Enterprise Cyber Harmonic Palette (Cool Oceanic Spectrum)
+// 8 distinct distinguishable colors coordinated within a harmonious cool tone
 export const THAICERT_GROUP_META = {
-  1: { id: 1, code: 'ก.1', name: 'เว็บไซต์ / CMS', shortName: 'เว็บไซต์/CMS', note: 'WordPress, Drupal, Joomla, Moodle, CMS', icon: 'ph-globe' },
-  2: { id: 2, code: 'ก.2', name: 'แอป & API', shortName: 'แอป & API', note: 'Laravel, Symfony, Node.js REST API', icon: 'ph-code' },
-  3: { id: 3, code: 'ก.3', name: 'Control Panel', shortName: 'Hosting Panel', note: 'cPanel, Plesk, DirectAdmin, Webmin', icon: 'ph-gauge' },
-  4: { id: 4, code: 'ก.4', name: 'อุปกรณ์ & NAS', shortName: 'อุปกรณ์/NAS', note: 'Network Appliance, NAS Synology/QNAP', icon: 'ph-hard-drives' },
-  5: { id: 5, code: 'ก.5', name: 'Container / K8s', shortName: 'Container/K8s', note: 'Docker, Podman, Kubernetes Node', icon: 'ph-package' },
-  6: { id: 6, code: 'ก.6', name: 'Windows PHP', shortName: 'Windows PHP', note: 'Windows IIS, XAMPP, Laragon (CVE-2024-4577)', icon: 'ph-microsoft-windows-logo' },
-  7: { id: 7, code: 'ก.7', name: 'Dev / UAT / สำรอง', shortName: 'Dev/UAT/สำรอง', note: 'Development, Staging, DR, Shadow IT', icon: 'ph-clock-counter-clockwise' },
-  8: { id: 8, code: 'ก.8', name: 'Cloud / ภายนอก', shortName: 'Cloud/ภายนอก', note: 'Shared Hosting, Cloud VM, Outsourced', icon: 'ph-cloud' }
+  1: {
+    id: 1,
+    code: 'ก.1',
+    name: 'เว็บไซต์ / CMS',
+    shortName: 'เว็บไซต์/CMS',
+    note: 'WordPress, Drupal, Joomla, Moodle, CMS',
+    icon: 'ph-globe',
+    color: '#1d4ed8',        // Royal Ocean Blue
+    lightBg: 'rgba(29, 78, 216, 0.12)',
+    border: '#3b82f6',
+    pillClass: 'bg-blue-50 text-blue-700 border-blue-200'
+  },
+  2: {
+    id: 2,
+    code: 'ก.2',
+    name: 'แอป & API',
+    shortName: 'แอป & API',
+    note: 'Laravel, Symfony, Node.js REST API',
+    icon: 'ph-code',
+    color: '#4338ca',        // Deep Cobalt Indigo
+    lightBg: 'rgba(67, 56, 202, 0.12)',
+    border: '#6366f1',
+    pillClass: 'bg-indigo-50 text-indigo-700 border-indigo-200'
+  },
+  3: {
+    id: 3,
+    code: 'ก.3',
+    name: 'Control Panel',
+    shortName: 'Hosting Panel',
+    note: 'cPanel, Plesk, DirectAdmin, Webmin',
+    icon: 'ph-gauge',
+    color: '#0e7490',        // Deep Cyan
+    lightBg: 'rgba(14, 116, 144, 0.12)',
+    border: '#06b6d4',
+    pillClass: 'bg-cyan-50 text-cyan-800 border-cyan-200'
+  },
+  4: {
+    id: 4,
+    code: 'ก.4',
+    name: 'อุปกรณ์ & NAS',
+    shortName: 'อุปกรณ์/NAS',
+    note: 'Network Appliance, NAS Synology/QNAP',
+    icon: 'ph-hard-drives',
+    color: '#0f766e',        // Oceanic Pine Teal
+    lightBg: 'rgba(15, 118, 110, 0.12)',
+    border: '#14b8a6',
+    pillClass: 'bg-teal-50 text-teal-800 border-teal-200'
+  },
+  5: {
+    id: 5,
+    code: 'ก.5',
+    name: 'Container / K8s',
+    shortName: 'Container/K8s',
+    note: 'Docker, Podman, Kubernetes Node',
+    icon: 'ph-package',
+    color: '#6d28d9',        // Royal Violet
+    lightBg: 'rgba(109, 40, 217, 0.12)',
+    border: '#8b5cf6',
+    pillClass: 'bg-purple-50 text-purple-700 border-purple-200'
+  },
+  6: {
+    id: 6,
+    code: 'ก.6',
+    name: 'Windows PHP',
+    shortName: 'Windows PHP',
+    note: 'Windows IIS, XAMPP, Laragon (CVE-2024-4577)',
+    icon: 'ph-microsoft-windows-logo',
+    color: '#0284c7',        // Cerulean Azure Sky
+    lightBg: 'rgba(2, 132, 199, 0.12)',
+    border: '#0ea5e9',
+    pillClass: 'bg-sky-50 text-sky-800 border-sky-200'
+  },
+  7: {
+    id: 7,
+    code: 'ก.7',
+    name: 'Dev / UAT / สำรอง',
+    shortName: 'Dev/UAT/สำรอง',
+    note: 'Development, Staging, DR, Shadow IT',
+    icon: 'ph-clock-counter-clockwise',
+    color: '#047857',        // Forest Mint Emerald
+    lightBg: 'rgba(4, 120, 87, 0.12)',
+    border: '#10b981',
+    pillClass: 'bg-emerald-50 text-emerald-800 border-emerald-200'
+  },
+  8: {
+    id: 8,
+    code: 'ก.8',
+    name: 'Cloud / ภายนอก',
+    shortName: 'Cloud/ภายนอก',
+    note: 'Shared Hosting, Cloud VM, Outsourced',
+    icon: 'ph-cloud',
+    color: '#475569',        // High-Tech Steel Slate
+    lightBg: 'rgba(71, 85, 105, 0.12)',
+    border: '#64748b',
+    pillClass: 'bg-slate-100 text-slate-800 border-slate-300'
+  }
 };
 
 export function getThaiCertGroupStats() {
@@ -110,8 +200,8 @@ export function renderRadarChart(stats) {
   const svg = document.getElementById('radarChartSvg');
   if (!svg) return;
 
-  const cx = 230, cy = 205;
-  const R = 120;
+  const cx = 260, cy = 205;
+  const R = 115;
   const numAxes = 8;
 
   let maxVal = 0;
@@ -136,21 +226,23 @@ export function renderRadarChart(stats) {
   levels.forEach((lvl, idx) => {
     const r = R * lvl;
     const pts = angles.map(a => `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`).join(' ');
-    html += `<polygon points="${pts}" fill="none" stroke="#e2e8f0" stroke-width="1.2" stroke-dasharray="${idx < 3 ? '2 2' : 'none'}" />`;
+    html += `<polygon points="${pts}" fill="${idx === 3 ? 'rgba(248, 250, 252, 0.75)' : 'none'}" stroke="#cbd5e1" stroke-width="1.2" stroke-dasharray="${idx < 3 ? '2 2' : 'none'}" />`;
     
     const tickVal = Math.round(scaleMax * lvl);
-    const ty = cy - r + 3;
-    html += `<text x="${cx + 6}" y="${ty.toFixed(1)}" font-size="9" font-family="monospace" fill="#94a3b8" font-weight="600">${tickVal}</text>`;
+    const ty = cy - r + 4;
+    html += `<text x="${cx + 6}" y="${ty.toFixed(1)}" font-size="10.5" font-family="monospace" fill="#64748b" font-weight="700">${tickVal}</text>`;
   });
 
-  // 2. Radial Axis Lines
-  angles.forEach((a) => {
+  // 2. Radial Axis Lines - subtle harmonic tint per group
+  angles.forEach((a, idx) => {
+    const g = idx + 1;
+    const meta = stats[g] || THAICERT_GROUP_META[g];
     const x2 = cx + R * Math.cos(a);
     const y2 = cy + R * Math.sin(a);
-    html += `<line x1="${cx}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#cbd5e1" stroke-width="1" />`;
+    html += `<line x1="${cx}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${meta.border || '#cbd5e1'}" stroke-width="1.2" opacity="0.4" />`;
   });
 
-  // 3. Data Polygon (Teal fill matching reference image)
+  // 3. Data Polygon (Harmonized cool blue-cyan fill)
   const dataPoints = [];
   for (let g = 1; g <= 8; g++) {
     const a = angles[g - 1];
@@ -161,21 +253,28 @@ export function renderRadarChart(stats) {
       y: cy + r * Math.sin(a),
       group: g,
       val: val,
-      vuln: stats[g].vuln
+      vuln: stats[g].vuln,
+      meta: stats[g]
     });
   }
 
   const polyPointsStr = dataPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  html += `<polygon points="${polyPointsStr}" fill="rgba(94, 161, 161, 0.45)" stroke="#3d8383" stroke-width="2.2" class="transition-all duration-300" />`;
+  html += `<polygon points="${polyPointsStr}" fill="rgba(37, 99, 235, 0.16)" stroke="#2563eb" stroke-width="2.2" class="transition-all duration-300 drop-shadow-2xs" />`;
 
-  // 4. Vertex Points
+  // 4. Vertex Points (Each with its distinct tone-coordinated color)
   dataPoints.forEach(p => {
     const isSelected = appState.activeGroupFilter === p.group;
     const hasVuln = p.vuln > 0;
-    const dotColor = hasVuln ? '#e11d48' : '#3d8383';
-    const rDot = isSelected ? 6.5 : (p.val > 0 ? 5 : 3.5);
-    const strokeColor = isSelected ? '#3b82f6' : '#ffffff';
-    const strokeWidth = isSelected ? 2.5 : 1.8;
+    const groupColor = p.meta.color || '#2563eb';
+    const dotColor = hasVuln ? '#e11d48' : groupColor;
+    const rDot = isSelected ? 8 : (p.val > 0 ? 6.5 : 4.5);
+    const strokeColor = '#ffffff';
+    const strokeWidth = 2.2;
+
+    // Outer halo ring for active values
+    if (p.val > 0) {
+      html += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rDot + 4}" fill="${hasVuln ? 'rgba(225, 29, 72, 0.2)' : p.meta.lightBg}" stroke="${hasVuln ? '#f43f5e' : p.meta.border}" stroke-width="1.2" opacity="0.8" />`;
+    }
 
     html += `
       <circle 
@@ -185,17 +284,18 @@ export function renderRadarChart(stats) {
         fill="${dotColor}" 
         stroke="${strokeColor}" 
         stroke-width="${strokeWidth}" 
-        class="cursor-pointer transition-all duration-150 hover:scale-150 chart-radar-dot"
+        class="cursor-pointer transition-all duration-150 hover:scale-125 chart-radar-dot"
         data-group="${p.group}"
         data-action="toggleGroupFilter" data-arg="${p.group}"
       />
     `;
   });
 
-  // 5. Axis Labels (Group Names & Counts)
+  // 5. Axis Labels (Enlarged font size 13 / 11, bold, distinct tone color per group)
   for (let g = 1; g <= 8; g++) {
     const a = angles[g - 1];
     const meta = stats[g];
+    const groupColor = meta.color || '#2563eb';
     const labelDist = R + 26;
     const lx = cx + labelDist * Math.cos(a);
     const ly = cy + labelDist * Math.sin(a);
@@ -207,34 +307,33 @@ export function renderRadarChart(stats) {
 
     let dy = 4;
     const sinA = Math.sin(a);
-    if (sinA < -0.6) dy = -4;
-    else if (sinA > 0.6) dy = 12;
+    if (sinA < -0.6) dy = -5;
+    else if (sinA > 0.6) dy = 13;
 
     const isSelected = appState.activeGroupFilter === g;
-    const textFill = isSelected ? '#1d4ed8' : '#334155';
-    const badgeFill = isSelected ? '#2563eb' : (meta.vuln > 0 ? '#e11d48' : '#64748b');
+    const hasVuln = meta.vuln > 0;
 
     html += `
       <g class="cursor-pointer chart-group-label" data-group="${g}" data-action="toggleGroupFilter" data-arg="${g}">
         <text 
           x="${lx.toFixed(1)}" 
-          y="${(ly + dy - 6).toFixed(1)}" 
+          y="${(ly + dy - 7).toFixed(1)}" 
           text-anchor="${anchor}" 
-          font-size="10.5" 
+          font-size="13" 
           font-weight="${isSelected ? '800' : '700'}" 
-          fill="${textFill}"
-          class="transition-colors hover:fill-blue-600 select-none"
+          fill="${isSelected ? '#1d4ed8' : groupColor}"
+          class="transition-colors hover:opacity-80 select-none drop-shadow-2xs"
         >${meta.code} ${meta.shortName}</text>
         <text 
           x="${lx.toFixed(1)}" 
-          y="${(ly + dy + 7).toFixed(1)}" 
+          y="${(ly + dy + 9).toFixed(1)}" 
           text-anchor="${anchor}" 
-          font-size="9" 
-          font-weight="600" 
+          font-size="11" 
+          font-weight="700" 
           font-family="monospace"
-          fill="${badgeFill}"
+          fill="${hasVuln ? '#e11d48' : '#64748b'}"
           class="select-none"
-        >(${meta.total} เครื่อง${meta.vuln > 0 ? ` · ${meta.vuln} เสี่ยง` : ''})</text>
+        >${meta.total} เครื่อง${hasVuln ? ` · ${meta.vuln} เสี่ยง` : ''}</text>
       </g>
     `;
   }
@@ -262,11 +361,11 @@ export function renderLollipopChart(stats) {
   else if (maxVal > 5) scaleMax = 10;
   else scaleMax = 5;
 
-  const xStart = 145;
-  const xEnd = 450;
+  const xStart = 168;
+  const xEnd = 475;
   const W = xEnd - xStart;
-  const yStart = 32;
-  const rowH = 32;
+  const yStart = 28;
+  const rowH = 33;
 
   let html = '';
 
@@ -278,14 +377,14 @@ export function renderLollipopChart(stats) {
     const tickVal = Math.round(scaleMax * frac);
     
     html += `<line x1="${x.toFixed(1)}" y1="${yStart - 10}" x2="${x.toFixed(1)}" y2="${yStart + 7 * rowH + 12}" stroke="#f1f5f9" stroke-width="1.2" />`;
-    html += `<line x1="${x.toFixed(1)}" y1="${yStart + 7 * rowH + 12}" x2="${x.toFixed(1)}" y2="${yStart + 7 * rowH + 17}" stroke="#cbd5e1" stroke-width="1.2" />`;
-    html += `<text x="${x.toFixed(1)}" y="${yStart + 7 * rowH + 28}" font-size="9" font-family="monospace" fill="#94a3b8" text-anchor="middle" font-weight="600">${tickVal}</text>`;
+    html += `<line x1="${x.toFixed(1)}" y1="${yStart + 7 * rowH + 12}" x2="${x.toFixed(1)}" y2="${yStart + 7 * rowH + 18}" stroke="#cbd5e1" stroke-width="1.2" />`;
+    html += `<text x="${x.toFixed(1)}" y="${yStart + 7 * rowH + 30}" font-size="11" font-family="monospace" fill="#64748b" text-anchor="middle" font-weight="700">${tickVal}</text>`;
   }
   // Bottom baseline
-  html += `<line x1="${xStart}" y1="${yStart + 7 * rowH + 12}" x2="${xEnd}" y2="${yStart + 7 * rowH + 12}" stroke="#cbd5e1" stroke-width="1.2" />`;
-  html += `<text x="${xEnd + 26}" y="${yStart + 7 * rowH + 28}" font-size="9" fill="#94a3b8" text-anchor="end">เครื่อง</text>`;
+  html += `<line x1="${xStart}" y1="${yStart + 7 * rowH + 12}" x2="${xEnd}" y2="${yStart + 7 * rowH + 12}" stroke="#cbd5e1" stroke-width="1.4" />`;
+  html += `<text x="${xEnd + 28}" y="${yStart + 7 * rowH + 30}" font-size="11" font-weight="700" fill="#64748b" text-anchor="end">เครื่อง</text>`;
 
-  // 2. Lollipop Rows
+  // 2. Lollipop Rows (Enlarged font size 13.5 / 13, bold, tone-coordinated colors)
   items.forEach((item, idx) => {
     const y = yStart + idx * rowH;
     const isSelected = appState.activeGroupFilter === item.id;
@@ -293,58 +392,62 @@ export function renderLollipopChart(stats) {
     const dotX = xStart + valFrac * W;
 
     const hasVuln = item.vuln > 0;
-    // Dot color: teal (#5ea1a1) if normal, or rose/red (#e11d48) if vulnerable
-    const dotColor = hasVuln ? '#e11d48' : '#5ea1a1';
-    const rowBg = isSelected ? 'rgba(59, 130, 246, 0.08)' : 'transparent';
+    const groupColor = item.color || '#2563eb';
+    const dotColor = hasVuln ? '#e11d48' : groupColor;
+    const rowBg = isSelected ? 'rgba(37, 99, 235, 0.08)' : 'transparent';
 
     html += `
       <g class="cursor-pointer chart-lollipop-row" data-group="${item.id}" data-action="toggleGroupFilter" data-arg="${item.id}">
         <!-- Hover/Selection background highlight -->
-        <rect x="10" y="${y - 12}" width="${xEnd - 5}" height="${rowH - 4}" rx="8" fill="${rowBg}" class="transition-colors hover:fill-blue-50/70" />
+        <rect x="8" y="${y - 13}" width="${xEnd + 20}" height="${rowH - 3}" rx="8" fill="${rowBg}" class="transition-colors hover:fill-blue-50/60" />
         
-        <!-- Category Label on Left -->
+        <!-- Category Label on Left (Font size 13.5, bold, in group's own harmonic color) -->
         <text 
-          x="${xStart - 12}" 
-          y="${y + 4}" 
+          x="${xStart - 14}" 
+          y="${y + 5}" 
           text-anchor="end" 
-          font-size="11" 
-          font-weight="${isSelected ? '800' : '600'}" 
-          fill="${isSelected ? '#1d4ed8' : '#334155'}"
-          class="select-none"
+          font-size="13.5" 
+          font-weight="${isSelected ? '800' : '700'}" 
+          fill="${isSelected ? '#1d4ed8' : groupColor}"
+          class="select-none drop-shadow-2xs"
         >${item.code} ${item.shortName}</text>
         
-        <!-- Horizontal Stick Line -->
+        <!-- Horizontal Stick Line in subtle group border tint -->
         <line 
           x1="${xStart}" 
           y1="${y}" 
           x2="${dotX.toFixed(1)}" 
           y2="${y}" 
-          stroke="${isSelected ? '#3b82f6' : '#cbd5e1'}" 
-          stroke-width="${isSelected ? 2.5 : 1.8}" 
+          stroke="${isSelected ? groupColor : (item.border || '#cbd5e1')}" 
+          stroke-width="${isSelected ? 3 : 2.2}" 
+          stroke-linecap="round"
           class="transition-all duration-200"
         />
 
-        <!-- Circle Dot (Bubble matching reference image) -->
+        <!-- Circle Dot (Bubble) -->
+        ${hasVuln ? `
+          <circle cx="${dotX.toFixed(1)}" cy="${y}" r="11.5" fill="rgba(225, 29, 72, 0.2)" stroke="#f43f5e" stroke-width="1.2" />
+        ` : ''}
         <circle 
           cx="${dotX.toFixed(1)}" 
           cy="${y}" 
-          r="${isSelected ? 8.5 : 7}" 
+          r="${isSelected ? 9.5 : 8}" 
           fill="${dotColor}" 
           stroke="#ffffff" 
-          stroke-width="2" 
-          class="transition-transform duration-150 hover:scale-125"
+          stroke-width="2.2" 
+          class="transition-transform duration-150 hover:scale-125 drop-shadow-2xs"
         />
 
-        <!-- Value Counter Label right beside dot -->
+        <!-- Value Counter Label right beside dot (Font size 13, bold monospace) -->
         <text 
-          x="${(dotX + 11).toFixed(1)}" 
-          y="${y + 4}" 
-          font-size="11" 
-          font-weight="bold" 
+          x="${(dotX + 13).toFixed(1)}" 
+          y="${y + 5}" 
+          font-size="13" 
+          font-weight="800" 
           font-family="monospace" 
-          fill="${hasVuln ? '#e11d48' : (isSelected ? '#1d4ed8' : '#0f766e')}"
+          fill="${hasVuln ? '#e11d48' : (isSelected ? '#1d4ed8' : groupColor)}"
           class="select-none"
-        >${item.total}${hasVuln ? `<tspan font-size="9" font-weight="normal" fill="#e11d48"> (${item.vuln} เสี่ยง)</tspan>` : ''}</text>
+        >${item.total}${hasVuln ? `<tspan font-size="11" font-weight="bold" fill="#e11d48"> (${item.vuln} เสี่ยง)</tspan>` : ''}</text>
       </g>
     `;
   });
@@ -425,14 +528,14 @@ export function renderCveBarChart(cves) {
     [0, 1000, 2000, 3000, 4000].forEach(tick => {
       const x = xStart + (tick / maxVal) * W;
       html += `<line x1="${x.toFixed(1)}" y1="16" x2="${x.toFixed(1)}" y2="250" stroke="#cbd5e1" stroke-width="0.8" opacity="0.35" />`;
-      html += `<text x="${x.toFixed(1)}" y="270" font-size="9" font-family="monospace" fill="#94a3b8" text-anchor="middle" font-weight="600">${tick === 0 ? '0' : tick.toLocaleString()}</text>`;
+      html += `<text x="${x.toFixed(1)}" y="272" font-size="11" font-family="monospace" fill="#64748b" text-anchor="middle" font-weight="700">${tick === 0 ? '0' : tick.toLocaleString()}</text>`;
     });
 
     ghostData.forEach((d, idx) => {
       const y = yStart + idx * rowH;
       const barW = (d.val / maxVal) * W;
       if (d.label) {
-        html += `<text x="${xStart - 10}" y="${y + 16}" font-size="10" font-weight="700" fill="#94a3b8" text-anchor="end">${d.label}</text>`;
+        html += `<text x="${xStart - 10}" y="${y + 17}" font-size="12" font-weight="700" fill="#64748b" text-anchor="end">${d.label}</text>`;
       }
       html += `<rect x="${xStart}" y="${y}" width="${barW.toFixed(1)}" height="24" rx="6" fill="#78716c" opacity="0.4" />`;
     });
@@ -452,7 +555,7 @@ export function renderCveBarChart(cves) {
   topCves.forEach(c => { if (c.count > maxCount) maxCount = c.count; });
   const scaleMax = maxCount > 5 ? Math.ceil(maxCount / 5) * 5 : 5;
 
-  const xStart = 135, xEnd = 430, W = 295;
+  const xStart = 145, xEnd = 430, W = 285;
   const yStart = 28, rowH = 42;
 
   let html = '';
@@ -464,10 +567,10 @@ export function renderCveBarChart(cves) {
     const x = xStart + frac * W;
     const tickVal = Math.round(scaleMax * frac);
     html += `<line x1="${x.toFixed(1)}" y1="16" x2="${x.toFixed(1)}" y2="${yStart + topCves.length * rowH + 6}" stroke="#f1f5f9" stroke-width="1.2" />`;
-    html += `<text x="${x.toFixed(1)}" y="${yStart + topCves.length * rowH + 22}" font-size="9" font-family="monospace" fill="#94a3b8" text-anchor="middle" font-weight="600">${tickVal}</text>`;
+    html += `<text x="${x.toFixed(1)}" y="${yStart + topCves.length * rowH + 24}" font-size="11" font-family="monospace" fill="#64748b" text-anchor="middle" font-weight="700">${tickVal}</text>`;
   }
   html += `<line x1="${xStart}" y1="${yStart + topCves.length * rowH + 6}" x2="${xEnd}" y2="${yStart + topCves.length * rowH + 6}" stroke="#cbd5e1" stroke-width="1.2" />`;
-  html += `<text x="${xEnd + 26}" y="${yStart + topCves.length * rowH + 22}" font-size="9" fill="#94a3b8" text-anchor="end">เครื่อง</text>`;
+  html += `<text x="${xEnd + 28}" y="${yStart + topCves.length * rowH + 24}" font-size="11" font-weight="700" fill="#64748b" text-anchor="end">เครื่อง</text>`;
 
   topCves.forEach((cve, idx) => {
     const y = yStart + idx * rowH;
@@ -480,7 +583,7 @@ export function renderCveBarChart(cves) {
     html += `
       <g class="cursor-pointer chart-cve-bar" data-cve="${cve.id}">
         <!-- CVE ID Label -->
-        <text x="${xStart - 10}" y="${y + 16}" font-size="10.5" font-weight="700" font-family="monospace" fill="#1e293b" text-anchor="end" class="select-none">${cve.id}</text>
+        <text x="${xStart - 10}" y="${y + 17}" font-size="12" font-weight="700" font-family="monospace" fill="#1e293b" text-anchor="end" class="select-none">${cve.id}</text>
         
         <!-- Track bar -->
         <rect x="${xStart}" y="${y}" width="${W}" height="24" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
@@ -489,7 +592,7 @@ export function renderCveBarChart(cves) {
         <rect x="${xStart}" y="${y}" width="${barW.toFixed(1)}" height="24" rx="6" fill="${barColor}" class="transition-all duration-300 hover:opacity-90" />
 
         <!-- Count text -->
-        <text x="${(xStart + barW + 8).toFixed(1)}" y="${y + 16}" font-size="10.5" font-weight="bold" font-family="monospace" fill="${barColor}">${cve.count}</text>
+        <text x="${(xStart + barW + 8).toFixed(1)}" y="${y + 17}" font-size="12" font-weight="800" font-family="monospace" fill="${barColor}">${cve.count}</text>
       </g>
     `;
   });
@@ -519,7 +622,10 @@ export function attachChartTooltips(stats, cves) {
     if (!meta) return;
 
     badge.textContent = meta.code;
-    badge.className = "font-bold text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-400/40 flex-shrink-0";
+    badge.className = "font-bold text-xs font-mono px-2 py-0.5 rounded flex-shrink-0 border";
+    badge.style.backgroundColor = meta.lightBg || 'rgba(37, 99, 235, 0.12)';
+    badge.style.color = meta.color || '#2563eb';
+    badge.style.borderColor = meta.border || '#93c5fd';
     title.textContent = meta.name;
     if (totalLabel) totalLabel.textContent = "จำนวนเครื่องที่ตรวจพบ:";
     totalEl.textContent = `${meta.total} เครื่อง`;

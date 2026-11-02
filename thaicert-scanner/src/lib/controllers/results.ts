@@ -1,5 +1,5 @@
 import { escapeHtml } from './utils';
-import { renderThaiCertDualCharts } from './charts';
+import { renderThaiCertDualCharts, THAICERT_GROUP_META } from './charts';
 import { badgeFilteredCount, emptyStateDesc, emptyStateTitle, mainSubnetInput, resultsEmptyState, resultsModal, resultsTableBody, resultsTableContainer } from './dom';
 import { getWebTargetUrl } from './network';
 import { appState } from './state';
@@ -115,17 +115,14 @@ export function renderResultsTable() {
   const groupTagName = document.getElementById('activeGroupFilterName');
   if (groupTag && groupTagName) {
     if (appState.activeGroupFilter) {
-      const gNames = {
-        1: 'กลุ่ม 1: เว็บไซต์/CMS',
-        2: 'กลุ่ม 2: แอป & API',
-        3: 'กลุ่ม 3: Hosting Panel',
-        4: 'กลุ่ม 4: ซอฟต์แวร์/อุปกรณ์',
-        5: 'กลุ่ม 5: Container/K8s',
-        6: 'กลุ่ม 6: Windows PHP (CVE-2024-4577)',
-        7: 'กลุ่ม 7: Dev/UAT/สำรอง',
-        8: 'กลุ่ม 8: Cloud/ภายนอก'
-      };
-      groupTagName.textContent = gNames[appState.activeGroupFilter] || `กลุ่ม ${appState.activeGroupFilter}`;
+      const meta = THAICERT_GROUP_META[appState.activeGroupFilter];
+      const gName = meta ? `${meta.code} ${meta.name}` : `กลุ่ม ${appState.activeGroupFilter}`;
+      groupTagName.textContent = gName;
+      if (meta) {
+        groupTag.style.backgroundColor = meta.lightBg;
+        groupTag.style.color = meta.color;
+        groupTag.style.borderColor = meta.border;
+      }
       groupTag.classList.remove('hidden');
       groupTag.classList.add('inline-flex');
     } else {
@@ -372,20 +369,15 @@ export function renderResultsTable() {
             <span class="text-[10px] text-slate-400 font-mono">${item.mac ? 'MAC: ' + item.mac : 'DHCP Host'}</span>
             <div class="flex flex-wrap gap-1 mt-1">
               ${(item.thaicert_groups && item.thaicert_groups.length > 0 ? item.thaicert_groups : [4]).map(g => {
-                const titles = {
-                  1: "ก.1 เว็บไซต์/CMS",
-                  2: "ก.2 แอป & API",
-                  3: "ก.3 Hosting Panel",
-                  4: "ก.4 ซอฟต์แวร์/อุปกรณ์",
-                  5: "ก.5 Container/K8s",
-                  6: "ก.6 Windows PHP ⚠️",
-                  7: "ก.7 Dev/UAT/สำรอง",
-                  8: "ก.8 Cloud/ภายนอก"
-                };
+                const meta = THAICERT_GROUP_META[g];
                 const isG6 = g === 6;
                 const isV = item.vulnerability === 'Critical' || item.vulnerability === 'Warning';
-                const bgCls = isG6 ? (isV ? 'bg-rose-100 text-rose-800 border-rose-300 font-bold' : 'bg-amber-100 text-amber-800 border-amber-300') : 'bg-slate-100 text-slate-600 border-slate-200';
-                return `<span class="px-1.5 py-0.2 rounded text-[9px] border ${bgCls}">${titles[g] || 'ก.' + g}</span>`;
+                let bgCls = meta ? meta.pillClass : 'bg-slate-100 text-slate-600 border-slate-200';
+                if (isG6 && isV) {
+                  bgCls = 'bg-rose-100 text-rose-800 border-rose-300 font-bold';
+                }
+                const titleStr = meta ? `${meta.code} ${meta.shortName}` : `ก.${g}`;
+                return `<span class="px-1.5 py-0.5 rounded text-[9.5px] font-semibold border ${bgCls}">${titleStr}</span>`;
               }).join('')}
             </div>
           </div>
