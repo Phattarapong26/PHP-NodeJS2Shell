@@ -527,13 +527,24 @@
         <div class="px-6 py-3 bg-gradient-to-r from-slate-50/90 via-blue-50/30 to-slate-50/90 border-b border-slate-200/70">
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
-              <div class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                <i class="ph-bold ph-squares-four"></i>
+              <div class="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                <i class="ph-bold ph-chart-polar"></i>
               </div>
               <span class="font-bold text-slate-800 text-xs sm:text-sm">การจำแนก 8 กลุ่มระบบความมั่นคงปลอดภัย (เกณฑ์ ThaiCERT / สกมช.)</span>
-              <span class="text-[11px] text-slate-400 hidden sm:inline">· คลิกการ์ดเพื่อกรองอุปกรณ์เฉพาะกลุ่ม</span>
+              <span class="text-[11px] text-slate-400 hidden sm:inline">· กราฟวิเคราะห์เรดาร์ & แผนภูมิ Lollipop (ชี้เพื่อดูรายละเอียด / คลิกเพื่อกรอง)</span>
             </div>
             <div class="flex items-center gap-2">
+              <!-- View Switcher (Radar & Lollipop Charts vs Cards Grid) -->
+              <div class="flex items-center rounded-xl bg-slate-200/80 p-0.5 text-xs font-semibold text-slate-600">
+                <button id="btnViewCharts" type="button" class="px-2.5 py-1 rounded-lg bg-white text-teal-800 shadow-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="ph-bold ph-chart-polar text-sm text-teal-600"></i>
+                  <span>กราฟวิเคราะห์ (2 ชาร์ต)</span>
+                </button>
+                <button id="btnViewCards" type="button" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 cursor-pointer">
+                  <i class="ph-bold ph-squares-four text-sm"></i>
+                  <span>การ์ดย่อ 8 กลุ่ม</span>
+                </button>
+              </div>
               <span id="activeGroupFilterTag" class="hidden px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-300 items-center gap-1.5 cursor-pointer transition hover:bg-blue-200 shadow-2xs" onclick="clearGroupFilter()" title="คลิกเพื่อยกเลิกตัวกรอง">
                 <span id="activeGroupFilterName">กลุ่ม 1</span>
                 <i class="ph-bold ph-x text-xs"></i>
@@ -541,8 +552,43 @@
             </div>
           </div>
           
-          <!-- 8 Interactive Cards Grid -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2" id="thaicertGroupGrid">
+          <!-- Dual Visual Charts View (Radar Web Chart + Horizontal Lollipop Dot Plot) -->
+          <div id="thaicertChartsContainer" class="p-3 sm:p-4 rounded-2xl bg-white/95 border border-slate-200/90 shadow-xs mb-2">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
+              
+              <!-- Left Chart: Radar Web Chart (Octagonal) -->
+              <div class="flex flex-col items-center justify-center relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
+                <div class="w-full flex items-center justify-between mb-1 px-1">
+                  <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <i class="ph-bold ph-chart-polar text-teal-600"></i>
+                    <span>Radar Web Chart (การกระจายตัว 8 กลุ่มความมั่นคง)</span>
+                  </span>
+                  <span class="text-[10px] text-slate-400 font-mono">สเกลปริมาณเครื่อง</span>
+                </div>
+                <div class="relative w-full max-w-[390px] aspect-[1/0.92] flex items-center justify-center">
+                  <svg id="radarChartSvg" viewBox="0 0 460 410" class="w-full h-full overflow-visible select-none"></svg>
+                </div>
+              </div>
+
+              <!-- Right Chart: Horizontal Lollipop Chart (Cleveland Dot Plot) -->
+              <div class="flex flex-col justify-center relative p-3 rounded-xl bg-slate-50/60 border border-slate-200/60">
+                <div class="w-full flex items-center justify-between mb-1 px-1">
+                  <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <i class="ph-bold ph-chart-bar-horizontal text-teal-600"></i>
+                    <span>Horizontal Lollipop Chart (จัดอันดับตามปริมาณเครื่อง)</span>
+                  </span>
+                  <span class="text-[10px] text-slate-400 font-mono">Dot Plot เรียงลำดับ</span>
+                </div>
+                <div class="relative w-full h-[325px] flex items-center justify-center">
+                  <svg id="lollipopChartSvg" viewBox="0 0 500 310" class="w-full h-full overflow-visible select-none"></svg>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 8 Interactive Cards Grid (Toggled via button) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 hidden" id="thaicertGroupGrid">
             <!-- Group 1 -->
             <div class="group-card p-2.5 rounded-2xl border border-slate-200/80 bg-white/90 hover:border-blue-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer transition-all duration-150 flex flex-col justify-between" data-group="1" onclick="toggleGroupFilter(1)">
               <div class="flex items-center justify-between mb-1.5">
@@ -2830,6 +2876,11 @@ Content-Type: text/html; charset=UTF-8</div>
         }
       }
 
+      // Render Dual Visual Charts (Radar & Lollipop Charts)
+      if (typeof renderThaiCertDualCharts === 'function') {
+        renderThaiCertDualCharts();
+      }
+
       // Update active group filter indicator
       const groupTag = document.getElementById('activeGroupFilterTag');
       const groupTagName = document.getElementById('activeGroupFilterName');
@@ -4259,6 +4310,9 @@ ${data.c_patch_directive}
     // Modal Control Functions
     function openResultsModal() {
       resultsModal.classList.remove('opacity-0', 'pointer-events-none');
+      if (typeof renderThaiCertDualCharts === 'function') {
+        renderThaiCertDualCharts();
+      }
     }
 
     function closeResultsModal() {
@@ -5223,6 +5277,385 @@ ${data.c_patch_directive}
     }
 
     // ==========================================
+    // THAICERT 8 GROUPS DUAL CHARTS (RADAR & LOLLIPOP)
+    // ==========================================
+
+    const THAICERT_GROUP_META = {
+      1: { id: 1, code: 'ก.1', name: 'เว็บไซต์ / CMS', shortName: 'เว็บไซต์/CMS', note: 'WordPress, Drupal, Joomla, Moodle, CMS', icon: 'ph-globe' },
+      2: { id: 2, code: 'ก.2', name: 'แอป & API', shortName: 'แอป & API', note: 'Laravel, Symfony, Node.js REST API', icon: 'ph-code' },
+      3: { id: 3, code: 'ก.3', name: 'Control Panel', shortName: 'Hosting Panel', note: 'cPanel, Plesk, DirectAdmin, Webmin', icon: 'ph-gauge' },
+      4: { id: 4, code: 'ก.4', name: 'อุปกรณ์ & NAS', shortName: 'อุปกรณ์/NAS', note: 'Network Appliance, NAS Synology/QNAP', icon: 'ph-hard-drives' },
+      5: { id: 5, code: 'ก.5', name: 'Container / K8s', shortName: 'Container/K8s', note: 'Docker, Podman, Kubernetes Node', icon: 'ph-package' },
+      6: { id: 6, code: 'ก.6', name: 'Windows PHP', shortName: 'Windows PHP', note: 'Windows IIS, XAMPP, Laragon (CVE-2024-4577)', icon: 'ph-microsoft-windows-logo' },
+      7: { id: 7, code: 'ก.7', name: 'Dev / UAT / สำรอง', shortName: 'Dev/UAT/สำรอง', note: 'Development, Staging, DR, Shadow IT', icon: 'ph-clock-counter-clockwise' },
+      8: { id: 8, code: 'ก.8', name: 'Cloud / ภายนอก', shortName: 'Cloud/ภายนอก', note: 'Shared Hosting, Cloud VM, Outsourced', icon: 'ph-cloud' }
+    };
+
+    function getThaiCertGroupStats() {
+      const stats = {};
+      const allHosts = appState.allHosts || [];
+      for (let g = 1; g <= 8; g++) {
+        const groupHosts = allHosts.filter(h => (h.thaicert_groups || []).includes(g));
+        const total = groupHosts.length;
+        const vuln = groupHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+        stats[g] = {
+          ...THAICERT_GROUP_META[g],
+          total: total,
+          vuln: vuln,
+          secure: Math.max(0, total - vuln)
+        };
+      }
+      return stats;
+    }
+
+    function renderRadarChart(stats) {
+      const svg = document.getElementById('radarChartSvg');
+      if (!svg) return;
+
+      const cx = 230, cy = 205;
+      const R = 120;
+      const numAxes = 8;
+
+      let maxVal = 0;
+      for (let g = 1; g <= 8; g++) {
+        if (stats[g].total > maxVal) maxVal = stats[g].total;
+      }
+      let scaleMax = 5;
+      if (maxVal > 20) scaleMax = Math.ceil(maxVal / 5) * 5;
+      else if (maxVal > 10) scaleMax = 20;
+      else if (maxVal > 5) scaleMax = 10;
+      else scaleMax = 5;
+
+      const angles = [];
+      for (let i = 0; i < numAxes; i++) {
+        angles.push(-Math.PI / 2 + (i * 2 * Math.PI / numAxes));
+      }
+
+      let html = '';
+
+      // 1. Concentric Regular Octagons (Grid Rings)
+      const levels = [0.25, 0.5, 0.75, 1.0];
+      levels.forEach((lvl, idx) => {
+        const r = R * lvl;
+        const pts = angles.map(a => `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`).join(' ');
+        html += `<polygon points="${pts}" fill="none" stroke="#e2e8f0" stroke-width="1.2" stroke-dasharray="${idx < 3 ? '2 2' : 'none'}" />`;
+        
+        const tickVal = Math.round(scaleMax * lvl);
+        const ty = cy - r + 3;
+        html += `<text x="${cx + 6}" y="${ty.toFixed(1)}" font-size="9" font-family="monospace" fill="#94a3b8" font-weight="600">${tickVal}</text>`;
+      });
+
+      // 2. Radial Axis Lines
+      angles.forEach((a) => {
+        const x2 = cx + R * Math.cos(a);
+        const y2 = cy + R * Math.sin(a);
+        html += `<line x1="${cx}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#cbd5e1" stroke-width="1" />`;
+      });
+
+      // 3. Data Polygon (Teal fill matching reference image)
+      const dataPoints = [];
+      for (let g = 1; g <= 8; g++) {
+        const a = angles[g - 1];
+        const val = stats[g].total;
+        const r = val > 0 ? (val / scaleMax) * R : 2;
+        dataPoints.push({
+          x: cx + r * Math.cos(a),
+          y: cy + r * Math.sin(a),
+          group: g,
+          val: val,
+          vuln: stats[g].vuln
+        });
+      }
+
+      const polyPointsStr = dataPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+      html += `<polygon points="${polyPointsStr}" fill="rgba(94, 161, 161, 0.45)" stroke="#3d8383" stroke-width="2.2" class="transition-all duration-300" />`;
+
+      // 4. Vertex Points
+      dataPoints.forEach(p => {
+        const isSelected = appState.activeGroupFilter === p.group;
+        const hasVuln = p.vuln > 0;
+        const dotColor = hasVuln ? '#e11d48' : '#3d8383';
+        const rDot = isSelected ? 6.5 : (p.val > 0 ? 5 : 3.5);
+        const strokeColor = isSelected ? '#3b82f6' : '#ffffff';
+        const strokeWidth = isSelected ? 2.5 : 1.8;
+
+        html += `
+          <circle 
+            cx="${p.x.toFixed(1)}" 
+            cy="${p.y.toFixed(1)}" 
+            r="${rDot}" 
+            fill="${dotColor}" 
+            stroke="${strokeColor}" 
+            stroke-width="${strokeWidth}" 
+            class="cursor-pointer transition-all duration-150 hover:scale-150 chart-radar-dot"
+            data-group="${p.group}"
+            onclick="toggleGroupFilter(${p.group})"
+          />
+        `;
+      });
+
+      // 5. Axis Labels (Group Names & Counts)
+      for (let g = 1; g <= 8; g++) {
+        const a = angles[g - 1];
+        const meta = stats[g];
+        const labelDist = R + 26;
+        const lx = cx + labelDist * Math.cos(a);
+        const ly = cy + labelDist * Math.sin(a);
+
+        let anchor = "middle";
+        const cosA = Math.cos(a);
+        if (cosA > 0.25) anchor = "start";
+        else if (cosA < -0.25) anchor = "end";
+
+        let dy = 4;
+        const sinA = Math.sin(a);
+        if (sinA < -0.6) dy = -4;
+        else if (sinA > 0.6) dy = 12;
+
+        const isSelected = appState.activeGroupFilter === g;
+        const textFill = isSelected ? '#1d4ed8' : '#334155';
+        const badgeFill = isSelected ? '#2563eb' : (meta.vuln > 0 ? '#e11d48' : '#64748b');
+
+        html += `
+          <g class="cursor-pointer chart-group-label" data-group="${g}" onclick="toggleGroupFilter(${g})">
+            <text 
+              x="${lx.toFixed(1)}" 
+              y="${(ly + dy - 6).toFixed(1)}" 
+              text-anchor="${anchor}" 
+              font-size="10.5" 
+              font-weight="${isSelected ? '800' : '700'}" 
+              fill="${textFill}"
+              class="transition-colors hover:fill-blue-600 select-none"
+            >${meta.code} ${meta.shortName}</text>
+            <text 
+              x="${lx.toFixed(1)}" 
+              y="${(ly + dy + 7).toFixed(1)}" 
+              text-anchor="${anchor}" 
+              font-size="9" 
+              font-weight="600" 
+              font-family="monospace"
+              fill="${badgeFill}"
+              class="select-none"
+            >(${meta.total} เครื่อง${meta.vuln > 0 ? ` · ${meta.vuln} เสี่ยง` : ''})</text>
+          </g>
+        `;
+      }
+
+      svg.innerHTML = html;
+    }
+
+    function renderLollipopChart(stats) {
+      const svg = document.getElementById('lollipopChartSvg');
+      if (!svg) return;
+
+      const items = [];
+      for (let g = 1; g <= 8; g++) {
+        items.push(stats[g]);
+      }
+      // Sort descending by count, matching reference image
+      items.sort((a, b) => b.total - a.total);
+
+      let maxVal = 0;
+      items.forEach(it => { if (it.total > maxVal) maxVal = it.total; });
+
+      let scaleMax = 5;
+      if (maxVal > 20) scaleMax = Math.ceil(maxVal / 5) * 5;
+      else if (maxVal > 10) scaleMax = 20;
+      else if (maxVal > 5) scaleMax = 10;
+      else scaleMax = 5;
+
+      const xStart = 145;
+      const xEnd = 450;
+      const W = xEnd - xStart;
+      const yStart = 32;
+      const rowH = 32;
+
+      let html = '';
+
+      // 1. Vertical Gridlines & Scale Ticks at bottom
+      const numTicks = 4;
+      for (let t = 0; t <= numTicks; t++) {
+        const frac = t / numTicks;
+        const x = xStart + frac * W;
+        const tickVal = Math.round(scaleMax * frac);
+        
+        html += `<line x1="${x.toFixed(1)}" y1="${yStart - 10}" x2="${x.toFixed(1)}" y2="${yStart + 7 * rowH + 12}" stroke="#f1f5f9" stroke-width="1.2" />`;
+        html += `<line x1="${x.toFixed(1)}" y1="${yStart + 7 * rowH + 12}" x2="${x.toFixed(1)}" y2="${yStart + 7 * rowH + 17}" stroke="#cbd5e1" stroke-width="1.2" />`;
+        html += `<text x="${x.toFixed(1)}" y="${yStart + 7 * rowH + 28}" font-size="9" font-family="monospace" fill="#94a3b8" text-anchor="middle" font-weight="600">${tickVal}</text>`;
+      }
+      // Bottom baseline
+      html += `<line x1="${xStart}" y1="${yStart + 7 * rowH + 12}" x2="${xEnd}" y2="${yStart + 7 * rowH + 12}" stroke="#cbd5e1" stroke-width="1.2" />`;
+      html += `<text x="${xEnd + 26}" y="${yStart + 7 * rowH + 28}" font-size="9" fill="#94a3b8" text-anchor="end">เครื่อง</text>`;
+
+      // 2. Lollipop Rows
+      items.forEach((item, idx) => {
+        const y = yStart + idx * rowH;
+        const isSelected = appState.activeGroupFilter === item.id;
+        const valFrac = scaleMax > 0 ? (item.total / scaleMax) : 0;
+        const dotX = xStart + valFrac * W;
+
+        const hasVuln = item.vuln > 0;
+        // Dot color: teal (#5ea1a1) if normal, or rose/red (#e11d48) if vulnerable
+        const dotColor = hasVuln ? '#e11d48' : '#5ea1a1';
+        const rowBg = isSelected ? 'rgba(59, 130, 246, 0.08)' : 'transparent';
+
+        html += `
+          <g class="cursor-pointer chart-lollipop-row" data-group="${item.id}" onclick="toggleGroupFilter(${item.id})">
+            <!-- Hover/Selection background highlight -->
+            <rect x="10" y="${y - 12}" width="${xEnd - 5}" height="${rowH - 4}" rx="8" fill="${rowBg}" class="transition-colors hover:fill-blue-50/70" />
+            
+            <!-- Category Label on Left -->
+            <text 
+              x="${xStart - 12}" 
+              y="${y + 4}" 
+              text-anchor="end" 
+              font-size="11" 
+              font-weight="${isSelected ? '800' : '600'}" 
+              fill="${isSelected ? '#1d4ed8' : '#334155'}"
+              class="select-none"
+            >${item.code} ${item.shortName}</text>
+            
+            <!-- Horizontal Stick Line -->
+            <line 
+              x1="${xStart}" 
+              y1="${y}" 
+              x2="${dotX.toFixed(1)}" 
+              y2="${y}" 
+              stroke="${isSelected ? '#3b82f6' : '#cbd5e1'}" 
+              stroke-width="${isSelected ? 2.5 : 1.8}" 
+              class="transition-all duration-200"
+            />
+
+            <!-- Circle Dot (Bubble matching reference image) -->
+            <circle 
+              cx="${dotX.toFixed(1)}" 
+              cy="${y}" 
+              r="${isSelected ? 8.5 : 7}" 
+              fill="${dotColor}" 
+              stroke="#ffffff" 
+              stroke-width="2" 
+              class="transition-transform duration-150 hover:scale-125"
+            />
+
+            <!-- Value Counter Label right beside dot -->
+            <text 
+              x="${(dotX + 11).toFixed(1)}" 
+              y="${y + 4}" 
+              font-size="11" 
+              font-weight="bold" 
+              font-family="monospace" 
+              fill="${hasVuln ? '#e11d48' : (isSelected ? '#1d4ed8' : '#0f766e')}"
+              class="select-none"
+            >${item.total}${hasVuln ? `<tspan font-size="9" font-weight="normal" fill="#e11d48"> (${item.vuln} เสี่ยง)</tspan>` : ''}</text>
+          </g>
+        `;
+      });
+
+      svg.innerHTML = html;
+    }
+
+    function attachChartTooltips(stats) {
+      const tip = document.getElementById('chartHoverTooltip');
+      const badge = document.getElementById('chartTipBadge');
+      const title = document.getElementById('chartTipTitle');
+      const riskPill = document.getElementById('chartTipRiskPill');
+      const totalEl = document.getElementById('chartTipTotal');
+      const vulnRow = document.getElementById('chartTipVulnRow');
+      const vulnEl = document.getElementById('chartTipVuln');
+      const noteEl = document.getElementById('chartTipNote');
+
+      if (!tip) return;
+
+      function handleEnter(e) {
+        const target = e.target.closest('[data-group]');
+        if (!target) return;
+        const g = parseInt(target.getAttribute('data-group'), 10);
+        const meta = stats[g];
+        if (!meta) return;
+
+        badge.textContent = meta.code;
+        title.textContent = meta.name;
+        totalEl.textContent = `${meta.total} เครื่อง`;
+        noteEl.textContent = `เกณฑ์การตรวจ: ${meta.note}`;
+
+        if (meta.vuln > 0) {
+          riskPill.textContent = `${meta.vuln} VULNERABLE`;
+          riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-rose-500/60 bg-rose-500/20 text-rose-300";
+          vulnRow.classList.remove('hidden');
+          vulnRow.classList.add('flex');
+          vulnEl.textContent = `${meta.vuln} เครื่อง`;
+        } else {
+          riskPill.textContent = "SECURE";
+          riskPill.className = "px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-400/60 bg-emerald-500/10 text-emerald-300";
+          vulnRow.classList.add('hidden');
+          vulnRow.classList.remove('flex');
+        }
+
+        tip.classList.remove('hidden');
+        tip.classList.add('flex');
+      }
+
+      function handleMove(e) {
+        if (tip.classList.contains('hidden')) return;
+        const tipW = tip.offsetWidth || 230;
+        const tipH = tip.offsetHeight || 110;
+        let left = e.clientX + 14;
+        let top = e.clientY + 14;
+
+        if (left + tipW > window.innerWidth - 12) {
+          left = e.clientX - tipW - 14;
+        }
+        if (top + tipH > window.innerHeight - 12) {
+          top = e.clientY - tipH - 14;
+        }
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+      }
+
+      function handleLeave() {
+        tip.classList.add('hidden');
+        tip.classList.remove('flex');
+      }
+
+      document.querySelectorAll('.chart-radar-dot, .chart-group-label, .chart-lollipop-row').forEach(el => {
+        el.addEventListener('mouseenter', handleEnter);
+        el.addEventListener('mousemove', handleMove);
+        el.addEventListener('mouseleave', handleLeave);
+      });
+    }
+
+    function renderThaiCertDualCharts() {
+      const stats = getThaiCertGroupStats();
+      renderRadarChart(stats);
+      renderLollipopChart(stats);
+      attachChartTooltips(stats);
+    }
+
+    function initThaiCertChartsControls() {
+      const btnViewCharts = document.getElementById('btnViewCharts');
+      const btnViewCards = document.getElementById('btnViewCards');
+      const thaicertChartsContainer = document.getElementById('thaicertChartsContainer');
+      const thaicertGroupGrid = document.getElementById('thaicertGroupGrid');
+
+      if (btnViewCharts && btnViewCards && thaicertChartsContainer && thaicertGroupGrid) {
+        btnViewCharts.addEventListener('click', () => {
+          thaicertChartsContainer.classList.remove('hidden');
+          thaicertGroupGrid.classList.add('hidden');
+          btnViewCharts.className = "px-2.5 py-1 rounded-lg bg-white text-teal-800 shadow-xs font-bold transition flex items-center gap-1.5 cursor-pointer";
+          btnViewCards.className = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 cursor-pointer";
+          renderThaiCertDualCharts();
+        });
+
+        btnViewCards.addEventListener('click', () => {
+          thaicertChartsContainer.classList.add('hidden');
+          thaicertGroupGrid.classList.remove('hidden');
+          btnViewCards.className = "px-2.5 py-1 rounded-lg bg-white text-blue-700 shadow-xs font-bold transition flex items-center gap-1.5 cursor-pointer";
+          btnViewCharts.className = "px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 cursor-pointer";
+        });
+      }
+    }
+
+    // ==========================================
     // SCAN PROFILE & SYSTEM UPDATE LOGIC
     // ==========================================
 
@@ -5561,6 +5994,7 @@ ${data.c_patch_directive}
       autoDetectLocalNetwork();
       initPortSelectionControls();
       initThaiCertTooltip();
+      initThaiCertChartsControls();
       loadProfiles();
       checkGitUpdateStatus();
     };
@@ -5590,6 +6024,32 @@ ${data.c_patch_directive}
     <div class="text-[10px] text-slate-400 pt-2 flex items-center gap-1.5 border-t border-slate-800/80 opacity-80 mt-1.5">
       <i class="ph ph-cursor-click text-amber-400"></i>
       <span>คลิกปุ่ม "ตรวจเจาะลึก" ด้านขวา เพื่อดูการตั้งค่าและคำสั่ง Host-Check</span>
+    </div>
+  </div>
+
+  <!-- Floating Tooltip for ThaiCERT Radar & Lollipop Charts -->
+  <div id="chartHoverTooltip" class="fixed hidden flex-col p-3 rounded-2xl bg-slate-900/95 text-white text-xs shadow-2xl border border-slate-700/80 backdrop-blur-md z-[99999] pointer-events-none transition-opacity duration-150 max-w-xs">
+    <div class="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-slate-700/60">
+      <span class="flex items-center gap-1.5">
+        <span id="chartTipBadge" class="font-bold text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-400/40">ก.1</span>
+        <span id="chartTipTitle" class="font-bold text-slate-100 truncate">เว็บไซต์ / CMS</span>
+      </span>
+      <span id="chartTipRiskPill" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-400/60 bg-emerald-500/10 text-emerald-300">SECURE</span>
+    </div>
+    <div class="text-[11px] text-slate-300 flex items-center justify-between gap-3 mb-1">
+      <span class="text-slate-400">จำนวนเครื่องที่ตรวจพบ:</span>
+      <span id="chartTipTotal" class="font-bold font-mono text-teal-400">0 เครื่อง</span>
+    </div>
+    <div id="chartTipVulnRow" class="hidden text-[11px] text-rose-300 items-center justify-between gap-3 mb-1">
+      <span class="text-rose-400 font-semibold">มีความเสี่ยง / ช่องโหว่:</span>
+      <span id="chartTipVuln" class="font-bold font-mono text-rose-300">0 เครื่อง</span>
+    </div>
+    <p class="text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5 mt-1 leading-relaxed" id="chartTipNote">
+      เกณฑ์การตรวจ: WordPress, Drupal, Joomla, CMS
+    </p>
+    <div class="text-[9px] text-blue-300 font-semibold pt-1 flex items-center gap-1">
+      <i class="ph ph-cursor-click"></i>
+      <span>คลิกเพื่อกรองอุปกรณ์เฉพาะกลุ่มนี้</span>
     </div>
   </div>
 </body>
