@@ -291,79 +291,185 @@ export async function openProfileDetailDrawer(profileId) {
   }
 }
 
-export async function renderProfileScanHistory(profileId) {
+// Track active detail profile and cached history list
+let currentDetailProfileId: number | null = null;
+let currentProfileHistoryList: any[] = [];
+
+function formatHistoryDateTime(raw: string | undefined): { date: string; time: string } {
+  if (!raw) return { date: '-', time: '-' };
+  const parts = raw.replace('T', ' ').split(' ');
+  const date = parts[0] || '-';
+  const time = parts[1] ? parts[1].split('.')[0] : '-';
+  return { date, time };
+}
+
+export async function renderProfileScanHistory(profileId: number, limitOverride?: number) {
   const detailHistoryCountBadge = document.getElementById('detailHistoryCountBadge');
   const detailHistoryEmptyState = document.getElementById('detailHistoryEmptyState');
+  const detailHistoryTimelineWrapper = document.getElementById('detailHistoryTimelineWrapper');
   const detailHistoryListContainer = document.getElementById('detailHistoryListContainer');
+  const detailHistoryFooter = document.getElementById('detailHistoryFooter');
+  const detailLatestScanSummaryCard = document.getElementById('detailLatestScanSummaryCard');
+  const detailHistoryLimitSelect = document.getElementById('detailHistoryLimitSelect') as HTMLSelectElement | null;
 
   if (!detailHistoryListContainer) return;
+  currentDetailProfileId = profileId;
 
   try {
-    const res = await apiFetch(`/api/profiles/${profileId}/history`);
+    const res = await apiFetch(`/api/profiles/${profileId}/history?limit=100`);
     const data = await res.json();
-    const historyList = (data.status === 'ok') ? (data.history || []) : [];
+    currentProfileHistoryList = (data.status === 'ok') ? (data.history || []) : [];
 
     if (detailHistoryCountBadge) {
-      detailHistoryCountBadge.textContent = `${historyList.length} รอบ`;
+      detailHistoryCountBadge.textContent = `${currentProfileHistoryList.length} รอบ`;
     }
 
-    if (historyList.length === 0) {
+    if (currentProfileHistoryList.length === 0) {
       if (detailHistoryEmptyState) detailHistoryEmptyState.classList.remove('hidden');
-      detailHistoryListContainer.classList.add('hidden');
+      if (detailHistoryTimelineWrapper) detailHistoryTimelineWrapper.classList.add('hidden');
+      if (detailLatestScanSummaryCard) detailLatestScanSummaryCard.classList.add('hidden');
       detailHistoryListContainer.innerHTML = '';
       return;
     }
 
     if (detailHistoryEmptyState) detailHistoryEmptyState.classList.add('hidden');
-    detailHistoryListContainer.classList.remove('hidden');
+    if (detailHistoryTimelineWrapper) detailHistoryTimelineWrapper.classList.remove('hidden');
 
-    detailHistoryListContainer.innerHTML = historyList.map(h => {
-      const vulnBadge = (h.vuln_hosts > 0)
-        ? `<span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300 font-bold flex items-center gap-1"><i class="ph-bold ph-warning text-xs"></i> เสี่ยง ${h.vuln_hosts} เครื่อง</span>`
-        : `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1"><i class="ph-bold ph-shield-check text-xs"></i> ปลอดภัย (0 ช่องโหว่)</span>`;
+    const limit = limitOverride || (detailHistoryLimitSelect ? parseInt(detailHistoryLimitSelect.value, 10) : 5);
+    const displayedHistory = currentProfileHistoryList.slice(0, limit);
+
+    detailHistoryListContainer.innerHTML = displayedHistory.map((h, index) => {
+      const dt = formatHistoryDateTime(h.created_at);
+      const isLatest = index === 0;
+      const isCompleted = (h.elapsed_seconds > 0 || h.total_hosts > 0);
+
+      // Node indicator
+      const nodeHtml = isLatest
+        ? `<div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shadow-md shadow-blue-500/20 ring-4 ring-white z-10" title="การสแกนรอบล่าสุด"><i class="ph-bold ph-check"></i></div>`
+        : (isCompleted
+          ? `<div class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[11px] font-bold shadow-sm ring-4 ring-white z-10" title="สแกนเสร็จสิ้นสมบูรณ์"><i class="ph-bold ph-check"></i></div>`
+          : `<div class="w-6 h-6 rounded-full bg-slate-400 text-white flex items-center justify-center text-[11px] font-bold shadow-sm ring-4 ring-white z-10" title="ยกเลิกโดยผู้ใช้"><i class="ph-bold ph-clock"></i></div>`
+        );
+
+      // Status pill
+      const statusPill = isCompleted
+        ? `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50/90 border border-emerald-200/90 text-emerald-700 text-xs font-semibold shadow-2xs">
+             <i class="ph-fill ph-check-circle text-emerald-500 text-xs"></i>
+             <span>เสร็จสิ้น</span>
+           </span>`
+        : `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium">
+             <span>ยกเลิกโดยผู้ใช้</span>
+           </span>`;
+
+      // Security outcome pill
+      let secPill = '';
+      if (!isCompleted) {
+        secPill = `<div class="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-xs font-mono font-medium"><span>+ -</span></div>`;
+      } else if (h.vuln_hosts > 0) {
+        secPill = `<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+          <i class="ph-bold ph-warning text-amber-600 text-xs"></i>
+          <span>พบความเสี่ยง ${h.vuln_hosts} รายการ</span>
+        </div>`;
+      } else {
+        secPill = `<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+          <span>🛡️</span>
+          <span>ปลอดภัย (0 ช่องโหว่)</span>
+        </div>`;
+      }
 
       return `
-        <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col gap-2.5 hover:border-blue-300 transition">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs">
-                <i class="ph-bold ph-calendar-check"></i>
-              </div>
-              <div>
-                <span class="font-bold text-slate-800 text-xs">${escapeHtml(h.created_at)}</span>
-                <span class="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded ml-1 border border-slate-200">${escapeHtml(h.target_subnet || '-')}</span>
-              </div>
+        <div class="relative flex items-center gap-3">
+          <!-- Timeline Node Indicator -->
+          <div class="absolute -left-7 w-6 flex items-center justify-center">
+            ${nodeHtml}
+          </div>
+
+          <!-- Horizontal Card -->
+          <div class="flex-1 rounded-2xl bg-white border ${isLatest ? 'border-blue-200/90 shadow-sm' : 'border-slate-200/80 shadow-2xs'} hover:border-blue-300 hover:shadow-xs p-3.5 flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 transition-all">
+            <!-- Col 1: Date & Time -->
+            <div class="flex flex-col min-w-[110px]">
+              <span class="font-bold text-slate-800 text-xs tracking-tight">${escapeHtml(dt.date)}</span>
+              <span class="font-medium text-slate-700 text-xs mt-0.5">${escapeHtml(dt.time)}</span>
+              ${isLatest ? `<span class="inline-block mt-1 w-max px-2 py-0.5 rounded-md bg-blue-500 text-white text-[9px] font-bold shadow-2xs leading-none">ล่าสุด</span>` : ''}
             </div>
 
-            <div class="flex items-center gap-2">
-              <button type="button" data-action="handleRestoreScanHistory" data-arg="${h.id}" class="neu-pill-btn active px-3 py-1.5 rounded-xl text-white font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer hover:scale-[1.01] transition" title="โหลดผลสแกนและกราฟสถิติของรอบนี้ขึ้นมาแสดง">
-                <i class="ph-bold ph-chart-polar text-sm"></i>
-                <span>ดูผลสแกนรอบนี้ย้อนหลัง</span>
+            <!-- Col 2: Status Pill -->
+            <div class="shrink-0">
+              ${statusPill}
+            </div>
+
+            <!-- Col 3: Metric Badges Group -->
+            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-700 font-mono text-[11.5px]">
+                <span>💻</span>
+                <span>สแกนรวม <b>${h.total_hosts || 0}</b> เครื่อง</span>
+                <span class="text-slate-400">(${h.elapsed_seconds ? h.elapsed_seconds + 's' : '-'})</span>
+              </div>
+
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-700 font-mono text-[11.5px]">
+                <span class="text-xs">🐘</span>
+                <span>PHP: <b>${h.php_hosts || 0}</b> เครื่อง</span>
+              </div>
+
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-700 font-mono text-[11.5px]">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                <span>Node.js: <b>${h.node_hosts || 0}</b> เครื่อง</span>
+              </div>
+
+              ${secPill}
+            </div>
+
+            <!-- Col 4: Action Button & Delete -->
+            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+              <button type="button" data-action="handleRestoreScanHistory" data-arg="${h.id}" class="neu-pill-btn px-3 py-1.5 rounded-xl text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition shadow-2xs" title="คลิกเพื่อเปิดผลสแกนและรายงานกราฟรอบนี้">
+                <span>ดูรายละเอียด</span>
+                <i class="ph-bold ph-caret-right text-xs"></i>
               </button>
-              <button type="button" data-action="handleDeleteScanHistory" data-arg="${h.id}" data-arg2="${profileId}" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="ลบประวัติการสแกนรอบนี้">
+              <button type="button" data-action="handleDeleteScanHistory" data-arg="${h.id}" data-arg2="${profileId}" class="w-7 h-7 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer" title="ลบประวัติการสแกนรอบนี้">
                 <i class="ph-bold ph-trash text-xs"></i>
               </button>
             </div>
           </div>
-
-          <!-- Metrics Row -->
-          <div class="flex flex-wrap items-center gap-2 text-[10.5px] pt-1 border-t border-slate-100">
-            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono">
-              สแกนรวม <b>${h.total_hosts || 0}</b> เครื่อง (${h.elapsed_seconds || 0}s)
-            </span>
-            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-mono">
-              🐘 PHP: <b>${h.php_hosts || 0}</b> เครื่อง
-            </span>
-            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 font-mono">
-              🟢 Node.js: <b>${h.node_hosts || 0}</b> เครื่อง
-            </span>
-            ${vulnBadge}
-          </div>
-
-          ${h.scan_summary ? `<p class="text-[10px] text-slate-400 italic">${escapeHtml(h.scan_summary)}</p>` : ''}
         </div>
       `;
     }).join('');
+
+    // Toggle footer "+ ดูประวัติเพิ่มเติม"
+    if (detailHistoryFooter) {
+      if (currentProfileHistoryList.length > displayedHistory.length) {
+        detailHistoryFooter.classList.remove('hidden');
+      } else {
+        detailHistoryFooter.classList.add('hidden');
+      }
+    }
+
+    // Populate and show Bottom Latest Scan Summary Card
+    if (detailLatestScanSummaryCard && currentProfileHistoryList.length > 0) {
+      const latest = currentProfileHistoryList[0];
+      const dt = formatHistoryDateTime(latest.created_at);
+      const dtSummary = document.getElementById('detailLatestSummaryDateTime');
+      const elapsedSummary = document.getElementById('detailLatestSummaryElapsed');
+      const totalSummary = document.getElementById('detailLatestSummaryTotalHosts');
+      const verdictSummary = document.getElementById('detailLatestSummaryVerdict');
+      const btnLatestAction = document.getElementById('btnLatestScanAction');
+
+      if (dtSummary) dtSummary.textContent = `${dt.date} ${dt.time}`;
+      if (elapsedSummary) elapsedSummary.textContent = `${latest.elapsed_seconds ? latest.elapsed_seconds + ' วินาที' : '-'}`;
+      if (totalSummary) totalSummary.textContent = `${latest.total_hosts || 0} เครื่อง`;
+      if (verdictSummary) {
+        if (latest.vuln_hosts === 0) {
+          verdictSummary.innerHTML = `<i class="ph-fill ph-check-circle text-emerald-500"></i><span class="text-emerald-700">ไม่พบช่องโหว่</span>`;
+        } else {
+          verdictSummary.innerHTML = `<i class="ph-bold ph-warning text-amber-500"></i><span class="text-amber-700">พบความเสี่ยง ${latest.vuln_hosts} รายการ</span>`;
+        }
+      }
+      if (btnLatestAction) {
+        btnLatestAction.onclick = () => handleRestoreScanHistory(latest.id);
+      }
+      detailLatestScanSummaryCard.classList.remove('hidden');
+    } else if (detailLatestScanSummaryCard) {
+      detailLatestScanSummaryCard.classList.add('hidden');
+    }
 
   } catch (err) {
     console.warn('Failed to load history:', err);
@@ -1047,4 +1153,30 @@ export function initProfiles() {
   if (btnCancelProfileForm) btnCancelProfileForm.addEventListener('click', closeProfileFormModal);
 
   if (profileForm) profileForm.addEventListener('submit', handleSaveProfile);
+
+  // Scan History Limit Dropdown change listener
+  const detailHistoryLimitSelect = document.getElementById('detailHistoryLimitSelect') as HTMLSelectElement | null;
+  if (detailHistoryLimitSelect) {
+    detailHistoryLimitSelect.addEventListener('change', () => {
+      if (currentDetailProfileId) {
+        renderProfileScanHistory(currentDetailProfileId);
+      }
+    });
+  }
+
+  // Load More History Button click listener
+  const btnLoadMoreHistory = document.getElementById('btnLoadMoreHistory');
+  if (btnLoadMoreHistory) {
+    btnLoadMoreHistory.addEventListener('click', () => {
+      if (currentDetailProfileId) {
+        if (detailHistoryLimitSelect) {
+          const currentLimit = parseInt(detailHistoryLimitSelect.value, 10);
+          if (currentLimit <= 5) detailHistoryLimitSelect.value = '10';
+          else if (currentLimit <= 10) detailHistoryLimitSelect.value = '20';
+          else detailHistoryLimitSelect.value = '50';
+        }
+        renderProfileScanHistory(currentDetailProfileId);
+      }
+    });
+  }
 }
