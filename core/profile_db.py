@@ -85,7 +85,64 @@ def init_profile_db():
             );
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_mac_vendors_oui ON mac_vendors(oui);")
+
+        # Standard CVE / Dynamic Payload Rules Table (ภาษากลาง JSON)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS cve_rules (
+                rule_id TEXT PRIMARY KEY,
+                cve_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                target_type TEXT DEFAULT 'web',
+                severity TEXT DEFAULT 'Medium',
+                cvss_score REAL DEFAULT 5.0,
+                cwe TEXT DEFAULT '',
+                thaicert_group INTEGER DEFAULT 1,
+                is_enabled INTEGER DEFAULT 1,
+                trigger_json TEXT NOT NULL,
+                matchers_json TEXT NOT NULL,
+                remediation TEXT DEFAULT '',
+                references_json TEXT DEFAULT '[]',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cve_rules_target_type ON cve_rules(target_type);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cve_rules_enabled ON cve_rules(is_enabled);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cve_rules_thaicert ON cve_rules(thaicert_group);")
         conn.commit()
+
+        # Seed default standard rules if table is empty
+        try:
+            r = conn.execute("SELECT COUNT(1) AS cnt FROM cve_rules;").fetchone()
+            if r and r["cnt"] == 0:
+                from core.cve_schema import DEFAULT_CVE_RULES
+                for item in DEFAULT_CVE_RULES:
+                    conn.execute("""
+                        INSERT OR REPLACE INTO cve_rules (
+                            rule_id, cve_id, name, description, target_type,
+                            severity, cvss_score, cwe, thaicert_group, is_enabled,
+                            trigger_json, matchers_json, remediation, references_json
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        item["rule_id"],
+                        item["cve_id"],
+                        item["name"],
+                        item.get("description", ""),
+                        item.get("target_type", "web"),
+                        item.get("severity", "Medium"),
+                        item.get("cvss_score", 5.0),
+                        item.get("cwe", ""),
+                        item.get("thaicert_group", 1),
+                        1 if item.get("is_enabled", True) else 0,
+                        json.dumps(item.get("trigger", {})),
+                        json.dumps(item.get("matchers", [])),
+                        item.get("remediation", ""),
+                        json.dumps(item.get("references", []))
+                    ))
+                conn.commit()
+        except Exception:
+            pass
 
 
 _MAC_VENDOR_CACHE: Dict[str, str] = {}
@@ -441,3 +498,202 @@ def delete_scan_history(history_id: int) -> bool:
         cursor = conn.execute("DELETE FROM scan_history WHERE id = ?", (history_id,))
         conn.commit()
         return cursor.rowcount > 0
+
+
+# ============================================================================
+# Dynamic Standard CVE & Payload Rule Database API (ภาษากลาง JSON)
+# ============================================================================
+
+def _row_to_rule_dict(row: sqlite3.Row) -> Dict[str, Any]:
+    """Helper to convert a SQLite row into a full rule specification dict."""
+    d = dict(row)
+    try:
+        d["trigger"] = json.loads(d.pop("trigger_json", "{}"))
+    except Exception:
+        d["trigger"] = {}
+    try:
+        d["matchers"] = json.loads(d.pop("matchers_json", "[]"))
+    except Exception:
+        d["matchers"] = []
+    try:
+        d["references"] = json.loads(d.pop("references_json", "[]"))
+    except Exception:
+        d["references"] = []
+    d["is_enabled"] = bool(d.get("is_enabled", 1))
+    return d
+
+
+def get_all_cve_rules(target_type: Optional[str] = None, enabled_only: bool = False) -> List[Dict[str, Any]]:
+    """Retrieves all standard CVE rules, optionally filtered by target_type and enabled status."""
+    init_profile_db()
+    with get_db_connection() as conn:
+        query = "SELECT * FROM cve_rules WHERE 1=1"
+        params = []
+        if target_type:
+            query += " AND target_type = ?"
+            params.append(target_type.strip().lower())
+        if enabled_only:
+            query += " AND is_enabled = 1"
+        query += " ORDER BY cvss_score DESC, rule_id ASC"
+        
+        cursor = conn.execute(query, tuple(params))
+        rows = cursor.fetchall()
+        return [_row_to_rule_dict(r) for r in rows]
+
+
+def get_cve_rule_by_id(rule_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieves a single CVE rule by its ID."""
+    init_profile_db()
+    with get_db_connection() as conn:
+        cursor = conn.execute("SELECT * FROM cve_rules WHERE rule_id = ?", (str(rule_id).strip(),))
+        row = cursor.fetchone()
+        return _row_to_rule_dict(row) if row else None
+
+
+def save_cve_rule(rule_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validates, normalizes, and upserts a CVE rule into the database.
+    Raises ValueError if the schema validation fails.
+    """
+    from core.cve_schema import validate_cve_rule, normalize_cve_rule
+    
+    is_valid, err = validate_cve_rule(rule_dict)
+    if not is_valid:
+        raise ValueError(f"Invalid rule specification: {err}")
+    
+    norm = normalize_cve_rule(rule_dict)
+    init_profile_db()
+    with get_db_connection() as conn:
+        conn.execute("""
+            INSERT INTO cve_rules (
+                rule_id, cve_id, name, description, target_type,
+                severity, cvss_score, cwe, thaicert_group, is_enabled,
+                trigger_json, matchers_json, remediation, references_json,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(rule_id) DO UPDATE SET
+                cve_id = excluded.cve_id,
+                name = excluded.name,
+                description = excluded.description,
+                target_type = excluded.target_type,
+                severity = excluded.severity,
+                cvss_score = excluded.cvss_score,
+                cwe = excluded.cwe,
+                thaicert_group = excluded.thaicert_group,
+                is_enabled = excluded.is_enabled,
+                trigger_json = excluded.trigger_json,
+                matchers_json = excluded.matchers_json,
+                remediation = excluded.remediation,
+                references_json = excluded.references_json,
+                updated_at = CURRENT_TIMESTAMP;
+        """, (
+            norm["rule_id"],
+            norm["cve_id"],
+            norm["name"],
+            norm.get("description", ""),
+            norm.get("target_type", "web"),
+            norm.get("severity", "Medium"),
+            norm.get("cvss_score", 5.0),
+            norm.get("cwe", ""),
+            norm.get("thaicert_group", 1),
+            1 if norm.get("is_enabled", True) else 0,
+            json.dumps(norm.get("trigger", {})),
+            json.dumps(norm.get("matchers", [])),
+            norm.get("remediation", ""),
+            json.dumps(norm.get("references", []))
+        ))
+        conn.commit()
+    return get_cve_rule_by_id(norm["rule_id"]) or norm
+
+
+def delete_cve_rule(rule_id: str) -> bool:
+    """Deletes a CVE rule by its ID."""
+    init_profile_db()
+    with get_db_connection() as conn:
+        cursor = conn.execute("DELETE FROM cve_rules WHERE rule_id = ?", (str(rule_id).strip(),))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def toggle_cve_rule(rule_id: str, is_enabled: bool) -> bool:
+    """Enables or disables an existing CVE rule."""
+    init_profile_db()
+    with get_db_connection() as conn:
+        cursor = conn.execute(
+            "UPDATE cve_rules SET is_enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE rule_id = ?",
+            (1 if is_enabled else 0, str(rule_id).strip())
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def export_cve_rules_json(enabled_only: bool = False) -> Dict[str, Any]:
+    """Exports all or enabled CVE rules in the standard ThaiCERT / OPScaner JSON interchange format."""
+    rules = get_all_cve_rules(enabled_only=enabled_only)
+    from datetime import datetime
+    return {
+        "format": "OPScaner-CVE-Rule-Schema",
+        "version": "1.0.0",
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "total_rules": len(rules),
+        "rules": rules
+    }
+
+
+def import_cve_rules_json(payload: Any, overwrite: bool = True) -> Dict[str, Any]:
+    """
+    Imports a JSON payload of rules (either a list of rules or an export bundle with a 'rules' key).
+    Returns a summary of imported, skipped, and error details.
+    """
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    
+    rules_list = []
+    if isinstance(payload, dict):
+        rules_list = payload.get("rules", [])
+        if not rules_list and "rule_id" in payload:
+            rules_list = [payload]
+    elif isinstance(payload, list):
+        rules_list = payload
+    else:
+        raise ValueError("Invalid import payload: expected JSON array or object containing 'rules' list.")
+
+    imported = 0
+    updated = 0
+    failed = 0
+    errors = []
+
+    for item in rules_list:
+        if not isinstance(item, dict):
+            failed += 1
+            errors.append("Skipped non-object rule entry")
+            continue
+        rule_id = str(item.get("rule_id", "")).strip().upper()
+        if not rule_id:
+            failed += 1
+            errors.append("Skipped rule without rule_id")
+            continue
+        
+        existing = get_cve_rule_by_id(rule_id)
+        if existing and not overwrite:
+            continue
+        
+        try:
+            save_cve_rule(item)
+            if existing:
+                updated += 1
+            else:
+                imported += 1
+        except Exception as e:
+            failed += 1
+            errors.append(f"Failed rule {rule_id}: {str(e)}")
+
+    return {
+        "success": True,
+        "imported": imported,
+        "updated": updated,
+        "failed": failed,
+        "total_processed": len(rules_list),
+        "errors": errors
+    }
+

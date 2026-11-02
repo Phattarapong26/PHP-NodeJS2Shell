@@ -36,6 +36,7 @@ from flask import Flask, send_from_directory, request
 from api.scan_routes import scan_bp
 from api.report_routes import report_bp
 from api.profile_routes import profile_bp
+from api.cve_routes import cve_bp
 from core.update_checker import start_daily_update_worker
 
 # Backward compatibility re-exports for external scripts / tests
@@ -161,6 +162,7 @@ def serve_font(filename):
 app.register_blueprint(scan_bp)
 app.register_blueprint(report_bp)
 app.register_blueprint(profile_bp)
+app.register_blueprint(cve_bp)
 
 # Start background update checker worker
 try:

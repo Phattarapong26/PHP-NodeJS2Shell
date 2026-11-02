@@ -336,6 +336,20 @@ async def probe_endpoint(
         chk_raw = await asyncio.gather(*chk_tasks, return_exceptions=True)
         checklist_hits = [r for r in chk_raw if isinstance(r, dict) and r]
 
+        # Step 3.5: Dynamic Standard CVE Rule Evaluation (ภาษากลาง JSON จาก SQLite DB)
+        dynamic_cve_hits = []
+        try:
+            from audit.dynamic_rule_engine import evaluate_dynamic_rules_for_target
+            dynamic_cve_hits = await evaluate_dynamic_rules_for_target(
+                client=client,
+                base_url=base_url,
+                target_type="web",
+                canary_baseline=canary_baseline,
+                server_banner=server
+            )
+        except Exception:
+            dynamic_cve_hits = []
+
         detected_products = identify_products(headers, body_text, server)
 
         cms_name = "Web Application"
@@ -779,9 +793,10 @@ async def probe_endpoint(
         }
 
         # Evaluating Exposure Checklist (Sensitive Files, Admin Panels, Spec Leaks):
-        exp_is_risky = len(checklist_hits) > 0
-        exp_status = f"VULNERABLE (ตรวจพบ {len(checklist_hits)} รายการไฟล์สำคัญ/สเปกเสี่ยงหลุดสู่สาธารณะ)" if exp_is_risky else "SECURE (ผ่านการตรวจสอบไฟล์หลุดตามมาตรฐาน สกมช. / ไม่พบไฟล์สำคัญหลุด)"
-        exp_badge = f"{len(checklist_hits)} EXPOSURES" if exp_is_risky else "CHECKLIST CLEAN"
+        exp_is_risky = len(checklist_hits) > 0 or len(dynamic_cve_hits) > 0
+        total_rule_hits = len(checklist_hits) + len(dynamic_cve_hits)
+        exp_status = f"VULNERABLE (ตรวจพบ {total_rule_hits} รายการไฟล์สำคัญ/สเปก/กฎช่องโหว่ภาษากลาง)" if exp_is_risky else "SECURE (ผ่านการตรวจสอบไฟล์หลุดตามมาตรฐาน สกมช. / ไม่พบไฟล์สำคัญหลุด)"
+        exp_badge = f"{total_rule_hits} VULN HITS" if exp_is_risky else "CHECKLIST CLEAN"
         exp_items = []
         for chk in checklist_hits:
             exp_items.append({
@@ -793,6 +808,17 @@ async def probe_endpoint(
                 "step": f"Exposure Path [{chk['label']}]",
                 "desc": f"ตรวจพบไฟล์สำคัญ/จุดเข้าถึง: {chk['path']} (HTTP {chk['status']}, {chk['length']} bytes) [กลุ่ม {chk['group_id']}]",
                 "status": "fail" if chk.get("severity") in ("High", "Critical") else "warn"
+            })
+        for dyn in dynamic_cve_hits:
+            exp_items.append({
+                "directive": f"Dynamic CVE [{dyn['rule_id']}]: {dyn['name']}",
+                "discovered_val": f"ความรุนแรง {dyn['severity']} (CVSS {dyn['cvss_score']}) - {dyn['evidence']} [กลุ่ม {dyn['thaicert_group']}]",
+                "is_risky": True
+            })
+            probe_steps.append({
+                "step": f"Dynamic CVE [{dyn['rule_id']}]",
+                "desc": f"ตรวจพบช่องโหว่: {dyn['name']} ({dyn['severity']}) - {dyn['evidence']}",
+                "status": "fail" if dyn.get("severity") in ("High", "Critical") else "warn"
             })
         if not exp_items:
             exp_items.append({
@@ -809,6 +835,22 @@ async def probe_endpoint(
             "badge": exp_badge,
             "items": exp_items
         }
+
+        if dynamic_cve_hits:
+            va_findings["dynamic_cve_rules"] = {
+                "chain_id": "dynamic_cve_rules",
+                "title": f"Dynamic Standard CVE Rules ({len(dynamic_cve_hits)} Detected)",
+                "status": f"VULNERABLE (ตรวจพบ {len(dynamic_cve_hits)} ช่องโหว่ตรงกับกฎภาษากลาง)",
+                "is_risky": True,
+                "badge": f"{len(dynamic_cve_hits)} CVE HITS",
+                "items": [
+                    {
+                        "directive": f"{d['rule_id']} - {d['name']}",
+                        "discovered_val": f"Severity: {d['severity']} (CVSS {d['cvss_score']}) - {d['evidence']}",
+                        "is_risky": True
+                    } for d in dynamic_cve_hits
+                ]
+            }
 
         zend_c_telemetry = {
             "is_vulnerable": asan_is_vuln,
@@ -851,6 +893,7 @@ async def probe_endpoint(
             "group_evidence": thaicert_info["evidence"],
             "group_details": thaicert_info.get("group_details", []),
             "checklist_hits": checklist_hits,
+            "dynamic_cve_hits": dynamic_cve_hits,
             "detected_products": detected_products,
             "thaicert_profiles": thaicert_info.get("profiles", []),
             "architecture_matrix": thaicert_info.get("architecture_matrix", []),
