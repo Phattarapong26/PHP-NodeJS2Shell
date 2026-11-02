@@ -219,12 +219,13 @@ def restore_history_result(history_id: int):
 
     try:
         data = json.loads(item["scan_result_json"])
+        hosts_list = data.get("all_hosts", []) or data.get("hosts", [])
         # Set as last scan result for PDF export and UI view
         set_last_scan_result({
             "target": item["target_subnet"],
             "subnet": item["target_subnet"],
             "total_hosts": item["total_hosts"],
-            "hosts": data.get("all_hosts", []),
+            "hosts": hosts_list,
             "elapsed_seconds": item["elapsed_seconds"],
             "scanned_hosts": item["total_hosts"],
             "profile": data.get("profile")

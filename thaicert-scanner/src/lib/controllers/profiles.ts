@@ -1,5 +1,5 @@
 import { apiFetch } from './api';
-import { renderThaiCertVisualCharts } from './charts';
+import { renderThaiCertDualCharts, renderThaiCertVisualCharts } from './charts';
 import { badgeFilteredCount, btnCancelProfileForm, btnClearCustomHeaders, btnCloseDetailDrawerBottom, btnCloseProfileDetailDrawer, btnCloseProfileFormModal, btnDetailActivateProfile, btnDetailEditProfile, btnDrawerAutoDetect, btnDrawerCreateProfile, btnEmptyCreateProfile, btnFormDetectNetwork, btnHeaderPresetProxy, btnHeaderPresetRef, btnHeaderPresetXff, btnHeaderProfile, btnOpenCreateProfileFromList, btnPresetSpeedBalanced, btnPresetSpeedStealth, btnPresetSpeedTurbo, headerProfileName, mainSubnetInput, profileDetailDrawer, profileDrawerBackdrop, profileEmptyState, profileForm, profileFormConcurrency, profileFormConcurrencyDisplay, profileFormCustomHeaders, profileFormCustomPorts, profileFormCustomPortsWrapper, profileFormCustomUa, profileFormCustomUaWrapper, profileFormDesc, profileFormHeading, profileFormId, profileFormNetwork, profileFormSetActive, profileFormTimeout, profileFormTimeoutDisplay, profileFormTitle, profileFormUaPreset, profileSelectDrawer, profilesListContainer, quickPhpCount, scanElapsedDuration } from './dom';
 import { autoDetectLocalNetwork, recalculateSubnet } from './network';
 import { WIDE_PORTS_COLLECTION } from './ports';
@@ -562,7 +562,8 @@ export function closeProfileDetailDrawer() {
   }, 300);
 }
 
-export async function handleRestoreScanHistory(historyId) {
+export async function handleRestoreScanHistory(historyId: number | string | undefined) {
+  if (!historyId) return;
   try {
     const res = await apiFetch(`/api/scan-history/${historyId}/restore`, { method: 'POST' });
     const data = await res.json();
@@ -572,38 +573,77 @@ export async function handleRestoreScanHistory(historyId) {
     }
 
     const record = data.history_record;
-    let resultJson = null;
+    let resultJson: any = null;
     try {
       resultJson = JSON.parse(record.scan_result_json);
     } catch (e) {
-      showToast('รูปแบบข้อมูลผลสแกนไม่สมบูรณ์');
-      return;
+      resultJson = data.scan_data || {};
     }
 
-    // Restore into appState
-    appState.allHosts = resultJson.hosts || [];
-    appState.foundPhpHosts = resultJson.php_hosts || [];
-    appState.foundNodeHosts = resultJson.node_hosts || [];
-    appState.totalHosts = resultJson.total_hosts || appState.allHosts.length;
-    appState.totalPhpFound = resultJson.php_count || appState.foundPhpHosts.length;
-    appState.totalNodeFound = resultJson.node_count || appState.foundNodeHosts.length;
-    appState.totalVulnFound = resultJson.vuln_count || 0;
-    appState.thaicertSummary = resultJson.thaicert_groups || {};
+    if (!resultJson || typeof resultJson !== 'object') {
+      resultJson = data.scan_data || {};
+    }
 
-    if (quickPhpCount) quickPhpCount.textContent = appState.totalPhpFound;
-    if (badgeFilteredCount) badgeFilteredCount.textContent = appState.allHosts.length;
+    // Support both new & legacy stored keys
+    const rawHosts = resultJson.all_hosts || resultJson.hosts || [];
+    const rawPhp = resultJson.results || resultJson.php_hosts || [];
+    const rawNode = resultJson.node_results || resultJson.node_hosts || [];
+    const rawThaicert = resultJson.thaicert_summary || resultJson.thaicert_groups || {};
+
+    // Restore into appState
+    appState.allHosts = Array.isArray(rawHosts) ? rawHosts : [];
+    appState.foundPhpHosts = Array.isArray(rawPhp) ? rawPhp : [];
+    appState.foundNodeHosts = Array.isArray(rawNode) ? rawNode : [];
+    appState.totalActiveFound = resultJson.total_active_found !== undefined ? resultJson.total_active_found : appState.allHosts.length;
+    appState.totalPhpFound = resultJson.total_php_found !== undefined ? resultJson.total_php_found : appState.foundPhpHosts.length;
+    appState.totalNodeFound = resultJson.total_node_found !== undefined ? resultJson.total_node_found : appState.foundNodeHosts.length;
+    appState.totalVulnFound = resultJson.total_vuln_found !== undefined ? resultJson.total_vuln_found : (record.vuln_hosts || 0);
+    appState.totalHosts = appState.allHosts.length;
+    appState.thaicertSummary = rawThaicert;
+    appState.subnet = resultJson.subnet || record.target_subnet || appState.subnet;
+    appState.activeFilter = 'all_online';
+    appState.activeGroupFilter = null;
+
+    if (mainSubnetInput && appState.subnet) {
+      mainSubnetInput.value = appState.subnet;
+    }
+
+    const inputSearchHost = document.getElementById('inputSearchHost') as HTMLInputElement | null;
+    if (inputSearchHost) inputSearchHost.value = '';
+
+    document.querySelectorAll('.filter-tab').forEach(t => {
+      t.classList.toggle('active', t.getAttribute('data-filter') === 'all_online');
+    });
+
+    if (quickPhpCount) quickPhpCount.textContent = String(appState.totalPhpFound);
+    if (badgeFilteredCount) badgeFilteredCount.textContent = String(appState.allHosts.length);
     if (scanElapsedDuration) scanElapsedDuration.textContent = record.elapsed_seconds ? `${record.elapsed_seconds} วินาที` : "-";
 
-    // Close drawers & open results modal
-    closeProfileDetailDrawer();
-    closeProfileDrawer();
+    // Close drawers immediately so they don't block or cover resultsModal
+    if (profileDrawerBackdrop) {
+      profileDrawerBackdrop.classList.add('opacity-0', 'pointer-events-none');
+    }
+    if (profileDetailDrawer) {
+      profileDetailDrawer.classList.add('translate-x-full');
+      setTimeout(() => {
+        if (profileDetailDrawer) profileDetailDrawer.classList.add('invisible');
+      }, 200);
+    }
+    if (profileSelectDrawer) {
+      profileSelectDrawer.classList.add('translate-x-full');
+      setTimeout(() => {
+        if (profileSelectDrawer) profileSelectDrawer.classList.add('invisible');
+      }, 200);
+    }
 
+    // Open Results Modal & populate table + dual charts
     openResultsModal();
-    renderThaiCertVisualCharts();
     renderResultsTable();
+    renderThaiCertDualCharts();
 
     showToast(`โหลดผลสแกนย้อนหลังของวันที่ ${record.created_at} เรียบร้อยแล้ว`);
   } catch (err) {
+    console.error('Failed to restore history:', err);
     showToast('เกิดข้อผิดพลาดในการโหลดผลสแกนย้อนหลัง');
   }
 }

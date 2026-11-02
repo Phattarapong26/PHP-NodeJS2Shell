@@ -13,7 +13,7 @@
 </script>
 
 <!-- SLIDE-UP MODAL: Results Panel (Step 5 of Diagram) -->
-<div id="resultsModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-30 opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+<div id="resultsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
   <div class="neu-modal-surface w-full max-w-7xl max-h-[92vh] sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300 my-auto shadow-2xl">
     
     <ResultsHeader />

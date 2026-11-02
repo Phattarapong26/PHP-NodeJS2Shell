@@ -566,7 +566,10 @@ export function exportToCsv() {
 
 // Modal Control Functions
 export function openResultsModal() {
+  if (!resultsModal) return;
   resultsModal.classList.remove('opacity-0', 'pointer-events-none');
+  const inner = resultsModal.querySelector('.neu-modal-surface');
+  if (inner) inner.classList.remove('translate-y-8');
   const bodyEl = document.getElementById('resultsModalBody');
   if (bodyEl) bodyEl.scrollTop = 0;
   if (typeof renderThaiCertDualCharts === 'function') {
@@ -575,5 +578,8 @@ export function openResultsModal() {
 }
 
 export function closeResultsModal() {
+  if (!resultsModal) return;
   resultsModal.classList.add('opacity-0', 'pointer-events-none');
+  const inner = resultsModal.querySelector('.neu-modal-surface');
+  if (inner) inner.classList.add('translate-y-8');
 }
