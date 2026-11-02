@@ -1,0 +1,12 @@
+#!/bin/sh
+# wrapper ในคอนเทนเนอร์: ให้ uname ตรงกับโปรไฟล์ OS ของเครื่องนั้น
+. /etc/lab-kernel.env 2>/dev/null || true
+REAL=/usr/bin/uname
+[ -x "$REAL" ] || REAL=/bin/uname
+case "$1" in
+  -r) [ -n "${FAKE_KREL:-}" ] && { echo "$FAKE_KREL"; exit 0; } ;;
+  -v) [ -n "${FAKE_KVER:-}" ] && { echo "$FAKE_KVER"; exit 0; } ;;
+  -n) [ -n "${FAKE_HOST:-}" ] && { echo "$FAKE_HOST"; exit 0; } ;;
+  -a) [ -n "${FAKE_KREL:-}" ] && { echo "Linux ${FAKE_HOST} ${FAKE_KREL} ${FAKE_KVER} x86_64 x86_64 GNU/Linux"; exit 0; } ;;
+esac
+exec "$REAL" "$@"

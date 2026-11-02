@@ -1,0 +1,18 @@
+{
+  "id": "40",
+  "hostname": "db-prod-40",
+  "os_id": "almalinux",
+  "os_name": "AlmaLinux",
+  "os_pretty": "AlmaLinux 9.6 (Sage Margay)",
+  "os_version_id": "9.6",
+  "os_version": "9.6 (Sage Margay)",
+  "codename": "sage-margay",
+  "base_image": "almalinux:9",
+  "kernel_release": "5.14.0-427.13.1.el9_6",
+  "kernel_version": "#1 SMP PREEMPT_DYNAMIC Tue Oct 6 14:02:11 UTC 2026",
+  "rpm_version": "5.14.0-427.13.1.el9_6",
+  "ssh_banner": "SSH-2.0-OpenSSH_8.7",
+  "http_server": "nginx/1.20.1",
+  "expected_cve_2026_98432": "vulnerable",
+  "note": "เครื่องฐานข้อมูล production ฝั่ง RHEL-compatible"
+}

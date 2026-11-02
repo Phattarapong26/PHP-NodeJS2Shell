@@ -1,0 +1,7 @@
+PRETTY_NAME="AlmaLinux 9.6 (Sage Margay)"
+NAME="AlmaLinux"
+VERSION_ID="9.6"
+VERSION="9.6 (Sage Margay)"
+ID=almalinux
+ID_LIKE="rhel centos fedora"
+HOME_URL="https://example.internal"

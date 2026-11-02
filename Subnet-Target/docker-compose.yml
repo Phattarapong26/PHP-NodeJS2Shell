@@ -1,0 +1,66 @@
+# subnet-target — ให้ container ไปอยู่ที่ IP .38 / .40 ใน subnet เดียวกับ scanner
+#
+#   1) คัดลอก .env.example เป็น .env แล้วแก้ SUBNET / GATEWAY / PARENT_IFACE / IP
+#   2) python3 make-os-tree.py          # สร้าง os/host38, os/host40
+#   3) docker compose up -d --build
+#   4) ตรวจจากเครื่องอื่นในวงเดียวกัน: ./check-from-network.sh 10.20.4.38 10.20.4.40
+name: subnet-target
+
+x-common: &common
+  restart: unless-stopped
+  cap_add:
+    - NET_ADMIN          # ให้ตั้ง sysctl ภายใน netns ของ container ได้
+  sysctls:
+    net.ipv4.ip_default_ttl: "64"     # TTL เริ่มต้นแบบ Linux
+  stop_grace_period: 5s
+
+services:
+  # ------------------------------------------------------------------ .38
+  host38:
+    <<: *common
+    build:
+      context: .
+      args:
+        BASE_IMAGE: ubuntu:22.04        # ของจริง -> OpenSSH 8.9p1 Ubuntu / nginx 1.18.0
+    image: subnet-target:ubuntu2204
+    container_name: ${NAME38:-app-prod-38}
+    hostname: ${NAME38:-app-prod-38}
+    networks:
+      subnet:
+        ipv4_address: ${IP38:-10.20.4.38}
+    volumes:
+      - ./os/host38:/os:ro
+      - ./os/host38/etc/os-release:/etc/os-release:ro
+      - ./os/host38/lib/modules:/lib/modules:ro
+      # เปิดใช้เมื่อต้องการให้ scanner login แบบ agent (สร้างกุญแจตาม README ข้อ 6)
+      # - ./keys/authorized_keys_dir/authorized_keys:/root/.ssh/authorized_keys:ro
+
+  # ------------------------------------------------------------------ .40
+  host40:
+    <<: *common
+    build:
+      context: .
+      args:
+        BASE_IMAGE: almalinux:9         # ของจริง -> OpenSSH 8.7 / nginx 1.20.1 (สาย RHEL)
+    image: subnet-target:almalinux9
+    container_name: ${NAME40:-db-prod-40}
+    hostname: ${NAME40:-db-prod-40}
+    networks:
+      subnet:
+        ipv4_address: ${IP40:-10.20.4.40}
+    volumes:
+      - ./os/host40:/os:ro
+      - ./os/host40/etc/os-release:/etc/os-release:ro
+      - ./os/host40/lib/modules:/lib/modules:ro
+      # เปิดใช้เมื่อต้องการให้ scanner login แบบ agent (สร้างกุญแจตาม README ข้อ 6)
+      # - ./keys/authorized_keys_dir/authorized_keys:/root/.ssh/authorized_keys:ro
+
+networks:
+  # bridge network สำหรับแล็บทดสอบบน macOS / Docker Desktop (จำลอง IP .38 และ .40 อิสระ)
+  subnet:
+    name: subnet-target-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${SUBNET:-10.20.4.0/24}
+          gateway: ${GATEWAY:-10.20.4.1}
