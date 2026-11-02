@@ -466,6 +466,12 @@ def scan():
     operator = data.get("operator", "web-operator")
 
     net_info = get_host_network_info()
+    from core.profile_db import get_active_profile
+    active_profile = get_active_profile()
+
+    if not subnet_str and active_profile and active_profile.get("network_target"):
+        subnet_str = active_profile["network_target"].strip()
+
     if not subnet_str:
         subnet_str = net_info.get("subnet", "")
 
@@ -942,7 +948,8 @@ def scan():
         "total_hosts": len(all_active_list),
         "hosts": all_active_list,
         "elapsed_seconds": elapsed,
-        "scanned_hosts": len(hosts)
+        "scanned_hosts": len(hosts),
+        "profile": active_profile
     })
 
     return jsonify({
@@ -960,5 +967,6 @@ def scan():
         "safety_gate_notice": safety_gate_notice,
         "results": php_list,
         "node_results": node_list,
-        "all_hosts": all_active_list
+        "all_hosts": all_active_list,
+        "profile": active_profile
     })

@@ -35,6 +35,8 @@ from flask import Flask, send_from_directory, request
 
 from api.scan_routes import scan_bp
 from api.report_routes import report_bp
+from api.profile_routes import profile_bp
+from core.update_checker import start_daily_update_worker
 
 # Backward compatibility re-exports for external scripts / tests
 from core.semver import parse_semver, in_range
@@ -58,13 +60,7 @@ from audit.thaicert_rules import classify_thaicert_groups
 from audit.probe_audit import probe_lfi_prerequisite, check_tcp_port, probe_endpoint
 from reports.amber_builder import build_amber_advisory_html
 from reports.pdf_engine import generate_amber_pdf
-
-import os
-import secrets
-from flask import Flask, send_from_directory, request
-
-from api.scan_routes import scan_bp
-from api.report_routes import report_bp
+from audit.kernel_audit import evaluate_cve_2026_98432
 
 is_production = os.environ.get("OPSCANER_ENV", "production").lower() == "production"
 
@@ -135,6 +131,13 @@ def serve_font(filename):
 # Register Blueprints
 app.register_blueprint(scan_bp)
 app.register_blueprint(report_bp)
+app.register_blueprint(profile_bp)
+
+# Start background update checker worker
+try:
+    start_daily_update_worker()
+except Exception:
+    pass
 
 
 if __name__ == "__main__":

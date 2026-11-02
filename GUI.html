@@ -238,15 +238,32 @@
     
     <!-- Top System Window Bar -->
     <header class="w-full px-6 py-3.5 flex items-center justify-between z-20 select-none border-b border-slate-200/40 bg-white/30 backdrop-blur-sm">
-      <!-- Traffic lights / Window controls (Decorative Dummy Buttons) -->
-      <div class="flex items-center gap-2 select-none pointer-events-none">
-        <span class="w-3.5 h-3.5 rounded-full bg-red-400/90 shadow-sm inline-block opacity-85"></span>
-        <span class="w-3.5 h-3.5 rounded-full bg-amber-400/90 shadow-sm inline-block opacity-85"></span>
-        <span class="w-3.5 h-3.5 rounded-full bg-emerald-400/90 shadow-sm inline-block opacity-85"></span>
+      <!-- Traffic lights / Window controls + Current Profile Selector Button -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 select-none pointer-events-none">
+          <span class="w-3.5 h-3.5 rounded-full bg-red-400/90 shadow-sm inline-block opacity-85"></span>
+          <span class="w-3.5 h-3.5 rounded-full bg-amber-400/90 shadow-sm inline-block opacity-85"></span>
+          <span class="w-3.5 h-3.5 rounded-full bg-emerald-400/90 shadow-sm inline-block opacity-85"></span>
+        </div>
+
+        <!-- Left Current Profile Pill / Button -->
+        <button id="btnHeaderProfile" type="button" class="flex items-center gap-2 px-3 py-1 rounded-xl border text-xs font-semibold shadow-xs transition hover:shadow-sm cursor-pointer bg-white/70 border-slate-200/90 text-slate-700 hover:bg-white hover:border-blue-400 hover:text-blue-700" title="คลิกเพื่อจัดการและเลือก Scan Profile">
+          <i class="ph-bold ph-identification-card text-blue-600 text-sm"></i>
+          <span class="text-slate-400 font-normal">Profile:</span>
+          <span id="headerProfileName" class="font-bold text-slate-800 max-w-[170px] truncate">ยังไม่ได้เลือก Profile</span>
+          <i class="ph ph-caret-down text-slate-400 text-[10px]"></i>
+        </button>
       </div>
 
       <!-- Right Window Actions -->
-      <div class="flex items-center gap-3 text-slate-400 text-sm">
+      <div class="flex items-center gap-2.5 text-slate-400 text-sm">
+        <!-- Git Update Notification Badge -->
+        <button id="btnHeaderUpdateBadge" type="button" class="hidden hover:opacity-95 transition flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white border border-emerald-600 shadow-sm cursor-pointer animate-pulse" title="ระบบมีการอัปเดตใหม่บน Git คลิกเพื่อดูรายละเอียดและอัปเดต">
+          <i class="ph-bold ph-arrow-circle-up text-sm"></i>
+          <span>มีอัปเดตใหม่</span>
+          <span id="headerUpdateTag" class="text-[10px] bg-white/20 px-1 py-0.2 rounded font-mono">Git</span>
+        </button>
+
         <button id="btnExportAmberPdf" class="hover:opacity-90 transition flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-400 text-amber-950 border border-amber-500 shadow-sm cursor-pointer" title="ดาวน์โหลดรายงานความมั่นคงปลอดภัยมาตรฐาน สกมช. (TLP:AMBER PDF)">
           <i class="ph-bold ph-file-pdf text-sm text-amber-950"></i>
           <span>รายงาน TLP:AMBER (PDF)</span>
@@ -1720,6 +1737,215 @@ Content-Type: text/html; charset=UTF-8</div>
       </div>
     </div>
 
+    <!-- PROFILE SELECTION & MANAGEMENT MODAL (Center Popup) -->
+    <div id="profileSelectModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+      <div class="neu-modal-surface text-slate-700 w-full max-w-xl rounded-3xl p-6 shadow-2xl max-h-[90vh] flex flex-col">
+        
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-200/70 flex-shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl outer-dish flex items-center justify-center text-blue-600">
+              <i class="ph-bold ph-identification-card text-xl"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-base">จัดการและเลือก Scan Profile</h3>
+              <p class="text-xs text-slate-400">กำหนดเป้าหมายเครือข่ายและข้อมูลประจำการทดสอบ</p>
+            </div>
+          </div>
+          <button id="btnCloseProfileModal" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <!-- Alert Banner (shown when scan is attempted without profile) -->
+        <div id="profileScanWarningBanner" class="hidden mt-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-300/80 text-amber-900 text-xs font-semibold flex items-center gap-2">
+          <i class="ph-bold ph-warning-circle text-amber-600 text-lg flex-shrink-0"></i>
+          <span>กรุณาเลือก Profile ที่ต้องการจะสแกนก่อนเริ่มต้นการตรวจหา</span>
+        </div>
+
+        <!-- VPN Warning Notice (Always visible in Profile view) -->
+        <div class="mt-4 p-3 rounded-2xl bg-blue-50/80 border border-blue-200/70 text-slate-700 text-xs flex items-start gap-2.5 flex-shrink-0">
+          <i class="ph-bold ph-shield-warning text-amber-600 text-base flex-shrink-0 mt-0.5"></i>
+          <div class="leading-relaxed">
+            <span class="font-bold text-slate-900">⚠️ ข้อควรระวังเมื่อเปิดใช้งาน VPN:</span> หากเปิดใช้งาน VPN และไม่ได้ระบุ Network Target ให้ชัดเจน ระบบอาจตรวจหาผ่านช่องทางเสมือนของ VPN ซึ่งทำให้ไม่เห็นอุปกรณ์ภายใต้ Subnet กายภาพจริงของคุณ
+          </div>
+        </div>
+
+        <!-- Profiles Container (Scrollable) -->
+        <div class="my-4 flex-1 overflow-y-auto pr-1">
+          
+          <!-- Empty State (Shown when 0 profiles exist) -->
+          <div id="profileEmptyState" class="hidden py-10 px-6 flex flex-col items-center justify-center text-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60">
+            <div class="w-16 h-16 rounded-2xl bg-blue-100/60 text-blue-600 flex items-center justify-center mb-3 shadow-inner">
+              <i class="ph-duotone ph-folder-dashed text-3xl"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-800 mb-1">ยังไม่มี Profile ในระบบ</h4>
+            <p class="text-xs text-slate-500 max-w-sm mb-4 leading-relaxed">
+              ยังไม่มีการบันทึก Scan Profile กรุณากดปุ่มด้านล่างเพื่อสร้าง Profile แรกของคุณสำหรับกำหนดเป้าหมายเครือข่าย
+            </p>
+            <button id="btnEmptyCreateProfile" type="button" class="neu-pill-btn active px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md flex items-center gap-1.5 hover:scale-[1.02] transition cursor-pointer">
+              <i class="ph-bold ph-plus-circle text-base"></i>
+              <span>+ เพิ่ม Profile ใหม่</span>
+            </button>
+          </div>
+
+          <!-- Profiles List Container -->
+          <div id="profilesListContainer" class="flex flex-col gap-2.5">
+            <!-- Dynamically populated via JS -->
+          </div>
+
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="pt-3 border-t border-slate-200/70 flex items-center justify-between flex-shrink-0">
+          <button id="btnOpenCreateProfileModal" type="button" class="neu-pill-btn active px-3.5 py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center gap-1.5 hover:scale-[1.01] transition cursor-pointer">
+            <i class="ph-bold ph-plus-circle text-sm"></i>
+            <span>+ เพิ่ม Profile ใหม่</span>
+          </button>
+          <button id="btnDoneProfileModal" type="button" class="neu-pill-btn px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 transition">
+            เสร็จสิ้น
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PROFILE FORM MODAL (Create / Edit) -->
+    <div id="profileFormModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[55] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
+      <div class="neu-modal-surface text-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl flex flex-col">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200/70 mb-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl outer-dish flex items-center justify-center text-blue-600">
+              <i class="ph-bold ph-pencil-simple text-base"></i>
+            </div>
+            <h3 id="profileFormHeading" class="font-bold text-slate-800 text-sm">เพิ่ม Profile การสแกน</h3>
+          </div>
+          <button id="btnCloseProfileFormModal" class="w-7 h-7 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
+            <i class="ph-bold ph-x text-sm"></i>
+          </button>
+        </div>
+
+        <form id="profileForm" class="flex flex-col gap-3 text-xs">
+          <input type="hidden" id="profileFormId" value="">
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">ชื่อ Profile (Title) <span class="text-rose-500">*</span></label>
+            <input 
+              id="profileFormTitle" 
+              type="text" 
+              placeholder="เช่น สำนักงานใหญ่ หรือ DataCenter Subnet" 
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white font-medium"
+              required 
+            />
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Network Target (CIDR หรือ IP)</label>
+            <input 
+              id="profileFormNetwork" 
+              type="text" 
+              placeholder="เช่น 192.168.1.0/24 (เว้นว่างเพื่อใช้ IP ปัจจุบัน)" 
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white font-mono text-xs"
+            />
+            <p class="text-[11px] text-slate-400 mt-1">หากเว้นว่าง ระบบจะเลือกขอบเขต IP ปัจจุบันของเครื่องที่รันสแกนเนอร์โดยอัตโนมัติ</p>
+          </div>
+
+          <!-- VPN Mark Reminder inside Form -->
+          <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 text-[11px] flex items-start gap-2">
+            <i class="ph-bold ph-warning text-amber-600 text-sm flex-shrink-0 mt-0.5"></i>
+            <span><b>คำเตือน VPN:</b> หากต่อ VPN ให้ระบุ Subnet จริงของเป้าหมายในช่อง Network Target เพื่อป้องกันการหลงสแกนผิดวงเสมือน</span>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">คำอธิบาย (Description)</label>
+            <textarea 
+              id="profileFormDesc" 
+              rows="2" 
+              placeholder="รายละเอียดบันทึกช่วยจำสำหรับ Profile นี้..." 
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white"
+            ></textarea>
+          </div>
+
+          <div class="flex items-center gap-2 pt-1">
+            <input id="profileFormSetActive" type="checkbox" checked class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500">
+            <label for="profileFormSetActive" class="text-xs font-semibold text-slate-700 select-none cursor-pointer">
+              เลือกใช้งาน Profile นี้ทันทีหลังจากบันทึก
+            </label>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/70 mt-1">
+            <button id="btnCancelProfileForm" type="button" class="neu-pill-btn px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-800">
+              ยกเลิก
+            </button>
+            <button id="btnSaveProfileForm" type="submit" class="neu-pill-btn active px-4 py-1.5 rounded-xl text-white font-bold shadow-sm flex items-center gap-1.5 cursor-pointer">
+              <i class="ph-bold ph-check text-sm"></i>
+              <span>บันทึก Profile</span>
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
+    <!-- SYSTEM UPDATE MODAL (Git Version Check & 1-Click Update) -->
+    <div id="systemUpdateModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+      <div class="neu-modal-surface text-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl flex flex-col">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200/70">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl outer-dish flex items-center justify-center text-emerald-600">
+              <i class="ph-bold ph-git-pull-request text-xl"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-base">ระบบอัปเดตเวอร์ชัน (Version Update)</h3>
+              <p class="text-xs text-slate-400">ตรวจสอบความเปลี่ยนแปลงล่าสุดจาก Remote Git</p>
+            </div>
+          </div>
+          <button id="btnCloseUpdateModal" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <div class="my-4 flex flex-col gap-3 text-xs">
+          <!-- Commit Info Box -->
+          <div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-500 font-medium">เวอร์ชันปัจจุบัน (Local Commit):</span>
+              <span id="updateLocalCommit" class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">--</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-500 font-medium">เวอร์ชันบน Git (Remote Commit):</span>
+              <span id="updateRemoteCommit" class="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">--</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-500 font-medium">สถานะอัปเดต:</span>
+              <span id="updateStatusText" class="font-bold text-emerald-700">กำลังตรวจสอบ...</span>
+            </div>
+            <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+              <span class="text-slate-400">สภาพแวดล้อม:</span>
+              <span id="updateEnvBadge" class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">ตรวจจับอัตโนมัติ</span>
+            </div>
+          </div>
+
+          <!-- Update Log / Status Box -->
+          <div id="updateLogBox" class="hidden p-3 rounded-2xl bg-slate-900 text-slate-200 font-mono text-[11px] max-h-36 overflow-y-auto whitespace-pre-wrap"></div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-200/70 flex items-center justify-between">
+          <button id="btnCheckUpdateManual" type="button" class="neu-pill-btn px-3 py-1.5 rounded-xl text-slate-600 hover:text-blue-700 text-xs font-semibold flex items-center gap-1.5">
+            <i class="ph-bold ph-arrows-clockwise text-sm"></i>
+            <span>ตรวจสอบซ้ำ</span>
+          </button>
+          <button id="btnApplyUpdateNow" type="button" class="neu-pill-btn active px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md flex items-center gap-1.5 hover:scale-[1.01] transition cursor-pointer">
+            <i class="ph-bold ph-cloud-arrow-down text-base"></i>
+            <span id="btnApplyUpdateText">อัปเดตระบบเดี๋ยวนี้ (Git Pull)</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Notification Toast -->
     <div id="toastMessage" class="absolute bottom-16 left-1/2 transform -translate-x-1/2 neu-modal-surface text-slate-800 text-xs px-4 py-2.5 rounded-full shadow-lg border border-white flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-300 z-50">
       <i class="ph-bold ph-info text-blue-600"></i>
@@ -1771,8 +1997,45 @@ Content-Type: text/html; charset=UTF-8</div>
       selectedAuditHost: null,
       activeAuditChain: 'chain_a',
       chainViewMode: 'detail',
-      thaicertSummary: {}
+      thaicertSummary: {},
+      activeProfile: null,
+      profilesList: [],
+      systemUpdateInfo: null
     };
+
+    // Profile & System Update DOM Elements
+    const btnHeaderProfile = document.getElementById('btnHeaderProfile');
+    const headerProfileName = document.getElementById('headerProfileName');
+    const btnHeaderUpdateBadge = document.getElementById('btnHeaderUpdateBadge');
+    const headerUpdateTag = document.getElementById('headerUpdateTag');
+    const profileSelectModal = document.getElementById('profileSelectModal');
+    const btnCloseProfileModal = document.getElementById('btnCloseProfileModal');
+    const btnDoneProfileModal = document.getElementById('btnDoneProfileModal');
+    const profileScanWarningBanner = document.getElementById('profileScanWarningBanner');
+    const profileEmptyState = document.getElementById('profileEmptyState');
+    const profilesListContainer = document.getElementById('profilesListContainer');
+    const btnEmptyCreateProfile = document.getElementById('btnEmptyCreateProfile');
+    const btnOpenCreateProfileModal = document.getElementById('btnOpenCreateProfileModal');
+    const profileFormModal = document.getElementById('profileFormModal');
+    const btnCloseProfileFormModal = document.getElementById('btnCloseProfileFormModal');
+    const btnCancelProfileForm = document.getElementById('btnCancelProfileForm');
+    const profileForm = document.getElementById('profileForm');
+    const profileFormHeading = document.getElementById('profileFormHeading');
+    const profileFormId = document.getElementById('profileFormId');
+    const profileFormTitle = document.getElementById('profileFormTitle');
+    const profileFormNetwork = document.getElementById('profileFormNetwork');
+    const profileFormDesc = document.getElementById('profileFormDesc');
+    const profileFormSetActive = document.getElementById('profileFormSetActive');
+    const systemUpdateModal = document.getElementById('systemUpdateModal');
+    const btnCloseUpdateModal = document.getElementById('btnCloseUpdateModal');
+    const btnCheckUpdateManual = document.getElementById('btnCheckUpdateManual');
+    const btnApplyUpdateNow = document.getElementById('btnApplyUpdateNow');
+    const btnApplyUpdateText = document.getElementById('btnApplyUpdateText');
+    const updateLocalCommit = document.getElementById('updateLocalCommit');
+    const updateRemoteCommit = document.getElementById('updateRemoteCommit');
+    const updateStatusText = document.getElementById('updateStatusText');
+    const updateEnvBadge = document.getElementById('updateEnvBadge');
+    const updateLogBox = document.getElementById('updateLogBox');
 
     // DOM Elements
     const heroSearchInput = document.getElementById('heroSearchInput');
@@ -2251,6 +2514,14 @@ Content-Type: text/html; charset=UTF-8</div>
     // Start 5-Step Scan Flow according to user's diagram
     async function startScanWorkflow() {
       if (appState.isScanning) return;
+
+      // REQUIRE PROFILE SELECTION BEFORE SCANNING
+      if (!appState.activeProfile) {
+        openProfileModal(true);
+        showToast("กรุณาเลือก Profile ที่ต้องการจะสแกน");
+        return;
+      }
+
       appState.isScanning = true;
       appState.scanStartTime = performance.now();
       appState.foundPhpHosts = [];
@@ -2258,7 +2529,8 @@ Content-Type: text/html; charset=UTF-8</div>
 
       const heroVal = heroSearchInput ? heroSearchInput.value.trim() : "";
       const mainVal = mainSubnetInput ? mainSubnetInput.value.trim() : "";
-      const targetSubnet = heroVal || mainVal || appState.subnet;
+      const profileTarget = appState.activeProfile ? (appState.activeProfile.network_target || "").trim() : "";
+      const targetSubnet = heroVal || mainVal || profileTarget || appState.subnet;
       if (!targetSubnet) {
         showToast("กรุณาระบุ Subnet หรือ IP เป้าหมายก่อนเริ่มสแกน");
         appState.isScanning = false;
@@ -4950,11 +5222,347 @@ ${data.c_patch_directive}
       });
     }
 
+    // ==========================================
+    // SCAN PROFILE & SYSTEM UPDATE LOGIC
+    // ==========================================
+
+    function openProfileModal(fromScanAttempt = false) {
+      if (profileScanWarningBanner) {
+        if (fromScanAttempt) {
+          profileScanWarningBanner.classList.remove('hidden');
+        } else {
+          profileScanWarningBanner.classList.add('hidden');
+        }
+      }
+      if (profileSelectModal) {
+        profileSelectModal.classList.remove('opacity-0', 'pointer-events-none');
+      }
+    }
+
+    function closeProfileModal() {
+      if (profileSelectModal) {
+        profileSelectModal.classList.add('opacity-0', 'pointer-events-none');
+      }
+    }
+
+    async function loadProfiles() {
+      try {
+        const res = await fetch('/api/profiles');
+        const data = await res.json();
+        if (data.status === 'ok') {
+          appState.profilesList = data.profiles || [];
+          appState.activeProfile = data.active_profile || null;
+          updateHeaderProfileUI();
+          renderProfileList();
+        }
+      } catch (err) {
+        console.warn('Failed to load profiles:', err);
+      }
+    }
+
+    function updateHeaderProfileUI() {
+      if (!headerProfileName) return;
+      if (appState.activeProfile) {
+        headerProfileName.textContent = appState.activeProfile.title;
+        headerProfileName.className = "font-bold text-blue-700 max-w-[170px] truncate";
+        if (btnHeaderProfile) {
+          btnHeaderProfile.classList.add('bg-blue-50/90', 'border-blue-300');
+          btnHeaderProfile.classList.remove('bg-white/70', 'border-slate-200/90', 'bg-amber-50/80', 'border-amber-300');
+          btnHeaderProfile.title = `Profile ปัจจุบัน: ${appState.activeProfile.title} (${appState.activeProfile.network_target || 'IP อัตโนมัติ'})`;
+        }
+        // If active profile has network target, sync to subnet inputs if user hasn't typed custom
+        if (appState.activeProfile.network_target && mainSubnetInput) {
+          mainSubnetInput.value = appState.activeProfile.network_target;
+          recalculateSubnet(appState.activeProfile.network_target);
+        }
+      } else {
+        headerProfileName.textContent = "ยังไม่ได้เลือก Profile";
+        headerProfileName.className = "font-bold text-amber-700 max-w-[170px] truncate";
+        if (btnHeaderProfile) {
+          btnHeaderProfile.classList.remove('bg-blue-50/90', 'border-blue-300');
+          btnHeaderProfile.classList.add('bg-amber-50/80', 'border-amber-300');
+          btnHeaderProfile.title = "⚠️ ยังไม่ได้เลือก Profile (คลิกเพื่อเลือก)";
+        }
+      }
+    }
+
+    function renderProfileList() {
+      if (!profilesListContainer || !profileEmptyState) return;
+
+      const profiles = appState.profilesList || [];
+      if (profiles.length === 0) {
+        profileEmptyState.classList.remove('hidden');
+        profilesListContainer.classList.add('hidden');
+        return;
+      }
+
+      profileEmptyState.classList.add('hidden');
+      profilesListContainer.classList.remove('hidden');
+
+      profilesListContainer.innerHTML = profiles.map(p => {
+        const isActive = appState.activeProfile && appState.activeProfile.id === p.id;
+        const targetDisplay = p.network_target ? escapeHtml(p.network_target) : 'IP เครื่องปัจจุบัน (Auto)';
+        const descDisplay = p.description ? escapeHtml(p.description) : 'ไม่มีคำอธิบายเพิ่มเติม';
+        
+        return `
+          <div class="p-3.5 rounded-2xl border transition-all ${isActive ? 'bg-blue-50/70 border-blue-400 shadow-sm ring-1 ring-blue-400/30' : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'} flex items-center justify-between gap-3">
+            <div class="flex-1 min-w-0 cursor-pointer" onclick="handleSelectProfile(${p.id})">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-sm text-slate-800 truncate">${escapeHtml(p.title)}</span>
+                ${isActive ? '<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300 flex items-center gap-1"><i class="ph-bold ph-check text-xs"></i> ใช้งานอยู่</span>' : ''}
+              </div>
+              <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span class="inline-flex items-center gap-1 font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-700">
+                  <i class="ph-bold ph-target text-blue-600"></i> ${targetDisplay}
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 truncate">${descDisplay}</p>
+            </div>
+
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              ${!isActive ? `
+                <button type="button" onclick="handleSelectProfile(${p.id})" class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer" title="เลือกใช้งาน Profile นี้">
+                  <i class="ph-bold ph-check"></i>
+                  <span>เลือก</span>
+                </button>
+              ` : ''}
+              <button type="button" onclick="handleEditProfile(${p.id})" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition cursor-pointer" title="แก้ไข Profile">
+                <i class="ph-bold ph-pencil-simple text-sm"></i>
+              </button>
+              <button type="button" onclick="handleDeleteProfile(${p.id})" class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition cursor-pointer" title="ลบ Profile">
+                <i class="ph-bold ph-trash text-sm"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function handleSelectProfile(profileId) {
+      try {
+        const res = await fetch(`/api/profiles/${profileId}/select`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          appState.activeProfile = data.active_profile;
+          updateHeaderProfileUI();
+          renderProfileList();
+          showToast(`เลือกใช้งาน Profile: ${data.active_profile.title}`);
+          closeProfileModal();
+        } else {
+          showToast(data.message || 'เกิดข้อผิดพลาดในการเลือก Profile');
+        }
+      } catch (err) {
+        showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      }
+    }
+
+    function handleOpenCreateProfile() {
+      if (profileFormHeading) profileFormHeading.textContent = "เพิ่ม Profile การสแกน";
+      if (profileFormId) profileFormId.value = "";
+      if (profileFormTitle) profileFormTitle.value = "";
+      if (profileFormNetwork) profileFormNetwork.value = "";
+      if (profileFormDesc) profileFormDesc.value = "";
+      if (profileFormSetActive) profileFormSetActive.checked = true;
+      if (profileFormModal) profileFormModal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function handleEditProfile(profileId) {
+      const p = appState.profilesList.find(x => x.id === profileId);
+      if (!p) return;
+      if (profileFormHeading) profileFormHeading.textContent = "แก้ไข Profile การสแกน";
+      if (profileFormId) profileFormId.value = p.id;
+      if (profileFormTitle) profileFormTitle.value = p.title || "";
+      if (profileFormNetwork) profileFormNetwork.value = p.network_target || "";
+      if (profileFormDesc) profileFormDesc.value = p.description || "";
+      if (profileFormSetActive) profileFormSetActive.checked = Boolean(p.is_active);
+      if (profileFormModal) profileFormModal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    async function handleDeleteProfile(profileId) {
+      const p = appState.profilesList.find(x => x.id === profileId);
+      const title = p ? p.title : `ID ${profileId}`;
+      if (!confirm(`ยืนยันการลบ Scan Profile: "${title}" หรือไม่?`)) return;
+
+      try {
+        const res = await fetch(`/api/profiles/${profileId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          showToast(`ลบ Profile สำเร็จ`);
+          await loadProfiles();
+        } else {
+          showToast(data.message || 'ลบ Profile ไม่สำเร็จ');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      }
+    }
+
+    async function handleSaveProfile(e) {
+      if (e) e.preventDefault();
+      const pid = profileFormId ? profileFormId.value.trim() : "";
+      const title = profileFormTitle ? profileFormTitle.value.trim() : "";
+      const network_target = profileFormNetwork ? profileFormNetwork.value.trim() : "";
+      const description = profileFormDesc ? profileFormDesc.value.trim() : "";
+      const set_active = profileFormSetActive ? profileFormSetActive.checked : true;
+
+      if (!title) {
+        showToast("กรุณากรอกชื่อ Profile");
+        return;
+      }
+
+      try {
+        const url = pid ? `/api/profiles/${pid}` : '/api/profiles';
+        const method = pid ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, network_target, description, set_active })
+        });
+        const data = await res.json();
+        if (data.status === 'ok' || data.status === 201) {
+          showToast(data.message || 'บันทึก Profile เรียบร้อย');
+          if (profileFormModal) profileFormModal.classList.add('opacity-0', 'pointer-events-none');
+          await loadProfiles();
+        } else {
+          showToast(data.message || 'ไม่สามารถบันทึกได้');
+        }
+      } catch (err) {
+        showToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      }
+    }
+
+    async function checkGitUpdateStatus(force = false) {
+      try {
+        const res = await fetch(`/api/system/check-update${force ? '?force=1' : ''}`);
+        const data = await res.json();
+        if (data.status === 'ok') {
+          appState.systemUpdateInfo = data.update_info;
+          renderUpdateBadgeUI();
+        }
+      } catch (err) {
+        console.warn('Failed to check git updates:', err);
+      }
+    }
+
+    function renderUpdateBadgeUI() {
+      const info = appState.systemUpdateInfo;
+      if (!info) return;
+
+      if (btnHeaderUpdateBadge) {
+        if (info.has_update) {
+          btnHeaderUpdateBadge.classList.remove('hidden');
+          if (headerUpdateTag) {
+            headerUpdateTag.textContent = info.commits_behind ? `+${info.commits_behind}` : 'NEW';
+          }
+        } else {
+          btnHeaderUpdateBadge.classList.add('hidden');
+        }
+      }
+
+      if (updateLocalCommit) updateLocalCommit.textContent = (info.current_commit || 'unknown').substring(0, 7);
+      if (updateRemoteCommit) updateRemoteCommit.textContent = (info.remote_commit || 'unknown').substring(0, 7);
+      if (updateStatusText) {
+        if (info.has_update) {
+          updateStatusText.textContent = `มีเวอร์ชันใหม่บน Git (${info.commits_behind || 1} commit(s) behind)`;
+          updateStatusText.className = "font-bold text-rose-600";
+        } else {
+          updateStatusText.textContent = "ระบบเป็นเวอร์ชันล่าสุดแล้ว (Up to date)";
+          updateStatusText.className = "font-bold text-emerald-700";
+        }
+      }
+      if (updateEnvBadge) {
+        updateEnvBadge.textContent = info.is_docker ? "Docker Container" : "Machine Binary / Local Host";
+      }
+    }
+
+    function openUpdateModal() {
+      renderUpdateBadgeUI();
+      if (updateLogBox) updateLogBox.classList.add('hidden');
+      if (systemUpdateModal) systemUpdateModal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeUpdateModal() {
+      if (systemUpdateModal) systemUpdateModal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    async function applySystemUpdate() {
+      if (!btnApplyUpdateNow) return;
+      btnApplyUpdateNow.disabled = true;
+      if (btnApplyUpdateText) btnApplyUpdateText.textContent = "กำลังดำเนินการ git pull...";
+
+      if (updateLogBox) {
+        updateLogBox.classList.remove('hidden');
+        updateLogBox.textContent = "[SYSTEM] กำลังดึงข้อมูลการเปลี่ยนแปลงจาก GitHub (git pull origin main)...\n";
+      }
+
+      try {
+        const res = await fetch('/api/system/apply-update', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+          if (updateLogBox) {
+            updateLogBox.textContent += `[SUCCESS] ${data.message}\n` + (data.output || '');
+            if (data.is_docker) {
+              updateLogBox.textContent += "\n[NOTE] รันใน Docker: ระบบดึงโค้ดแล้ว สามารถรีสตาร์ทคอนเทนเนอร์ด้วย 'docker restart thaicert-php-scanner'";
+            } else {
+              updateLogBox.textContent += "\n[NOTE] กรุณารีสตาร์ทโปรแกรมเพื่อโหลดโค้ดเวอร์ชันล่าสุด";
+            }
+          }
+          showToast("อัปเดตระบบสำเร็จเรียบร้อย");
+          await checkGitUpdateStatus(true);
+        } else {
+          if (updateLogBox) {
+            updateLogBox.textContent += `[ERROR] ${data.message}\n` + (data.error || data.output || '');
+          }
+          showToast(data.message || "เกิดข้อผิดพลาดในการอัปเดต");
+        }
+      } catch (err) {
+        if (updateLogBox) {
+          updateLogBox.textContent += `[EXCEPTION] ${err.message}`;
+        }
+        showToast("ไม่สามารถส่งคำขออัปเดตได้");
+      } finally {
+        btnApplyUpdateNow.disabled = false;
+        if (btnApplyUpdateText) btnApplyUpdateText.textContent = "อัปเดตระบบเดี๋ยวนี้ (Git Pull)";
+      }
+    }
+
+    // Bind Profile & Update Events
+    if (btnHeaderProfile) btnHeaderProfile.addEventListener('click', () => openProfileModal(false));
+    if (btnCloseProfileModal) btnCloseProfileModal.addEventListener('click', closeProfileModal);
+    if (btnDoneProfileModal) btnDoneProfileModal.addEventListener('click', closeProfileModal);
+    if (profileSelectModal) {
+      profileSelectModal.addEventListener('click', (e) => {
+        if (e.target === profileSelectModal) closeProfileModal();
+      });
+    }
+
+    if (btnEmptyCreateProfile) btnEmptyCreateProfile.addEventListener('click', handleOpenCreateProfile);
+    if (btnOpenCreateProfileModal) btnOpenCreateProfileModal.addEventListener('click', handleOpenCreateProfile);
+    if (btnCloseProfileFormModal) btnCloseProfileFormModal.addEventListener('click', () => {
+      if (profileFormModal) profileFormModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+    if (btnCancelProfileForm) btnCancelProfileForm.addEventListener('click', () => {
+      if (profileFormModal) profileFormModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+    if (profileForm) profileForm.addEventListener('submit', handleSaveProfile);
+
+    if (btnHeaderUpdateBadge) btnHeaderUpdateBadge.addEventListener('click', openUpdateModal);
+    if (btnCloseUpdateModal) btnCloseUpdateModal.addEventListener('click', closeUpdateModal);
+    if (btnCheckUpdateManual) btnCheckUpdateManual.addEventListener('click', () => checkGitUpdateStatus(true));
+    if (btnApplyUpdateNow) btnApplyUpdateNow.addEventListener('click', applySystemUpdate);
+    if (systemUpdateModal) {
+      systemUpdateModal.addEventListener('click', (e) => {
+        if (e.target === systemUpdateModal) closeUpdateModal();
+      });
+    }
+
     // Initialize on page load
     window.onload = function() {
       autoDetectLocalNetwork();
       initPortSelectionControls();
       initThaiCertTooltip();
+      loadProfiles();
+      checkGitUpdateStatus();
     };
   </script>
 
