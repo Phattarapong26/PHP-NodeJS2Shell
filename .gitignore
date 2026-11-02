@@ -16,5 +16,6 @@ thaicert-scanner/src-tauri/target/
 *.zip
 *.dmg
 *.db
+*.csv
 Subnet-Target/
 document/

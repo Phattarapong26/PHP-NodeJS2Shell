@@ -571,7 +571,7 @@ def scan():
                 parsed_custom_headers[hk.strip()] = hv.strip()
 
     async def run_probes():
-        limits = httpx.Limits(max_connections=concurrency, max_keepalive_connections=20)
+        limits = httpx.Limits(max_connections=max(concurrency * 5, 200), max_keepalive_connections=40)
         async with httpx.AsyncClient(verify=False, limits=limits) as client:
             sem = asyncio.Semaphore(concurrency)
 

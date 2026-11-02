@@ -288,7 +288,7 @@ async def probe_endpoint(
         canary_baseline = {"status": None, "len": -1, "hash": ""}
         try:
             canary_path = generate_random_canary_path()
-            canary_resp = await client.get(f"{base_url}{canary_path}", headers=req_headers, timeout=min(timeout or 2.2, 1.2))
+            canary_resp = await client.get(f"{base_url}{canary_path}", headers=req_headers, timeout=min(timeout or 2.2, 0.8))
             canary_baseline = {
                 "status": canary_resp.status_code,
                 "len": len(canary_resp.content),
@@ -318,7 +318,7 @@ async def probe_endpoint(
 
         async def _probe_single_check(g_id: int, c_path: str, c_label: str, c_sev: str, c_sig: Optional[str]):
             try:
-                r_chk = await client.get(f"{base_url}{c_path}", headers=req_headers, timeout=min(timeout or 2.2, 1.2))
+                r_chk = await client.get(f"{base_url}{c_path}", headers=req_headers, timeout=min(timeout or 2.2, 0.8))
                 if verify_checklist_hit(r_chk.status_code, r_chk.content, r_chk.text, c_sig, canary_baseline):
                     return {
                         "group_id": g_id,
@@ -789,7 +789,11 @@ async def probe_endpoint(
                 "discovered_val": f"HTTP {chk['status']} ({chk['length']} bytes) - {chk['label']} [กลุ่ม {chk['group_id']}]",
                 "is_risky": True
             })
-            probe_log.append(f"[EXPOSURE HIT] ตรวจพบไฟล์สำคัญ: {chk['path']} ({chk['label']}) [กลุ่ม {chk['group_id']}]")
+            probe_steps.append({
+                "step": f"Exposure Path [{chk['label']}]",
+                "desc": f"ตรวจพบไฟล์สำคัญ/จุดเข้าถึง: {chk['path']} (HTTP {chk['status']}, {chk['length']} bytes) [กลุ่ม {chk['group_id']}]",
+                "status": "fail" if chk.get("severity") in ("High", "Critical") else "warn"
+            })
         if not exp_items:
             exp_items.append({
                 "directive": "ThaiCERT 8-Group Exposure Checklist",
