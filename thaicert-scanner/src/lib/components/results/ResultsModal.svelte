@@ -10,10 +10,11 @@
   import ResultsFilterBar from './ResultsFilterBar.svelte';
   import ResultsTable from './ResultsTable.svelte';
   import ResultsFooter from './ResultsFooter.svelte';
+  import { closeResultsModal } from '../../controllers/results';
 </script>
 
-<!-- SLIDE-UP MODAL: Results Panel (Step 5 of Diagram) -->
-<div id="resultsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+<!-- SLIDE-UP MODAL: Results Panel (Step 5 of Diagram) - Elevated z-[100] above profile drawers -->
+<div id="resultsModal" onclick={(e) => { if (e.target === e.currentTarget) closeResultsModal(); }} class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] opacity-0 pointer-events-none transition-all duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
   <div class="neu-modal-surface w-full max-w-7xl max-h-[92vh] sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden transform translate-y-8 transition-transform duration-300 my-auto shadow-2xl">
     
     <ResultsHeader />

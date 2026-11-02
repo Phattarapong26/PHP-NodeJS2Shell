@@ -3,8 +3,8 @@
   Markup ported 1:1 from the original GUI.html (lines 1826-1882).
   Element ids are preserved: the controllers in src/lib/controllers bind to them.
 -->
-<!-- SYSTEM UPDATE MODAL (Git Version Check & 1-Click Update) -->
-<div id="systemUpdateModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+<!-- SYSTEM UPDATE MODAL (Git Version Check & 1-Click Update - z-[60]) -->
+<div id="systemUpdateModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
   <div class="neu-modal-surface text-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl flex flex-col">
     
     <div class="flex items-center justify-between pb-3 border-b border-slate-200/70">

@@ -38,26 +38,27 @@
 
   <AppFooter />
 
-  <ResultsModal />
-
-  <WorkflowModal />
-
-  <CveCatalogModal />
-
-  <DeepAuditModal />
-
-  <ChainInfoModal />
-
+  <!-- Layer 1: Profile Drawers & Backdrop (Slide-in from Right) -->
   <ProfileDrawerBackdrop />
-
   <ProfileSelectDrawer />
-
   <ProfileDetailDrawer />
 
-  <ProfileFormModal />
-
+  <!-- Layer 2: Main Utility & Progress Modals -->
+  <WorkflowModal />
+  <CveCatalogModal />
   <SystemUpdateModal />
 
+  <!-- Layer 3: Results Modal (Foreground Scan Inspection Surface) -->
+  <ResultsModal />
+
+  <!-- Layer 4: Deep Audit & Attack Chain Modals (Mounted above Results) -->
+  <DeepAuditModal />
+  <ChainInfoModal />
+
+  <!-- Layer 5: Profile Form Modal (Create & Edit Dialog) -->
+  <ProfileFormModal />
+
+  <!-- Layer 6: Notifications & Feedback -->
   <Toast />
 </div>
 

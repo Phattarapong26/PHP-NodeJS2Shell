@@ -14,8 +14,8 @@
   import { closeProfileFormModal } from '../../controllers/profiles';
 </script>
 
-<!-- 3. PROFILE CREATE / EDIT MODAL (Comprehensive Scan & Stealth Config) -->
-<div id="profileFormModal" onclick={(event) => { if (event.target === event.currentTarget) closeProfileFormModal(); }} class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
+<!-- 3. PROFILE CREATE / EDIT MODAL (Comprehensive Scan & Stealth Config - Elevated z-[130] above Results) -->
+<div id="profileFormModal" onclick={(event) => { if (event.target === event.currentTarget) closeProfileFormModal(); }} class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
   <div class="neu-modal-surface text-slate-700 w-full max-w-2xl rounded-3xl p-6 shadow-2xl max-h-[92vh] flex flex-col">
     
     <!-- Form Header -->

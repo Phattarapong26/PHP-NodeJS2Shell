@@ -7,8 +7,8 @@
   import { closeChainInfoModal } from '../../controllers/audit';
 </script>
 
-<!-- Chain Deep Info & Remediation Modal (เมื่อกด icon info มุมขวา) -->
-<div id="chainInfoModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
+<!-- Chain Deep Info & Remediation Modal (เมื่อกด icon info มุมขวา - Elevated z-[120] above Deep Audit) -->
+<div id="chainInfoModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[120] opacity-0 pointer-events-none transition-all duration-200 flex items-center justify-center p-4">
   <div class="neu-modal-surface w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/90 transform scale-95 transition-transform duration-200" id="chainInfoContent">
     <!-- Header -->
     <div class="px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex items-center justify-between border-b border-slate-700/60">

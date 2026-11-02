@@ -3,8 +3,8 @@
   Markup ported 1:1 from the original GUI.html (lines 699-776).
   Element ids are preserved: the controllers in src/lib/controllers bind to them.
 -->
-<!-- WORKFLOW DIAGRAM MODAL (Interactive viewer matching soft Neumorphic Look) -->
-<div id="workflowModal" class="absolute inset-0 bg-slate-900/25 backdrop-blur-md z-40 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+<!-- WORKFLOW DIAGRAM MODAL (Interactive viewer matching soft Neumorphic Look - z-[60]) -->
+<div id="workflowModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
   <div class="neu-modal-surface text-slate-700 w-full max-w-xl rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
     
     <div class="flex items-center justify-between pb-4 border-b border-slate-200/70">

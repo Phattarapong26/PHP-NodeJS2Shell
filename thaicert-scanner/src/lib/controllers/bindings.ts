@@ -3,6 +3,8 @@ import { btnAutoDetectTrigger, btnCancelScanEl, btnCloseDeepAudit, btnCloseDeepA
 import { autoDetectLocalNetwork, recalculateSubnet } from './network';
 import { closeResultsModal, openResultsModal } from './results';
 import { cancelCurrentScan, startScanWorkflow } from './scan';
+import { closeProfileDetailDrawer } from './profiles';
+import { closeProfileDrawer } from './shell';
 import { appState } from './state';
 import { showToast, triggerHeroSearch } from './ui';
 
@@ -48,6 +50,8 @@ export function initBindings() {
 
   btnRescanFromModal.addEventListener('click', () => {
     closeResultsModal();
+    closeProfileDetailDrawer();
+    closeProfileDrawer();
     startScanWorkflow();
   });
 

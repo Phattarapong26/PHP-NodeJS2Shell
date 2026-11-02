@@ -3,8 +3,8 @@
   Markup ported 1:1 from the original GUI.html (lines 778-829).
   Element ids are preserved: the controllers in src/lib/controllers bind to them.
 -->
-<!-- CVE DATABASE CATALOG MODAL (Multi-Stack 16 CVEs: PHP, NGINX, Node.js) -->
-<div id="cveDatabaseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
+<!-- CVE DATABASE CATALOG MODAL (Multi-Stack 16 CVEs: PHP, NGINX, Node.js - z-[60]) -->
+<div id="cveDatabaseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-4">
   <div class="neu-modal-surface text-slate-700 w-full max-w-4xl rounded-3xl p-6 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden border border-white/90 transform scale-95 transition-transform duration-200" id="cveDatabaseContent">
     
     <!-- Header -->

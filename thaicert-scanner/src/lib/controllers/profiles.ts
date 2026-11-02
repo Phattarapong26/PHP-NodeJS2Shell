@@ -619,26 +619,9 @@ export async function handleRestoreScanHistory(historyId: number | string | unde
     if (badgeFilteredCount) badgeFilteredCount.textContent = String(appState.allHosts.length);
     if (scanElapsedDuration) scanElapsedDuration.textContent = record.elapsed_seconds ? `${record.elapsed_seconds} วินาที` : "-";
 
-    // Close drawers immediately so they don't block or cover resultsModal
-    if (profileDrawerBackdrop) {
-      profileDrawerBackdrop.classList.add('opacity-0', 'pointer-events-none');
-    }
-    if (profileDetailDrawer) {
-      profileDetailDrawer.classList.add('translate-x-full');
-      setTimeout(() => {
-        if (profileDetailDrawer) profileDetailDrawer.classList.add('invisible');
-      }, 200);
-    }
-    if (profileSelectDrawer) {
-      profileSelectDrawer.classList.add('translate-x-full');
-      setTimeout(() => {
-        if (profileSelectDrawer) profileSelectDrawer.classList.add('invisible');
-      }, 200);
-    }
-
-    // Open Results Modal & populate table + dual charts
-    openResultsModal();
+    // Open Results Modal in foreground (Layer 3: z-[100] stacked cleanly over profile drawer)
     renderResultsTable();
+    openResultsModal();
     renderThaiCertDualCharts();
 
     showToast(`โหลดผลสแกนย้อนหลังของวันที่ ${record.created_at} เรียบร้อยแล้ว`);
