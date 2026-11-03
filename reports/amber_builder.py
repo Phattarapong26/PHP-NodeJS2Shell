@@ -352,10 +352,10 @@ def get_css_styles() -> str:
       flex-shrink: 0;
     }
 
-    /* Document Title */
+    /* Document Title: 18pt Bold (Only this main title is 18pt) */
     .adv-doc-title {
-      font-size: 20pt;
-      font-weight: bold;
+      font-size: 18pt !important;
+      font-weight: bold !important;
       color: #0f172a;
       text-align: center;
       margin-top: 6px;
@@ -366,7 +366,7 @@ def get_css_styles() -> str:
     }
 
     .adv-doc-meta {
-      font-size: 13.5pt;
+      font-size: 16pt !important;
       color: #64748b;
       text-align: center;
       margin-bottom: 14px;
@@ -374,22 +374,22 @@ def get_css_styles() -> str:
       page-break-after: avoid !important;
     }
 
-    /* TLP Notice Banner */
+    /* TLP Notice Banner: 16pt Normal */
     .adv-tlp-rule-box {
       background: rgba(245, 158, 11, 0.08);
       border-left: 4px solid #f59e0b;
       padding: 8px 12px;
       margin-bottom: 16px;
-      font-size: 14pt;
+      font-size: 16pt !important;
       line-height: 1.35;
       color: #78350f;
       break-inside: avoid !important;
       page-break-inside: avoid !important;
     }
 
-    /* Typography Standards: Headings = 18pt, Body/Content = 16pt */
+    /* Typography Standards: All Headings = 16pt Bold, Body/Content = 16pt Normal */
     .adv-heading {
-      font-size: 18pt !important;
+      font-size: 16pt !important;
       font-weight: bold !important;
       margin-top: 18px;
       margin-bottom: 8px;
@@ -402,7 +402,7 @@ def get_css_styles() -> str:
     }
 
     .adv-subhead {
-      font-size: 17pt !important;
+      font-size: 16pt !important;
       font-weight: bold !important;
       color: #0f172a;
       margin: 14px 0 6px 0;
@@ -465,7 +465,7 @@ def get_css_styles() -> str:
       border-collapse: collapse;
       margin: 10px 0 16px 0;
       border: 1px solid #cbd5e1;
-      font-size: 14pt;
+      font-size: 16pt !important;
       break-inside: auto;
       page-break-inside: auto;
     }
@@ -490,7 +490,8 @@ def get_css_styles() -> str:
     .adv-table th {
       border: 1px solid #cbd5e1;
       padding: 6px 8px;
-      font-weight: bold;
+      font-size: 16pt !important;
+      font-weight: bold !important;
       text-align: center;
       background: #fef3c7;
       color: #78350f;
@@ -510,6 +511,7 @@ def get_css_styles() -> str:
     .adv-table td {
       border: 1px solid #cbd5e1;
       padding: 5px 8px;
+      font-size: 16pt !important;
       color: #334155;
       vertical-align: top;
       break-inside: avoid !important;
@@ -542,7 +544,7 @@ def get_css_styles() -> str:
     }
 
     .adv-item-title {
-      font-size: 17pt !important;
+      font-size: 16pt !important;
       font-weight: bold !important;
       color: #0f172a;
       line-height: 1.35;
@@ -822,12 +824,12 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             h_tech.append(web_srv)
         tech_str = " · ".join(h_tech) if h_tech else (web_srv if web_srv != dev_name else "")
 
-        mac_badge = f'<div style="font-size: 9.5pt; color: #94a3b8; font-family: monospace;">MAC: {html.escape(h_mac)}</div>' if (h_mac and h_mac != "LAN Device") else ""
-        service_badge = f'<div style="font-size: 10.5pt; color: #475569; margin-top: 1px;">บริการ: <code style="font-size: 9.5pt; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-family: monospace;">{html.escape(tech_str)}</code></div>' if tech_str else ""
+        mac_badge = f'<div style="font-size: 14pt; color: #94a3b8; font-family: monospace;">MAC: {html.escape(h_mac)}</div>' if (h_mac and h_mac != "LAN Device") else ""
+        service_badge = f'<div style="font-size: 16pt; color: #475569; margin-top: 1px;">บริการ: <code style="font-size: 14pt; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-family: monospace;">{html.escape(tech_str)}</code></div>' if tech_str else ""
 
         dev_service_cell = f"""
         <div>
-          <div style="font-weight: bold; color: #0f172a; font-size: 13pt;">{html.escape(dev_name)}</div>
+          <div style="font-weight: bold; color: #0f172a; font-size: 16pt;">{html.escape(dev_name)}</div>
           {service_badge}
           {mac_badge}
         </div>
@@ -917,7 +919,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
             findings_html += f"""
             <div style="margin-top: 14px; margin-bottom: 18px; padding: 12px 16px; background: {box_bg}; border-left: 4px solid {box_border}; border-radius: 4px;">
-              <div style="font-size: 15.5pt; font-weight: bold; color: {title_color}; margin-bottom: 4px;">
+              <div style="font-size: 16pt; font-weight: bold; color: {title_color}; margin-bottom: 4px;">
                 {header_title} บนพอร์ต {html.escape(str(h.get('port','-')))}
               </div>
               <p class="adv-para" style="color: #451a03; margin-bottom: 8px;">
@@ -938,7 +940,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         elif status_val == "NOT_CONFIRMED":
             findings_html += f"""
             <div style="margin-top: 14px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
-              <div style="font-size: 14pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
+              <div style="font-size: 16pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
                 ผลการทดสอบ Active Canary PoC บนพอร์ต {html.escape(str(h.get('port','-')))}: [NOT CONFIRMED / NO SINK IN SCOPE]
               </div>
               <p class="adv-para" style="color: #475569; margin-bottom: 0;">
@@ -949,7 +951,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         elif status_val == "PROBING_DISABLED_BY_SAFETY_GATE":
             findings_html += f"""
             <div style="margin-top: 14px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
-              <div style="font-size: 14pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
+              <div style="font-size: 16pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
                 การประเมินสิทธิ์ความปลอดภัย (Safety Gate Protection) บนพอร์ต {html.escape(str(h.get('port','-')))}
               </div>
               <p class="adv-para" style="color: #475569; margin-bottom: 0;">
@@ -983,7 +985,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         if rows_html:
             findings_html += f"""
             <div style="margin-top: 10px; margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
-              <div style="font-size: 11pt; font-weight: bold; color: #1e293b; margin-bottom: 6px;">
+              <div style="font-size: 16pt; font-weight: bold; color: #1e293b; margin-bottom: 6px;">
                 ตารางประเมินเงื่อนไขจำเป็นทางสถาปัตยกรรม (Architectural & Behavioral Preconditions) บนพอร์ต {html.escape(str(h.get('port','-')))}
               </div>
               <table style="width: 100%; font-size: 9pt; border-collapse: collapse;">
@@ -1017,7 +1019,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
                 arch_matrix_html += f"""
                 <div style="margin-top: 14px; margin-bottom: 16px;">
-                  <div style="font-size: 16.5pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
+                  <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
                     การวิเคราะห์สถาปัตยกรรมกลุ่ม{html.escape(g_name)} บนระบบเป้าหมาย {html.escape(h_ip)}
                   </div>
 
@@ -1078,10 +1080,10 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
             findings_html += f"""
             <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
-              <div style="font-size: 16.5pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
+              <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
                 {finding_title}
               </div>
-              <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
+              <div style="font-size: 16pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                 <strong>ระบบเป้าหมายที่ได้รับผลกระทบ:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
                 <strong>หมวดหมู่เทคโนโลยี:</strong> {html.escape(cat)} &nbsp;|&nbsp; 
                 <strong>ระดับความรุนแรง:</strong> {cve_sev_th} &nbsp;|&nbsp; 
@@ -1098,7 +1100,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
               </p>
 
               <div class="adv-code-box" style="margin: 8px 0 12px 0;">
-                <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">คำสั่งสำหรับผู้ดูแลระบบใช้ตรวจสอบจริงบนเครื่อง (Host-Check):</div>
+                <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">คำสั่งสำหรับผู้ดูแลระบบใช้ตรวจสอบจริงบนเครื่อง (Host-Check):</div>
                 <pre><code>{html.escape(host_check)}</code></pre>
               </div>
 
@@ -1107,7 +1109,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
               </p>
 
               <div class="adv-code-box" style="margin: 8px 0 14px 0;">
-                <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">คำแนะนำในการตั้งค่าและอัปเดตความปลอดภัย:</div>
+                <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">คำแนะนำในการตั้งค่าและอัปเดตความปลอดภัย:</div>
                 <pre><code># ตัวอย่างแนวทางแก้ไข: ตรวจสอบแพ็กเกจและวิธีติดตั้งให้เหมาะกับระบบจริงก่อนดำเนินการ
 # ควรสำรองข้อมูลและทดสอบใน Staging ก่อนอัปเดต Production
 # เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(confirm_safe)}</code></pre>
@@ -1141,10 +1143,10 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
                     findings_html += f"""
                     <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
-                      <div style="font-size: 16.5pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
+                      <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
                         ค้นพบ ข้อควรระวังด้านการจัดการเซสชัน: {html.escape(c_title)}
                       </div>
-                      <div style="font-size: 13.5pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
+                      <div style="font-size: 16pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                         <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
                         <strong>สถานะการประเมิน:</strong> {html.escape(eval_status_desc)} &nbsp;|&nbsp;
                         <strong>ระดับความเชื่อมั่น (Confidence):</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(c_conf)}</span>
@@ -1153,7 +1155,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                         จากการตรวจสอบค่าคอนฟิกและพฤติกรรมการจัดการเซสชัน พบว่า {html.escape(c_verdict)} ข้อค้นพบนี้อาจเพิ่มความเสี่ยงภายใต้เงื่อนไขบางประการ ผู้ดูแลระบบควรตรวจสอบผลกระทบต่อระบบงานและพิจารณาปรับปรุง {html.escape(c_remedy)} ตามความเหมาะสม
                       </p>
                       <div class="adv-code-box" style="margin: 8px 0 14px 0;">
-                        <div style="font-size: 11pt; color: #64748b; font-weight: bold; margin-bottom: 4px;">แนวทางการตั้งค่าคอนฟิก php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:</div>
+                        <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">แนวทางการตั้งค่าคอนฟิก php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:</div>
                         <pre><code>{html.escape(c_ini)}</code></pre>
                       </div>
                     </div>
@@ -1165,7 +1167,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         <div class="adv-finding-item">
           <p class="adv-para" style="text-align: center; color: #16a34a; font-weight: bold; margin: 24px 0;">
             ✓ จากการตรวจสอบตามขอบเขตและวิธีการที่กำหนด ยังไม่พบหลักฐานของข้อค้นพบระดับวิกฤต (Critical) หรือระดับสูง (High)
-            <br><span style="font-size: 14pt; color: #475569; font-weight: normal;">(ผลดังกล่าวไม่ใช่การรับรองว่าระบบปลอดภัยทั้งหมด ผู้ดูแลระบบควรติดตามแพตช์และทบทวนการตั้งค่าตามรอบระยะเวลาที่เหมาะสม)</span>
+            <br><span style="font-size: 16pt; color: #475569; font-weight: normal;">(ผลดังกล่าวไม่ใช่การรับรองว่าระบบปลอดภัยทั้งหมด ผู้ดูแลระบบควรติดตามแพตช์และทบทวนการตั้งค่าตามรอบระยะเวลาที่เหมาะสม)</span>
           </p>
         </div>
         """
@@ -1195,17 +1197,17 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
       <div style="margin-top: 14px; margin-bottom: 20px; padding: 18px 22px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-          <span style="font-size: 20pt; color: #16a34a;">✓</span>
-          <span style="font-size: 15pt; font-weight: bold; color: #166534;">ผลการตรวจประเมิน: ระบบอยู่ในสถานะปลอดภัย (0 Critical / 0 High Findings)</span>
+          <span style="font-size: 18pt; color: #16a34a;">✓</span>
+          <span style="font-size: 16pt; font-weight: bold; color: #166534;">ผลการตรวจประเมิน: ระบบอยู่ในสถานะปลอดภัย (0 Critical / 0 High Findings)</span>
         </div>
-        <div style="font-size: 11pt; color: #1e293b; line-height: 1.6;">
+        <div style="font-size: 16pt; color: #1e293b; line-height: 1.6;">
           <p style="margin: 0 0 8px 0;"><strong>ผลสรุปการตรวจประเมินทางเทคนิคสำหรับระบบในขอบเขต:</strong></p>
           <ul style="margin: 0 0 12px 18px; padding: 0;">
             <li><b>Remote Code Execution (RCE):</b> ไม่พบจุดรับคำสั่งหรือพฤติกรรมที่เสี่ยงต่อการถูกสั่งรันโค้ดจากระยะไกล</li>
             <li><b>Web Stack Vulnerabilities:</b> ไม่พบช่องโหว่ความรุนแรงสูงใน PHP, Node.js หรือ Web Server Services</li>
             <li><b>Network Perimeter:</b> อุปกรณ์ลูกข่ายส่วนใหญ่มีการปิดกั้นพอร์ตบริการ หรือตั้งค่าไฟร์วอลล์อย่างถูกต้อง</li>
           </ul>
-          <p style="margin: 0; color: #15803d; font-size: 10pt;">
+          <p style="margin: 0; color: #15803d; font-size: 16pt;">
             💡 <b>ข้อเสนอแนะในการกำกับดูแล:</b> ควรรักษามาตรฐานความมั่นคงปลอดภัย (Cyber Hygiene) ต่อเนื่อง โดยหมั่นอัปเดตระบบปฏิบัติการ ซอฟต์แวร์ และตรวจสอบการเปิดเผยพอร์ตเครือข่ายภายนอกเป็นประจำ
           </p>
         </div>
@@ -1343,7 +1345,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       </div>
     </div>
 
-    <!-- PAGE 3: References & Sign-off -->
+    <!-- PAGE 3: References & Incident Coordination -->
     <div class="a4-paper-sheet page-break-section" id="sheet-references">
       <div class="adv-heading">เอกสารอ้างอิงและช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัย</div>
       
@@ -1352,22 +1354,24 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       </p>
       <ul class="adv-list">
         <li>แนวทางการบริหารจัดการช่องโหว่ความมั่นคงปลอดภัยไซเบอร์สากล (NIST SP 800-115 / Vulnerability Management)</li>
-        <li>ThaiCERT Cybersecurity Advisory & Guidance — คำแนะนำการรับมือช่องโหว่ความปลอดภัยบนเว็บแอปพลิเคชัน</li>
+        <li>ThaiCERT Cybersecurity Advisory &amp; Guidance — คำแนะนำการรับมือช่องโหว่ความปลอดภัยบนเว็บแอปพลิเคชัน</li>
         <li>CIS Benchmarks — Center for Internet Security (Nginx, PHP, and Node.js Hardening Benchmarks)</li>
         <li>National Vulnerability Database (NVD / NIST) — Common Vulnerabilities and Exposures (CVE Catalog)</li>
         <li>FIRST Standards — Traffic Light Protocol (TLP) Version 2.0 User Guidance</li>
       </ul>
 
-      <div style="margin: 28px 0; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 24px;">
-        <div style="font-size: 16pt; font-weight: bold; margin-bottom: 6px;">แบบประเมินความพึงพอใจการให้บริการและการรับแจ้งเหตุภัยคุกคามทางไซเบอร์</div>
-        <div style="font-size: 13.5pt; color: #475569; margin-bottom: 14px;">ผู้รับเอกสารสามารถสแกนคิวอาร์โค้ดด้านล่างเพื่อประเมินความพึงพอใจหรือประสานงานด้านความมั่นคงปลอดภัย</div>
-        {"<img src='" + survey_qr_img + "' style='width: 120px; height: 120px; border: 1px solid #cbd5e1; padding: 4px; border-radius: 4px; display: inline-block;' alt='Survey QR' />" if survey_qr_img else ""}
-        <div style="font-size: 12pt; color: #64748b; margin-top: 6px;">
-          ลิงก์ระบบรับแจ้งเหตุ: <a href="https://www.ncsa.or.th" target="_blank" style="color: #d97706; text-decoration: underline;">https://www.ncsa.or.th</a> | อีเมล: saraban@ncsa.or.th
-        </div>
-      </div>
+      <div class="adv-heading" style="margin-top: 24px;">ช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัยไซเบอร์</div>
+      <p class="adv-para">
+        หากหน่วยงานของท่านตรวจพบเหตุการณ์ภัยคุกคามทางไซเบอร์ หรือประสงค์ขอรับคำปรึกษาเพิ่มเติมในการปิดช่องโหว่และยกระดับความมั่นคงปลอดภัย สามารถติดต่อฝ่ายปฏิบัติการได้ตามช่องทางดังต่อไปนี้:
+      </p>
+      <ul class="adv-list">
+        <li>ศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT / สกมช.)</li>
+        <li>เว็บไซต์หลัก: <a href="https://www.ncsa.or.th" target="_blank" style="color: #0284c7; text-decoration: underline;">https://www.ncsa.or.th</a></li>
+        <li>ไปรษณีย์อิเล็กทรอนิกส์: <a href="mailto:saraban@ncsa.or.th" style="color: #0284c7; text-decoration: underline;">saraban@ncsa.or.th</a> / <a href="mailto:incident@thaicert.or.th" style="color: #0284c7; text-decoration: underline;">incident@thaicert.or.th</a></li>
+        <li>สายด่วนรับแจ้งเหตุความมั่นคงปลอดภัยไซเบอร์: 02-143-7777 (ในวันและเวลาราชการ)</li>
+      </ul>
 
-      <div style="margin-top: 36px; font-size: 13pt; line-height: 1.5; color: #475569; text-align: justify;">
+      <div style="margin-top: 32px; font-size: 16pt; line-height: 1.45; color: #475569; text-align: justify;">
         <strong>คำสงวนสิทธิ์ (Disclaimer):</strong> เอกสารนี้จัดทำขึ้นโดยอิงจากข้อมูลเชิงเทคนิคที่ได้จากการตรวจประเมินระบบสารสนเทศตามขอบเขตและช่วงเวลาที่ระบุไว้เท่านั้น ข้อแนะนำและมาตรการแก้ไขที่ระบุไว้มีจุดมุ่งหมายเพื่อยกระดับความมั่นคงปลอดภัยของระบบ ทั้งนี้ ก่อนดำเนินการปรับปรุงคอนฟิกบนระบบงานจริง ผู้ดูแลระบบควรดำเนินการทดสอบในสภาพแวดล้อมจำลอง (Staging Environment) และจัดทำสำเนาสำรองข้อมูล (Backup) ให้เรียบร้อย
       </div>
 
@@ -1377,6 +1381,48 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
           <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
           <div class="sheet-footer-center">TLP:AMBER ●</div>
           <div class="sheet-footer-right">3 | P a g e</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 4: System Satisfaction Evaluation & Feedback Survey -->
+    <div class="a4-paper-sheet page-break-section" id="sheet-survey">
+      <div class="adv-heading">แบบประเมินความพึงพอใจของระบบ</div>
+
+      <p class="adv-para">
+        เพื่อการพัฒนาและยกระดับประสิทธิภาพของระบบประเมินความมั่นคงปลอดภัยไซเบอร์ (OPScaner) รวมถึงการให้บริการข้อมูลทางเทคนิคของฝ่ายปฏิบัติการ ขอความอนุเคราะห์ผู้ดูแลระบบและผู้เกี่ยวข้องร่วมตอบแบบประเมินความพึงพอใจผ่านระบบอิเล็กทรอนิกส์
+      </p>
+
+      <div style="margin: 28px auto; max-width: 540px; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 24px 20px; background: #f8fafc;">
+        <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 8px;">สแกนคิวอาร์โค้ดเพื่อทำแบบประเมินความพึงพอใจ</div>
+        <p class="adv-para" style="text-indent: 0; text-align: center; margin-bottom: 16px; color: #475569;">
+          ผู้รับเอกสารสามารถใช้สมาร์ตโฟนสแกน QR Code ด้านล่างนี้เพื่อเข้าสู่แบบประเมินและส่งข้อเสนอแนะ
+        </p>
+        {"<div style='margin-bottom: 14px;'><img src='" + survey_qr_img + "' style='width: 140px; height: 140px; border: 1px solid #cbd5e1; padding: 6px; border-radius: 6px; background: #ffffff; display: inline-block;' alt='Survey QR' /></div>" if survey_qr_img else ""}
+        <div style="font-size: 16pt; color: #1e293b; margin-top: 8px; line-height: 1.4;">
+          <strong>ลิงก์ทำแบบประเมินออนไลน์:</strong> <br>
+          <a href="https://www.ncsa.or.th" target="_blank" style="color: #0284c7; text-decoration: underline; font-weight: bold;">https://www.ncsa.or.th/survey</a>
+        </div>
+      </div>
+
+      <div class="adv-heading" style="margin-top: 24px;">หัวข้อและประเด็นในการประเมิน</div>
+      <ul class="adv-list">
+        <li>ความถูกต้องและความแม่นยำของผลการตรวจประเมินทางเทคนิค (Detection Precision)</li>
+        <li>ความชัดเจนและความเป็นประโยชน์ของคำแนะนำในการแก้ไขปัญหา (Remediation Guidance)</li>
+        <li>ความสะดวกในการใช้งานระบบและการออกรายงานมาตรฐานทางการ (Report Usability)</li>
+        <li>ข้อเสนอแนะเพิ่มเติมสำหรับการพัฒนาขีดความสามารถของเครื่องมือในอนาคต</li>
+      </ul>
+
+      <p class="adv-para" style="margin-top: 20px;">
+        ข้อมูลและข้อคิดเห็นของท่านจะถูกนำไปใช้เพื่อยกระดับคุณภาพของเครื่องมือและการปฏิบัติงานด้านความมั่นคงปลอดภัยไซเบอร์ ทางทีมงานขอขอบพระคุณในความร่วมมือเป็นอย่างยิ่ง
+      </p>
+
+      <div class="sheet-footer no-print">
+        <div class="sheet-footer-line"></div>
+        <div class="sheet-footer-row">
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
+          <div class="sheet-footer-center">TLP:AMBER ●</div>
+          <div class="sheet-footer-right">4 | P a g e</div>
         </div>
       </div>
     </div>
