@@ -39,7 +39,6 @@ from audit.sub_tools import (
 from audit.rce_prover import probe_active_rce_proof
 from audit.crawler import crawl_target, hash_body
 from audit.precondition_prober import probe_brotli_preconditions, probe_nginx_preconditions
-from audit.kernel_audit import probe_mptcp_listeners, evaluate_cve_2026_98432
 
 async def probe_lfi_prerequisite(
     client: httpx.AsyncClient,
@@ -944,28 +943,6 @@ async def probe_endpoint(
             "cves": nginx_cves
         }
 
-        # Step 4.10: Linux Kernel CVE-2026-98432 & MPTCP Evaluation (Network Precondition)
-        mptcp_results = {}
-        kernel_cve = None
-        kernel_note = ""
-        if not is_windows_os:
-            loop = asyncio.get_event_loop()
-            mptcp_results = await loop.run_in_executor(None, probe_mptcp_listeners, check_host, [port])
-            kernel_cve, kernel_note = evaluate_cve_2026_98432(
-                is_windows=is_windows_os,
-                server=server or "",
-                open_ports=[port],
-                mptcp_results=mptcp_results,
-                is_container=bool(is_docker)
-            )
-        deep_audit["mptcp_results"] = mptcp_results
-        deep_audit["kernel_audit"] = {
-            "cve": "CVE-2026-98432",
-            "mptcp_results": mptcp_results,
-            "note": kernel_note,
-            "is_container": bool(is_docker)
-        }
-
         # Step 5: Evaluate & Return Classification
         sev_order = {"Critical": 4, "High": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Patched for this CVE": 0, "Secure": 0}
 
@@ -987,8 +964,7 @@ async def probe_endpoint(
                 has_lfi_active, is_fpm, is_windows=is_windows_os,
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
-                rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
             if rce_proof.get("is_rce_proved"):
@@ -1051,8 +1027,7 @@ async def probe_endpoint(
                 False, False, is_windows=is_windows_os,
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
-                rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
             display_ver = node_version_str
             if has_brotli and "[Brotli]" not in display_ver:
@@ -1109,8 +1084,7 @@ async def probe_endpoint(
                 has_lfi_active, is_fpm, is_windows=is_windows_os,
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
-                rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
             return {
                 "target_id": f"{display_ip}:{port}",
@@ -1183,8 +1157,7 @@ async def probe_endpoint(
                 False, False, is_windows=is_windows_os,
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
-                rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
+                rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
             return {
                 "target_id": f"{display_ip}:{port}",

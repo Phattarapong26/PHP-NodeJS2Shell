@@ -41,7 +41,7 @@
     </button>
     <button id="btnOpenCveCatalog" class="hover:text-blue-700 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50/90 text-blue-700 border border-blue-200/70 shadow-sm cursor-pointer" title="เปิดฐานข้อมูลช่องโหว่ CVE Multi-Stack (PHP, NGINX, Node.js)">
       <i class="ph-bold ph-database text-sm"></i>
-      <span>ฐานข้อมูล CVE (16 รายการ)</span>
+      <span>ฐานข้อมูล CVE (15 รายการ)</span>
     </button>
     <button id="btnToggleSettings" class="hover:text-slate-700 transition" title="Network Config">
       <i class="ph ph-gear text-lg"></i>

@@ -340,7 +340,7 @@ export function renderResultsTable() {
       `;
     }
 
-    const isActionInspect = isPhp || isNode || (item.matched_cves && item.matched_cves.length > 0) || (item.deep_audit && item.deep_audit.kernel_audit);
+    const isActionInspect = isPhp || isNode || (item.matched_cves && item.matched_cves.length > 0);
     const targetPort = item.port || (item.ports && item.ports[0]) || null;
     const targetId = item.target_id || (targetPort ? `${item.ip}:${targetPort}` : item.ip);
     const webUrl = getWebTargetUrl(item, targetPort);

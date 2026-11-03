@@ -45,7 +45,7 @@
             <i class="ph-bold ph-code text-xs mr-1"></i> กฎภาษากลาง (Dynamic Rules)
           </button>
           <button id="tabModeBuiltin" class="px-3 py-1 rounded-lg font-semibold text-xs text-slate-600 hover:text-slate-900 transition cursor-pointer">
-            <i class="ph-bold ph-cpu text-xs mr-1"></i> SemVer Built-in (16)
+            <i class="ph-bold ph-cpu text-xs mr-1"></i> SemVer Built-in (15)
           </button>
         </div>
 

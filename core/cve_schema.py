@@ -43,28 +43,6 @@ DEFAULT_CVE_RULES: List[Dict[str, Any]] = [
         ]
     },
     {
-        "rule_id": "CVE-2026-98432",
-        "cve_id": "CVE-2026-98432",
-        "name": "Linux Kernel IPv4 TCP / MPTCP Use-After-Free",
-        "description": "ช่องโหว่หน่วยความจำประเภท Use-After-Free บนโปรโตคอล TCP/MPTCP ของ Linux Kernel เสี่ยงต่อ RCE และ Denial of Service (CVSS 9.8)",
-        "target_type": "network_l4",
-        "severity": "Critical",
-        "cvss_score": 9.8,
-        "cwe": "CWE-416",
-        "thaicert_group": 7,
-        "is_enabled": True,
-        "trigger": {
-            "feature_check": "mptcp_probe"
-        },
-        "matchers": [
-            { "type": "kernel_mptcp_active", "enabled": True }
-        ],
-        "remediation": "ปิดการใช้งาน MPTCP (sysctl -w net.mptcp.enabled=0) หรืออัปเกรดเคอร์เนล Linux เป็นเวอร์ชันปลอดภัย",
-        "references": [
-            "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-98432"
-        ]
-    },
-    {
         "rule_id": "CVE-2026-97205",
         "cve_id": "CVE-2026-97205",
         "name": "NGINX SSI Memory Corruption (Buffer Overflow)",

@@ -482,27 +482,6 @@ export function getTopDetectedCves() {
         cveMap[cveId].hosts.push(h.ip);
       }
     });
-
-    // For kernel_audit: ONLY count if MPTCP-ACTIVE was empirically verified on open ports
-    if (h.kernel_audit && h.kernel_audit.mptcp_results && h.kernel_audit.cve) {
-      const hasActiveMptcp = Object.values(h.kernel_audit.mptcp_results).some(st => st === 'MPTCP-ACTIVE');
-      if (hasActiveMptcp) {
-        const cveId = h.kernel_audit.cve;
-        if (!cveMap[cveId]) {
-          cveMap[cveId] = {
-            id: cveId,
-            severity: 'Critical',
-            title: h.kernel_audit.note || 'Linux Kernel Network Vulnerability (MPTCP-ACTIVE)',
-            count: 0,
-            hosts: []
-          };
-        }
-        if (!cveMap[cveId].hosts.includes(h.ip)) {
-          cveMap[cveId].count += 1;
-          cveMap[cveId].hosts.push(h.ip);
-        }
-      }
-    }
   });
 
   const list = Object.values(cveMap);

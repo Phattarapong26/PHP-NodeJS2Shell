@@ -61,7 +61,6 @@ from audit.thaicert_rules import classify_thaicert_groups
 from audit.probe_audit import probe_lfi_prerequisite, check_tcp_port, probe_endpoint
 from reports.amber_builder import build_amber_advisory_html
 from reports.pdf_engine import generate_amber_pdf
-from audit.kernel_audit import evaluate_cve_2026_98432
 
 is_production = os.environ.get("OPSCANER_ENV", "production").lower() == "production"
 
