@@ -9,7 +9,6 @@
   import AppFooter from '$lib/components/layout/AppFooter.svelte';
   import ScannerView from '$lib/components/scanner/ScannerView.svelte';
   import ResultsModal from '$lib/components/results/ResultsModal.svelte';
-  import WorkflowModal from '$lib/components/modals/WorkflowModal.svelte';
   import CveCatalogModal from '$lib/components/cve/CveCatalogModal.svelte';
   import DeepAuditModal from '$lib/components/audit/DeepAuditModal.svelte';
   import ChainInfoModal from '$lib/components/audit/ChainInfoModal.svelte';
@@ -44,7 +43,6 @@
   <ProfileDetailDrawer />
 
   <!-- Layer 2: Main Utility & Progress Modals -->
-  <WorkflowModal />
   <CveCatalogModal />
   <SystemUpdateModal />
 

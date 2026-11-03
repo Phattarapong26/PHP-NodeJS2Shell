@@ -72,18 +72,24 @@ export function initBindings() {
     });
   }
 
-  // Workflow Diagram Modal
-  btnToggleWorkflow.addEventListener('click', () => {
-    workflowModal.classList.remove('opacity-0', 'pointer-events-none');
-  });
+  // Workflow Diagram Modal (Safely guarded)
+  if (btnToggleWorkflow && workflowModal) {
+    btnToggleWorkflow.addEventListener('click', () => {
+      workflowModal.classList.remove('opacity-0', 'pointer-events-none');
+    });
+  }
 
-  btnCloseWorkflow.addEventListener('click', () => {
-    workflowModal.classList.add('opacity-0', 'pointer-events-none');
-  });
+  if (btnCloseWorkflow && workflowModal) {
+    btnCloseWorkflow.addEventListener('click', () => {
+      workflowModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+  }
 
-  btnWorkflowCloseDone.addEventListener('click', () => {
-    workflowModal.classList.add('opacity-0', 'pointer-events-none');
-  });
+  if (btnWorkflowCloseDone && workflowModal) {
+    btnWorkflowCloseDone.addEventListener('click', () => {
+      workflowModal.classList.add('opacity-0', 'pointer-events-none');
+    });
+  }
 
   if (btnCloseDeepAudit) btnCloseDeepAudit.addEventListener('click', closeDeepAuditModal);
 

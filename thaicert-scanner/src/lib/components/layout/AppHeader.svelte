@@ -46,10 +46,6 @@
     <button id="btnToggleSettings" class="hover:text-slate-700 transition" title="Network Config">
       <i class="ph ph-gear text-lg"></i>
     </button>
-    <button id="btnToggleWorkflow" class="hover:text-blue-600 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50/80 text-blue-600 border border-blue-200/60" title="ดูขั้นตอนการทำงาน">
-      <i class="ph ph-tree-structure text-sm"></i>
-      <span>Diagram Flow</span>
-    </button>
     <div class="flex items-center gap-3 pl-2 border-l border-slate-300/60">
       <button class="hover:text-slate-700 transition" title="ย่อ"><i class="ph ph-minus"></i></button>
       <button id="btnMaximize" class="hover:text-slate-700 transition" title="ขยายเต็มจอ"><i class="ph ph-square"></i></button>
