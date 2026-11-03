@@ -81,36 +81,38 @@ def get_ncsa_header_banner_html() -> str:
 def get_watermark_svg_data_uri() -> str:
     """Generate subtle, diagonal watermark SVG with red text and security border lines as data URI for report sheets."""
     import base64
-    svg = """<svg xmlns='http://www.w3.org/2000/svg' width='480' height='280' viewBox='0 0 480 280'>
+    # Larger dimensions (680x420) so watermark repeats less frequently per A4 page (ขยายระยะห่างไม่ให้ถี่)
+    # Lower opacity (0.07 / 0.06) so it is fainter and more subtle (เพิ่มความจาง)
+    svg = """<svg xmlns='http://www.w3.org/2000/svg' width='680' height='420' viewBox='0 0 680 420'>
   <style>
     .wm-line {
       stroke: #dc2626;
       stroke-width: 1.2px;
-      stroke-opacity: 0.15;
-      stroke-dasharray: 8 4;
+      stroke-opacity: 0.07;
+      stroke-dasharray: 8 5;
     }
     .wm-txt {
       font-family: 'TH SarabunPSK', 'TH Sarabun New', 'Segoe UI', Tahoma, sans-serif;
       font-size: 22px;
       font-weight: bold;
       fill: #dc2626;
-      opacity: 0.15;
-      letter-spacing: 0.8px;
+      opacity: 0.07;
+      letter-spacing: 1.2px;
     }
     .wm-sub {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Mono', Consolas, monospace;
       font-size: 11px;
       font-weight: 700;
       fill: #b91c1c;
-      opacity: 0.13;
-      letter-spacing: 2.2px;
+      opacity: 0.06;
+      letter-spacing: 2.5px;
     }
   </style>
-  <g transform='rotate(-24 240 140)'>
-    <line x1='30' y1='108' x2='450' y2='108' class='wm-line' />
-    <text x='240' y='133' text-anchor='middle' class='wm-txt'>เอกสารลับจากระบบของฝ่ายปฏิบัติการ ThaiCERT</text>
-    <text x='240' y='153' text-anchor='middle' class='wm-sub'>CONFIDENTIAL • THAICERT OPERATIONAL LICENSE</text>
-    <line x1='30' y1='165' x2='450' y2='165' class='wm-line' />
+  <g transform='rotate(-24 340 210)'>
+    <line x1='80' y1='178' x2='600' y2='178' class='wm-line' />
+    <text x='340' y='203' text-anchor='middle' class='wm-txt'>เอกสารลับจากระบบของฝ่ายปฏิบัติการ ThaiCERT</text>
+    <text x='340' y='223' text-anchor='middle' class='wm-sub'>CONFIDENTIAL • THAICERT OPERATIONAL LICENSE</text>
+    <line x1='80' y1='235' x2='600' y2='235' class='wm-line' />
   </g>
 </svg>"""
     b64 = base64.b64encode(svg.encode("utf-8")).decode("ascii")
@@ -253,7 +255,7 @@ def get_css_styles() -> str:
       background-image: url("__WATERMARK_DATA_URI__");
       background-repeat: repeat;
       background-position: center center;
-      background-size: 480px 280px;
+      background-size: 680px 420px;
       box-sizing: border-box;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
@@ -699,7 +701,7 @@ def get_css_styles() -> str:
         background-image: url("__WATERMARK_DATA_URI__") !important;
         background-repeat: repeat !important;
         background-position: center center !important;
-        background-size: 480px 280px !important;
+        background-size: 680px 420px !important;
         position: static !important;
         overflow: visible !important;
         page-break-after: auto !important;
