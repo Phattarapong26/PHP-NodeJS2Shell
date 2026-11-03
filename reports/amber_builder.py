@@ -41,13 +41,18 @@ def get_ncsa_logo_png_data_uri() -> str:
 
 
 def get_tlp_amber_traffic_light_html() -> str:
-    """Generate official FIRST TLP v2.0 TLP:AMBER traffic light widget without background or border."""
+    """Generate official FIRST TLP v2.0 TLP:AMBER traffic light widget."""
     return """
-    <div class="ncsa-tlp-container" style="text-align: right;">
-      <div style="font-size: 15pt; color: #d97706; margin-bottom: 2px;">
-        [TLP:AMBER]
+    <div class="ncsa-tlp-container" style="display: flex; flex-direction: column; align-items: flex-end;">
+      <div class="ncsa-tlp-pill" style="background: #f59e0b; color: #0f172a; font-weight: bold; font-size: 11pt; letter-spacing: 0.5px; padding: 2px 10px; border-radius: 3px; text-align: center; min-width: 82px; margin-bottom: 3px;">
+        TLP:AMBER
       </div>
-      <div style="font-size: 12pt; color: #64748b;">
+      <div class="ncsa-tlp-lights-box" style="background: #334155; border: none; border-radius: 5px; padding: 3px 8px; display: inline-flex; gap: 5px; align-items: center; justify-content: center;">
+        <span class="ncsa-tlp-circle" style="background: #64748b; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+        <span class="ncsa-tlp-circle" style="background: #f59e0b; width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: 0 0 4px #f59e0b;"></span>
+        <span class="ncsa-tlp-circle" style="background: #64748b; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+      </div>
+      <div style="font-size: 12pt; color: #64748b; margin-top: 2px;">
         จำกัดการเผยแพร่ภายในหน่วยงาน
       </div>
     </div>
@@ -779,6 +784,63 @@ def get_css_styles() -> str:
     return css.replace("__WATERMARK_DATA_URI__", wm_uri)
 
 
+def extract_compact_thaicert_groups(p_hosts: List[Dict[str, Any]]) -> str:
+    """
+    Extract concise, deduplicated ThaiCERT group labels for table display.
+    Avoids verbose descriptions and finding-level details.
+    """
+    SHORT_GROUP_NAMES = {
+        1: "กลุ่ม 1 (Web / CMS)",
+        2: "กลุ่ม 2 (API)",
+        3: "กลุ่ม 3 (Control Panel)",
+        4: "กลุ่ม 4 (Network / IoT)",
+        5: "กลุ่ม 5 (Container)",
+        6: "กลุ่ม 6 (Windows / IIS)",
+        7: "กลุ่ม 7 (Dev / Backup)",
+        8: "กลุ่ม 8 (Cloud)",
+    }
+    
+    found_group_ids = set()
+    for h in p_hosts:
+        # 1. From thaicert_groups array (e.g. [1, 2, 7])
+        for g in (h.get("thaicert_groups") or []):
+            if isinstance(g, int) and g in SHORT_GROUP_NAMES:
+                found_group_ids.add(g)
+            elif isinstance(g, str):
+                m = re.search(r"([1-8])", g)
+                if m:
+                    found_group_ids.add(int(m.group(1)))
+        
+        # 2. From deep_audit thaicert_groups
+        da = h.get("deep_audit") or {}
+        for g in (da.get("thaicert_groups") or []):
+            if isinstance(g, int) and g in SHORT_GROUP_NAMES:
+                found_group_ids.add(g)
+            elif isinstance(g, str):
+                m = re.search(r"([1-8])", g)
+                if m:
+                    found_group_ids.add(int(m.group(1)))
+                    
+        # 3. From primary_group strings or labels
+        for field in [h.get("primary_group"), da.get("primary_group")]:
+            if field:
+                m = re.search(r"กลุ่ม\s*([1-8])", str(field))
+                if m:
+                    found_group_ids.add(int(m.group(1)))
+
+        # 4. From group_labels if present
+        for gl in (h.get("group_labels") or []):
+            m = re.search(r"กลุ่ม\s*([1-8])", str(gl))
+            if m:
+                found_group_ids.add(int(m.group(1)))
+
+    if not found_group_ids:
+        return "-"
+
+    sorted_ids = sorted(list(found_group_ids))
+    return ", ".join(SHORT_GROUP_NAMES[gid] for gid in sorted_ids)
+
+
 def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
     """
     Builds a complete, professional TLP:AMBER A4 Security Advisory HTML.
@@ -943,7 +1005,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         </div>
         """
 
-        grp_str = " | ".join(primary_groups) if primary_groups else "ไม่สามารถระบุกลุ่มระบบได้จากข้อมูลที่มี (Unclassified)"
+        grp_str = extract_compact_thaicert_groups(p_hosts)
 
         table_rows_html += f"""
         <tr>
@@ -1430,6 +1492,29 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       {vulnerable_devices_html}
         """
 
+    attack_surface_table_html = ""
+    if table_rows_html.strip():
+        attack_surface_table_html = f"""
+      <div class="adv-subhead">ตารางสรุปรายการอุปกรณ์และบริการเครือข่ายที่ตรวจพบ</div>
+      <div class="adv-table-wrap">
+        <table class="adv-table">
+          <thead>
+            <tr>
+              <th style="width: 45px; text-align: center;">ลำดับ</th>
+              <th style="width: 120px;">IP</th>
+              <th style="width: 80px; text-align: center;">PORT</th>
+              <th>ประเภทอุปกรณ์</th>
+              <th style="width: 170px;">กลุ่มระบบ</th>
+              <th style="width: 110px; text-align: center;">สถานะความเสี่ยง</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table_rows_html}
+          </tbody>
+        </table>
+      </div>
+        """
+
     return f"""<!DOCTYPE html>
 <html lang="th">
 <head>
@@ -1475,24 +1560,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
       {exec_summary_html}
 
-      <div class="adv-subhead">ตารางสรุปรายการอุปกรณ์และบริการเครือข่ายที่ตรวจพบ</div>
-      <div class="adv-table-wrap">
-        <table class="adv-table">
-          <thead>
-            <tr>
-              <th style="width: 35px;">#</th>
-              <th style="width: 125px;">เป้าหมาย (IP / Host)</th>
-              <th style="width: 75px;">พอร์ตบริการ</th>
-              <th>ประเภทอุปกรณ์ / บริการที่ตรวจพบ</th>
-              <th style="width: 175px;">กลุ่มระบบ (ThaiCERT Classification)</th>
-              <th style="width: 120px;">สถานะความเสี่ยง</th>
-            </tr>
-          </thead>
-          <tbody>
-            {table_rows_html}
-          </tbody>
-        </table>
-      </div>
+      {attack_surface_table_html}
 
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
