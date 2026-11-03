@@ -166,6 +166,30 @@ def stamp_pdf_footers(raw_pdf_bytes: bytes) -> bytes:
         return raw_pdf_bytes
 
 
+def find_chrome_binary() -> Optional[str]:
+    """Find available Chromium or Chrome executable across Linux and macOS platforms."""
+    candidates = [
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
+        shutil.which("google-chrome"),
+        shutil.which("chrome"),
+        shutil.which("google-chrome-stable"),
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        os.path.expanduser("~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+    ]
+    for c in candidates:
+        if c and os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+    return None
+
+
 def generate_amber_pdf(scan_report_data: Dict[str, Any]) -> Tuple[bytes, str]:
     """
     Renders A4 TLP:AMBER PDF using Headless Chromium and vector footer stamping.
@@ -180,15 +204,9 @@ def generate_amber_pdf(scan_report_data: Dict[str, Any]) -> Tuple[bytes, str]:
 
     html_content = build_amber_advisory_html(scan_report_data)
 
-    chrome_bin = (
-        shutil.which("chromium")
-        or shutil.which("chromium-browser")
-        or shutil.which("google-chrome")
-        or "/usr/bin/chromium"
-        or "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    )
+    chrome_bin = find_chrome_binary()
 
-    if not chrome_bin or not os.path.exists(chrome_bin):
+    if not chrome_bin:
         raise RuntimeError("Chromium binary not found for server-side PDF generation. Please use browser print.")
 
     with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f_in:

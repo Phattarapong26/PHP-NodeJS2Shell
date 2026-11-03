@@ -9,7 +9,7 @@ import json
 import os
 import zipfile
 from datetime import datetime
-from flask import Blueprint, request, Response, jsonify
+from flask import Blueprint, request, Response, jsonify, redirect
 from reports.amber_builder import build_amber_advisory_html
 from reports.pdf_engine import generate_amber_pdf
 
@@ -93,6 +93,8 @@ def export_amber_pdf():
             }
         )
     except Exception as e:
+        if request.method == "GET":
+            return redirect("/api/report/preview?fallback=1")
         return jsonify({
             "error": f"ไม่สามารถสร้าง PDF ผ่าน Chromium ได้ ({e})",
             "hint": "กรุณาเปิดหน้าพรีวิวที่ /api/report/preview แล้วกดปุ่มพิมพ์ / บันทึกเป็น PDF ผ่านเบราว์เซอร์"
