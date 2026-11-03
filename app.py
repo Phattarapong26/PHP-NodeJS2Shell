@@ -148,11 +148,6 @@ def serve_favicon():
     return "", 404
 
 
-@app.route("/diagram")
-def diagram_page():
-    return send_from_directory(BASE_DIR, "diagram.html")
-
-
 @app.route("/fonts/<path:filename>")
 def serve_font(filename):
     return send_from_directory(os.path.join(BASE_DIR, "fonts"), filename)

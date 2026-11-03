@@ -173,7 +173,6 @@ if [ "$1" == "--docker" ] || [ ! -f "$DIR/venv/bin/python" ]; then
       -v "$DIR/active_hosts.txt:/app/active_hosts.txt:ro" \
       -v "$DIR/thaicert-scanner/dist:/app/thaicert-scanner/dist" \
       -v "$DIR/app.py:/app/app.py" \
-      -v "$DIR/diagram.html:/app/diagram.html" \
       -v "$DIR/core:/app/core" \
       -v "$DIR/api:/app/api" \
       -v "$DIR/audit:/app/audit" \

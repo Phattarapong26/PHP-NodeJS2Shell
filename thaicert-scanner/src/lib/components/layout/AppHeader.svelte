@@ -43,10 +43,6 @@
       <i class="ph-bold ph-database text-sm"></i>
       <span>ฐานข้อมูล CVE (16 รายการ)</span>
     </button>
-    <a href="/diagram" target="_blank" class="hover:text-indigo-600 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50/90 text-indigo-700 border border-indigo-200/70 shadow-sm" title="เปิดแผนผังสถาปัตยกรรมและข้อจำกัดระบบ (หน้าเต็ม)">
-      <i class="ph-bold ph-git-fork text-sm"></i>
-      <span>ผังสถาปัตยกรรม & ขอบเขต</span>
-    </a>
     <button id="btnToggleSettings" class="hover:text-slate-700 transition" title="Network Config">
       <i class="ph ph-gear text-lg"></i>
     </button>

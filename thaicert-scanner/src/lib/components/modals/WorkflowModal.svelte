@@ -18,9 +18,6 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <a href="/diagram" target="_blank" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60 transition-colors flex items-center gap-1 shadow-sm">
-          <i class="ph-bold ph-arrow-square-out"></i> ผังเต็ม & ข้อจำกัด
-        </a>
         <button id="btnCloseWorkflow" class="w-8 h-8 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center">
           <i class="ph-bold ph-x text-base"></i>
         </button>

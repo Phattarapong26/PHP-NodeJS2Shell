@@ -18,7 +18,6 @@ rm -rf build dist OPScaner-macOS.zip OPScaner.dmg
 echo "[*] Compiling OPScaner into standalone macOS App Bundle..."
 ./venv/bin/pyinstaller --noconfirm --windowed --name "OPScaner" \
   --add-data "GUI.html:." \
-  --add-data "diagram.html:." \
   --add-data "fonts:fonts" \
   app.py
 

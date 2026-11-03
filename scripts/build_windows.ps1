@@ -19,7 +19,6 @@ if (Test-Path "OPScaner-Windows.zip") { Remove-Item -Force "OPScaner-Windows.zip
 Write-Host "[*] Compiling OPScaner executable for Windows..." -ForegroundColor Yellow
 pyinstaller --noconfirm --onedir --name "OPScaner" `
   --add-data "GUI.html;." `
-  --add-data "diagram.html;." `
   --add-data "fonts;fonts" `
   app.py
 
