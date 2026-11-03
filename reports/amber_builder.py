@@ -1135,49 +1135,6 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 tech_summary_parts.append(str(ws))
         tech_summary = ", ".join(tech_summary_parts) if tech_summary_parts else "Web & Application Server"
 
-        # Unique ThaiCERT Group Profiles for this Host (Consolidated, no multi-page repetitive matrix)
-        host_groups: Dict[int, Dict[str, Any]] = {}
-        for h in p_hosts:
-            port_val = (h.get("ports") or [h.get("port")])[0] if (h.get("ports") or [h.get("port")]) else None
-            da = h.get("deep_audit") or {}
-            matrix = h.get("architecture_matrix") or da.get("architecture_matrix") or []
-            for m in matrix:
-                gid = m.get("group_id")
-                if gid not in host_groups:
-                    profile = THAICERT_GROUP_PROFILES.get(gid, {})
-                    host_groups[gid] = {
-                        "name": m.get("group_name") or profile.get("name") or f"กลุ่ม {gid}",
-                        "sapi": m.get("sapi_detected") or profile.get("sapi_typical") or "มาตรฐาน",
-                        "worker": m.get("worker_model") or profile.get("worker_model") or "Standard Process",
-                        "impact": m.get("impact_scope") or profile.get("impact_scope") or "ขอบเขตผลกระทบต่อระบบ",
-                        "exploitability": m.get("exploitability") or "Conditional",
-                        "ports": [port_val] if port_val else []
-                    }
-                else:
-                    if port_val and port_val not in host_groups[gid]["ports"]:
-                        host_groups[gid]["ports"].append(port_val)
-
-        # Build compact ThaiCERT classification summary for this host (No background, no bold except title)
-        matrix_summary_html = ""
-        if host_groups:
-            matrix_rows = ""
-            for gid, ginfo in host_groups.items():
-                g_ports_str = f" (พอร์ต: {', '.join(str(p) for p in ginfo['ports'])})" if ginfo["ports"] else ""
-                conf_label = "ยืนยันผลกระทบแล้ว" if ginfo["exploitability"] == "Confirmed" else ("มีความเป็นไปได้สูง" if ginfo["exploitability"] == "Likely" else "ขึ้นกับเงื่อนไขเฉพาะ")
-                matrix_rows += f"""
-                <div style="margin-bottom: 4px; font-size: 15pt; color: #1e293b;">
-                  กลุ่ม {gid}: {html.escape(ginfo['name'])}{g_ports_str} — สถาปัตยกรรม {html.escape(str(ginfo['sapi']))} / {html.escape(str(ginfo['worker']))} (สถานะ: {conf_label})
-                </div>
-                """
-            matrix_summary_html = f"""
-            <div style="margin-top: 10px; margin-bottom: 12px;">
-              <div style="font-size: 16pt; font-weight: bold; color: #000000; margin-bottom: 4px;">
-                การจัดกลุ่มสถาปัตยกรรมและความเสี่ยงของระบบ (ThaiCERT Classification):
-              </div>
-              {matrix_rows}
-            </div>
-            """
-
         # Now, render findings for each port of this host that has actionable vulnerabilities
         host_port_findings_html = ""
         for h in p_hosts:
@@ -1418,7 +1375,6 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             ที่อยู่ IP: {html.escape(ip)} &nbsp;|&nbsp; พอร์ตบริการที่เปิด: {html.escape(ports_str)} &nbsp;|&nbsp; บริการ: {html.escape(tech_summary)}
           </div>
 
-          {matrix_summary_html}
           {host_port_findings_html}
         </div>
         """
