@@ -103,15 +103,18 @@
 
   <!-- NAVIGATION TABS -->
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-    <div class="flex flex-wrap gap-2 p-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 max-w-xl">
-      <button onclick="switchTab('tab-workflow')" id="btn-tab-workflow" class="tab-btn flex-1 inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-semibold text-xs sm:text-sm bg-blue-600 text-white shadow transition-all">
-        <i class="ph-bold ph-git-fork text-base"></i> 1. กระบวนการทำงาน (Workflow)
+    <div class="flex flex-wrap gap-2 p-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 max-w-3xl">
+      <button onclick="switchTab('tab-pipeline')" id="btn-tab-pipeline" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-semibold text-xs sm:text-sm bg-blue-600 text-white shadow transition-all">
+        <i class="ph-bold ph-tree-structure text-base"></i> 1. ผัง 6 ขั้นตอน (Editorial Pipeline)
       </button>
-      <button onclick="switchTab('tab-scope')" id="btn-tab-scope" class="tab-btn flex-1 inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
-        <i class="ph-bold ph-crosshair text-base"></i> 2. ขอบเขตระบบ (Scope)
+      <button onclick="switchTab('tab-workflow')" id="btn-tab-workflow" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
+        <i class="ph-bold ph-git-fork text-base"></i> 2. กระบวนการย่อย (Workflow)
       </button>
-      <button onclick="switchTab('tab-limits')" id="btn-tab-limits" class="tab-btn flex-1 inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
-        <i class="ph-bold ph-warning-octagon text-base"></i> 3. ข้อจำกัด (Limitations)
+      <button onclick="switchTab('tab-scope')" id="btn-tab-scope" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
+        <i class="ph-bold ph-crosshair text-base"></i> 3. ขอบเขตระบบ (Scope)
+      </button>
+      <button onclick="switchTab('tab-limits')" id="btn-tab-limits" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
+        <i class="ph-bold ph-warning-octagon text-base"></i> 4. ข้อจำกัด (Limitations)
       </button>
     </div>
   </div>
@@ -120,9 +123,299 @@
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
 
     <!-- ========================================== -->
+    <!-- TAB 0: EDITORIAL PIPELINE ARCHITECTURE -->
+    <!-- ========================================== -->
+    <section id="tab-pipeline" class="tab-content space-y-8">
+      
+      <!-- Editorial Banner -->
+      <div class="glass-card rounded-2xl p-6 glow-border">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">Editorial Diagram Design System</span>
+              <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">6-Stage Compensating Pipeline</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center text-lg shadow-md"><i class="ph-bold ph-tree-structure"></i></span>
+              ผังสถาปัตยกรรมกระบวนการทำงาน 6 ขั้นตอน (High-Precision Pipeline)
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
+              สถาปัตยกรรมการตรวจประเมินเชิงวิศวกรรม ผสานการค้นหา Layer 2/4, การแก้ OUI แบบ In-Memory, การสร้างค่าฐานวัด Soft-404 Canary, การรันกฎภาษากลาง JSON, และการพิสูจน์ RCE พร้อมบันทึกหลักฐานดิจิทัล SHA-256
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 flex-shrink-0">
+            <span class="code-pill text-blue-400 bg-blue-950/40 border-blue-500/30">IEEE OUI: 54,343 Vendors</span>
+            <span class="code-pill text-indigo-400 bg-indigo-950/40 border-indigo-500/30">Dynamic Rule Schema: JSON</span>
+            <span class="code-pill text-rose-400 bg-rose-950/40 border-rose-500/30">Safety Gate: Tri-State</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MASTER EDITORIAL SVG DIAGRAM -->
+      <div class="glass-card rounded-2xl p-6 overflow-x-auto border border-slate-800/80 bg-slate-950/90 shadow-2xl">
+        <div class="min-w-[920px]">
+          <svg viewBox="0 0 960 480" class="w-full h-auto font-sans" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="pGradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1e293b" />
+                <stop offset="100%" stop-color="#0f172a" />
+              </linearGradient>
+              <linearGradient id="pGradActive" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1e3a8a" />
+                <stop offset="100%" stop-color="#0f172a" />
+              </linearGradient>
+              <filter id="pGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+
+            <!-- Grid Substrate -->
+            <pattern id="pGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="0.75" fill="#334155" opacity="0.4" />
+            </pattern>
+            <rect width="960" height="480" fill="url(#pGrid)" />
+
+            <!-- Connecting Pipeline Spine -->
+            <path d="M 140 120 L 820 120" stroke="#334155" stroke-width="2" stroke-dasharray="4,4" />
+            <path d="M 820 120 L 820 320 L 140 320" stroke="#334155" stroke-width="2" stroke-dasharray="4,4" />
+
+            <!-- ================= ROW 1 (STAGES 1 to 3) ================= -->
+
+            <!-- STAGE 1: Multi-Vector Ingress -->
+            <g transform="translate(40, 50)">
+              <rect width="250" height="140" rx="16" fill="url(#pGradActive)" stroke="#3b82f6" stroke-width="1.5" />
+              <rect x="14" y="14" width="32" height="32" rx="8" fill="#2563eb" fill-opacity="0.2" />
+              <text x="24" y="35" fill="#60a5fa" font-size="14" font-weight="bold" font-family="monospace">01</text>
+              <text x="56" y="28" fill="#f8fafc" font-size="13" font-weight="bold">Multi-Vector Ingress</text>
+              <text x="56" y="44" fill="#94a3b8" font-size="10">สำรวจเครือข่าย 5 มิติ (L2/L4)</text>
+
+              <line x1="14" y1="58" x2="236" y2="58" stroke="#334155" stroke-width="1" />
+              
+              <rect x="14" y="68" width="105" height="24" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="84" fill="#38bdf8" font-size="9.5" font-family="monospace">ARP / NAT Ingress</text>
+              
+              <rect x="125" y="68" width="111" height="24" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="131" y="84" fill="#38bdf8" font-size="9.5" font-family="monospace">NetBIOS 137 / mDNS</text>
+
+              <rect x="14" y="98" width="222" height="26" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="22" y="115" fill="#a5f3fc" font-size="9.5" font-weight="600">TCP SYN Sweep (Standard / Wide 100)</text>
+            </g>
+
+            <!-- Connector 1 -> 2 -->
+            <path d="M 290 120 L 350 120" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)" />
+            <circle cx="320" cy="120" r="3" fill="#60a5fa" />
+
+            <!-- STAGE 2: IEEE MAC Vendor -->
+            <g transform="translate(350, 50)">
+              <rect width="250" height="140" rx="16" fill="url(#pGradBlue)" stroke="#6366f1" stroke-width="1.5" />
+              <rect x="14" y="14" width="32" height="32" rx="8" fill="#4f46e5" fill-opacity="0.2" />
+              <text x="24" y="35" fill="#a5b4fc" font-size="14" font-weight="bold" font-family="monospace">02</text>
+              <text x="56" y="28" fill="#f8fafc" font-size="13" font-weight="bold">Hardware Fingerprinting</text>
+              <text x="56" y="44" fill="#94a3b8" font-size="10">ระบุผู้ผลิตฮาร์ดแวร์ OUI (SQLite)</text>
+
+              <line x1="14" y1="58" x2="236" y2="58" stroke="#334155" stroke-width="1" />
+
+              <rect x="14" y="68" width="222" height="24" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="22" y="84" fill="#818cf8" font-size="9.5" font-family="monospace">54,343 IEEE OUI Database</text>
+
+              <rect x="14" y="98" width="222" height="26" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="115" fill="#c7d2fe" font-size="9.5">Apple, Intel, AMPAK, Cisco, IoT NICs</text>
+            </g>
+
+            <!-- Connector 2 -> 3 -->
+            <path d="M 600 120 L 660 120" stroke="#6366f1" stroke-width="2" />
+            <circle cx="630" cy="120" r="3" fill="#818cf8" />
+
+            <!-- STAGE 3: Service & Soft-404 Canary -->
+            <g transform="translate(660, 50)">
+              <rect width="260" height="140" rx="16" fill="url(#pGradBlue)" stroke="#10b981" stroke-width="1.5" />
+              <rect x="14" y="14" width="32" height="32" rx="8" fill="#059669" fill-opacity="0.2" />
+              <text x="24" y="35" fill="#6ee7b7" font-size="14" font-weight="bold" font-family="monospace">03</text>
+              <text x="56" y="28" fill="#f8fafc" font-size="13" font-weight="bold">Soft-404 Canary Baseline</text>
+              <text x="56" y="44" fill="#94a3b8" font-size="10">ตัด False Positive (Catch-All)</text>
+
+              <line x1="14" y1="58" x2="246" y2="58" stroke="#334155" stroke-width="1" />
+
+              <rect x="14" y="68" width="232" height="24" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="84" fill="#34d399" font-size="9.5" font-family="monospace">GET /.well-known/anti_fp_*</text>
+
+              <rect x="14" y="98" width="232" height="26" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="115" fill="#a7f3d0" font-size="9.5">MD5 Hash & Length Delta Comparator</text>
+            </g>
+
+            <!-- Pipeline Turn Arrow (3 -> 4) -->
+            <path d="M 790 190 L 790 250" stroke="#10b981" stroke-width="2" stroke-dasharray="3,3" />
+
+            <!-- ================= ROW 2 (STAGES 4 to 6) ================= -->
+
+            <!-- STAGE 4: Dynamic CVE Rule Engine -->
+            <g transform="translate(660, 250)">
+              <rect width="260" height="150" rx="16" fill="url(#pGradBlue)" stroke="#8b5cf6" stroke-width="1.5" />
+              <rect x="14" y="14" width="32" height="32" rx="8" fill="#7c3aed" fill-opacity="0.2" />
+              <text x="24" y="35" fill="#c4b5fd" font-size="14" font-weight="bold" font-family="monospace">04</text>
+              <text x="56" y="28" fill="#f8fafc" font-size="13" font-weight="bold">Dynamic Rule Engine</text>
+              <text x="56" y="44" fill="#94a3b8" font-size="10">กฎช่องโหว่ภาษากลาง JSON</text>
+
+              <line x1="14" y1="58" x2="246" y2="58" stroke="#334155" stroke-width="1" />
+
+              <rect x="14" y="68" width="232" height="24" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="84" fill="#a78bfa" font-size="9.5" font-family="monospace">Trigger: Method / Path / Body / Port</text>
+
+              <rect x="14" y="98" width="232" height="36" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="113" fill="#ddd6fe" font-size="9.5">Matchers: status, body_regex, canary</text>
+              <text x="20" y="126" fill="#a78bfa" font-size="9" font-family="monospace">Web + Linux OS + Android ADB 5555</text>
+            </g>
+
+            <!-- Connector 4 -> 5 -->
+            <path d="M 660 325 L 600 325" stroke="#8b5cf6" stroke-width="2" />
+            <circle cx="630" cy="325" r="3" fill="#a78bfa" />
+
+            <!-- STAGE 5: Active RCE Prover & Tri-State -->
+            <g transform="translate(350, 250)">
+              <rect width="250" height="150" rx="16" fill="url(#pGradActive)" stroke="#f43f5e" stroke-width="1.5" />
+              <rect x="14" y="14" width="32" height="32" rx="8" fill="#e11d48" fill-opacity="0.2" />
+              <text x="24" y="35" fill="#fda4af" font-size="14" font-weight="bold" font-family="monospace">05</text>
+              <text x="56" y="28" fill="#f8fafc" font-size="13" font-weight="bold">Active RCE Prover</text>
+              <text x="56" y="44" fill="#94a3b8" font-size="10">พิสูจน์ทราบ RCE + SHA-256 Digest</text>
+
+              <line x1="14" y1="58" x2="236" y2="58" stroke="#334155" stroke-width="1" />
+
+              <rect x="14" y="68" width="222" height="24" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="84" fill="#fb7185" font-size="9.5" font-family="monospace">Safety Gate: Active Exploit Auth</text>
+
+              <rect x="14" y="98" width="222" height="36" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="113" fill="#fecdd3" font-size="9.5">Arithmetic Canary: seed_a + seed_b</text>
+              <text x="20" y="126" fill="#fda4af" font-size="9" font-family="monospace">Tri-state: RCE vs CANARY Confirmed</text>
+            </g>
+
+            <!-- Connector 5 -> 6 -->
+            <path d="M 350 325 L 290 325" stroke="#f43f5e" stroke-width="2" />
+            <circle cx="320" cy="325" r="3" fill="#fb7185" />
+
+            <!-- STAGE 6: ThaiCERT 8 Groups & Evidence -->
+            <g transform="translate(40, 250)">
+              <rect width="250" height="150" rx="16" fill="url(#pGradBlue)" stroke="#f59e0b" stroke-width="1.5" />
+              <rect x="14" y="14" width="32" height="32" rx="8" fill="#d97706" fill-opacity="0.2" />
+              <text x="24" y="35" fill="#fde68a" font-size="14" font-weight="bold" font-family="monospace">06</text>
+              <text x="56" y="28" fill="#f8fafc" font-size="13" font-weight="bold">ThaiCERT Synthesis</text>
+              <text x="56" y="44" fill="#94a3b8" font-size="10">จำแนก 8 กลุ่ม + สร้างเอกสารหลักฐาน</text>
+
+              <line x1="14" y1="58" x2="236" y2="58" stroke="#334155" stroke-width="1" />
+
+              <rect x="14" y="68" width="222" height="24" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="84" fill="#fcd34d" font-size="9.5" font-family="monospace">ThaiCERT 8-Group Matrix</text>
+
+              <rect x="14" y="98" width="222" height="36" rx="6" fill="#0f172a" stroke="#1e293b" />
+              <text x="20" y="113" fill="#fef3c7" font-size="9.5">TLP:AMBER PDF (ฟอนต์ Sarabun)</text>
+              <text x="20" y="126" fill="#fde68a" font-size="9" font-family="monospace">Forensic Evidence (.ZIP + SHA-256)</text>
+            </g>
+
+          </svg>
+        </div>
+      </div>
+
+      <!-- DETAILED 6-STAGE COMPENSATING CARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        
+        <!-- CARD 1 -->
+        <div class="glass-card rounded-xl p-5 border-t-2 border-t-blue-500 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-500/20 text-blue-400">STAGE 1</span>
+            <span class="text-[11px] font-mono text-slate-400">L2/L4 Ingress</span>
+          </div>
+          <h4 class="font-bold text-white text-sm">การสำรวจเครือข่าย 5 ทิศทาง (Multi-Vector)</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            ผสานการดึงข้อมูลจากตาราง ARP เคอร์เนล, NetBIOS (137), mDNS (5353), DHCP PTR และ TCP SYN Sweeper โดยหลีกเลี่ยงการใช้คำสั่ง Subprocess ใน Loop ทำให้ไม่เกิดปัญหาค้างและสแกน 254 เครื่องเสร็จใน &lt; 0.6 วินาที
+          </p>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-blue-300">
+            Output: <span class="text-white">alive_hosts[] (IP, Port, Latency)</span>
+          </div>
+        </div>
+
+        <!-- CARD 2 -->
+        <div class="glass-card rounded-xl p-5 border-t-2 border-t-indigo-500 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-indigo-500/20 text-indigo-400">STAGE 2</span>
+            <span class="text-[11px] font-mono text-slate-400">IEEE OUI</span>
+          </div>
+          <h4 class="font-bold text-white text-sm">การจำแนกแบรนด์อุปกรณ์ด้วย SQLite OUI</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            แก้ปัญหาการ Hardcode แบรนด์ โดยใช้ฐานข้อมูล SQLite ตาราง <span class="code-pill">mac_vendors</span> ขนาด 54,343 รายการ ค้นหา Prefix 6–9 ตัวอักษร พร้อมแคชหน่วยความจำ ความเร็ว &lt; 0.1ms ระบุ Apple, Cisco, MikroTik ได้แม่นยำ
+          </p>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-indigo-300">
+            Output: <span class="text-white">mac_vendor: "AMPAK Technology, Inc."</span>
+          </div>
+        </div>
+
+        <!-- CARD 3 -->
+        <div class="glass-card rounded-xl p-5 border-t-2 border-t-emerald-500 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-500/20 text-emerald-400">STAGE 3</span>
+            <span class="text-[11px] font-mono text-slate-400">Anti-False-Positive</span>
+          </div>
+          <h4 class="font-bold text-white text-sm">Soft-404 Negative Canary Baseline Engine</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            สุ่มสร้างพาธขยะ <span class="code-pill">/.well-known/anti_fp_...</span> เพื่อจับค่าขนาดและ MD5 Hash หากเซิร์ฟเวอร์ตอบ 200 Catch-all ทุกหน้า ระบบจะนำค่านี้ไปเทียบเพื่อตัดการแจ้งเตือนไฟล์สำคัญหลุดที่เป็นผลลวงออก 100%
+          </p>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-emerald-300">
+            Output: <span class="text-white">canary_baseline: {status:200, length:4520}</span>
+          </div>
+        </div>
+
+        <!-- CARD 4 -->
+        <div class="glass-card rounded-xl p-5 border-t-2 border-t-purple-500 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-purple-500/20 text-purple-400">STAGE 4</span>
+            <span class="text-[11px] font-mono text-slate-400">Dynamic Rule Engine</span>
+          </div>
+          <h4 class="font-bold text-white text-sm">การประเมินกฎช่องโหว่ภาษากลาง JSON</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            ดึงกฎจาก SQLite <span class="code-pill">cve_rules</span> ตามมาตรฐาน CVE JSON 5.0 / ThaiCERT 8-Group Model ยิง Trigger และตรวจสอบ Matchers (status, body_regex, header_regex) ครอบคลุมทั้ง Web, Linux OS และ Android ADB
+          </p>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-purple-300">
+            Output: <span class="text-white">dynamic_cve_hits[] (Rule ID, CVSS, Group)</span>
+          </div>
+        </div>
+
+        <!-- CARD 5 -->
+        <div class="glass-card rounded-xl p-5 border-t-2 border-t-rose-500 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-rose-500/20 text-rose-400">STAGE 5</span>
+            <span class="text-[11px] font-mono text-slate-400">PoC Verification</span>
+          </div>
+          <h4 class="font-bold text-white text-sm">Active RCE Prover & Tri-State Verdict</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            ปกป้องด้วย Safety Gate สุ่มโจทย์คณิตศาสตร์สด ฉีดเข้า PHP Upload Progress และทริกเกอร์ผ่าน LFI ข้ามไดรฟ์ C:/D: และ Linux แยกแยะเด็ดขาดระหว่าง <span class="text-rose-400 font-bold">RCE_CONFIRMED</span> กับ <span class="text-amber-400 font-bold">CANARY_CONFIRMED</span>
+          </p>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-rose-300">
+            Output: <span class="text-white">audit_trail: {payload_sha256, evidence_sha256}</span>
+          </div>
+        </div>
+
+        <!-- CARD 6 -->
+        <div class="glass-card rounded-xl p-5 border-t-2 border-t-amber-500 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-500/20 text-amber-400">STAGE 6</span>
+            <span class="text-[11px] font-mono text-slate-400">ThaiCERT Synthesis</span>
+          </div>
+          <h4 class="font-bold text-white text-sm">การจัดกลุ่ม 8 สถาปัตยกรรมและส่งมอบผลลัพธ์</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            คัดกรองสินทรัพย์เข้า 8 กลุ่ม ThaiCERT / สกมช. พร้อมส่งผลเข้า Neumorphic Real-time SPA, ออกรายงานความลับทางการ TLP:AMBER PDF ฝังฟอนต์ Sarabun และส่งออก Forensic Evidence Bundle (.ZIP)
+          </p>
+          <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-amber-300">
+            Output: <span class="text-white">TLP:AMBER PDF, Evidence.zip, JSON Matrix</span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
     <!-- TAB 1: WORKFLOW & ARCHITECTURE DIAGRAM -->
     <!-- ========================================== -->
-    <section id="tab-workflow" class="tab-content space-y-8">
+    <section id="tab-workflow" class="tab-content space-y-8 hidden">
       
       <!-- Intro Banner -->
       <div class="glass-card rounded-2xl p-6 glow-border">
