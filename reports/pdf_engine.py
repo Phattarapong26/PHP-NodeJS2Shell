@@ -90,29 +90,13 @@ def build_pdf_footer_overlay(total_pages: int) -> io.BytesIO:
         agency_text = "รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)"
         c.drawString(margin_left, 24, agency_text)
 
-        # 3. Center TLP:AMBER Symbol + Traffic Light Box (No border / stroke=0)
+        # 3. Center TLP:AMBER Symbol (Clean text, no background box)
         cx = page_w / 2.0
-        pill_text = "TLP:AMBER"
-        c.setFont(bold_name, 8)
-        tw = c.stringWidth(pill_text, bold_name, 8)
-
-        # Amber Pill background
-        c.setFillColorRGB(0.96, 0.62, 0.04) # #f59e0b
-        c.roundRect(cx - tw - 20, 20, tw + 8, 12, 2, fill=1, stroke=0)
-        # Pill text
-        c.setFillColorRGB(0.06, 0.09, 0.16) # #0f172a
-        c.drawString(cx - tw - 16, 23, pill_text)
-
-        # Traffic light box (borderless)
-        box_x = cx - 8
-        c.setFillColorRGB(0.2, 0.25, 0.33)
-        c.roundRect(box_x, 20, 28, 12, 3, fill=1, stroke=0)
-
-        # 3 circles inside traffic light box (White, Amber, White, borderless)
-        amber_lights = ((0.4, 0.45, 0.53), (0.96, 0.62, 0.04), (0.4, 0.45, 0.53))
-        for idx, (r, g, b) in enumerate(amber_lights):
-            c.setFillColorRGB(r, g, b)
-            c.circle(box_x + 5.5 + idx * 8.5, 26, 3.2, fill=1, stroke=0)
+        tlp_text = "TLP:AMBER  ●"
+        c.setFont(font_name, 9)
+        c.setFillColorRGB(0.85, 0.55, 0.04) # amber color
+        tw = c.stringWidth(tlp_text, font_name, 9)
+        c.drawString(cx - (tw / 2.0), 24, tlp_text)
 
         # 4. Right Page Number
         c.setFont(font_name, 10)

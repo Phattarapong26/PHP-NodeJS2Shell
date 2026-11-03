@@ -24,6 +24,8 @@ services:
       - ./active_hosts.txt:/app/active_hosts.txt:ro
       - ./thaicert-scanner/dist:/app/thaicert-scanner/dist
       - ./app.py:/app/app.py
+      - ./profiles.db:/app/profiles.db
+      - ./fonts:/app/fonts:ro
       - ./core:/app/core
       - ./api:/app/api
       - ./audit:/app/audit
