@@ -790,12 +790,12 @@ def get_css_styles() -> str:
 def extract_compact_thaicert_groups(p_hosts: List[Dict[str, Any]]) -> str:
     """
     Extract concise, deduplicated ThaiCERT group labels for table display.
-    Keywords: Website, Software, Hosting, Network, Container, Window, Backup/Staging.
+    Keywords: Website, Software/OS, Hosting, Network, Container, Window, Backup/Staging.
     Formatted as one group per line for clean readability.
     """
     SHORT_GROUP_NAMES = {
         1: "Website",
-        2: "Software",
+        2: "Software/OS",
         3: "Hosting",
         4: "Network",
         5: "Container",
