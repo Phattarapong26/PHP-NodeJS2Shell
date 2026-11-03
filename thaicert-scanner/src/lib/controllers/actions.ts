@@ -14,6 +14,7 @@ import {
   handleDeleteProfile,
   handleDeleteScanHistory,
   handleEditProfile,
+  handlePreviewScanHistoryReport,
   handleRestoreScanHistory,
   handleSelectProfile,
   openProfileDetailDrawer
@@ -38,6 +39,7 @@ const ACTIONS: Record<string, (a: ActionArgs) => unknown> = {
   handleEditProfile: ({ arg }) => handleEditProfile(num(arg)),
   handleDeleteProfile: ({ arg }) => handleDeleteProfile(num(arg)),
   handleRestoreScanHistory: ({ arg }) => handleRestoreScanHistory(num(arg)),
+  handlePreviewScanHistoryReport: ({ arg }) => handlePreviewScanHistoryReport(num(arg)),
   handleDeleteScanHistory: ({ arg, arg2 }) => handleDeleteScanHistory(num(arg), num(arg2)),
   copyText: ({ el }) => {
     const text = el.dataset.copy ?? '';

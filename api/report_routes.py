@@ -57,13 +57,45 @@ def get_current_report_data() -> dict:
     }
 
 
+@report_bp.route("/api/report/set-current", methods=["POST"])
+def set_current_report():
+    """Sets the active report data for preview and PDF export."""
+    data = request.get_json(silent=True) or {}
+    if data:
+        set_last_scan_result(data)
+    return jsonify({"status": "ok"})
+
+
 @report_bp.route("/api/report/preview", methods=["GET", "POST"])
 def report_preview():
     """
     Renders A4 simulation HTML view for in-browser review or window.print().
-    Accepts report JSON in POST body or uses last scan results for GET.
+    Accepts report JSON in POST body, query param history_id, or uses last scan results for GET.
     """
     data = request.get_json(silent=True) if request.method == "POST" else None
+
+    history_id = request.args.get("history_id")
+    if not data and history_id:
+        try:
+            from core.profile_db import get_scan_history_by_id
+            item = get_scan_history_by_id(int(history_id))
+            if item and item.get("scan_result_json"):
+                hist_data = json.loads(item["scan_result_json"])
+                hosts_list = hist_data.get("all_hosts", []) or hist_data.get("hosts", [])
+                data = {
+                    "target": item.get("target_subnet") or hist_data.get("subnet") or "ระบบสารสนเทศ",
+                    "subnet": item.get("target_subnet") or hist_data.get("subnet"),
+                    "total_hosts": item.get("total_hosts", len(hosts_list)),
+                    "hosts": hosts_list,
+                    "created_at": item.get("created_at"),
+                    "elapsed_seconds": item.get("elapsed_seconds"),
+                    "profile": hist_data.get("profile"),
+                    "thaicert_summary": hist_data.get("thaicert_summary")
+                }
+                set_last_scan_result(data)
+        except Exception:
+            pass
+
     if not data:
         data = get_current_report_data()
 
@@ -75,9 +107,31 @@ def report_preview():
 def export_amber_pdf():
     """
     Directly exports and downloads official TLP:AMBER PDF with vector footers.
-    Accepts report JSON in POST body or uses last scan results for GET.
+    Accepts report JSON in POST body, query param history_id, or uses last scan results for GET.
     """
     data = request.get_json(silent=True) if request.method == "POST" else None
+
+    history_id = request.args.get("history_id")
+    if not data and history_id:
+        try:
+            from core.profile_db import get_scan_history_by_id
+            item = get_scan_history_by_id(int(history_id))
+            if item and item.get("scan_result_json"):
+                hist_data = json.loads(item["scan_result_json"])
+                hosts_list = hist_data.get("all_hosts", []) or hist_data.get("hosts", [])
+                data = {
+                    "target": item.get("target_subnet") or hist_data.get("subnet") or "ระบบสารสนเทศ",
+                    "subnet": item.get("target_subnet") or hist_data.get("subnet"),
+                    "total_hosts": item.get("total_hosts", len(hosts_list)),
+                    "hosts": hosts_list,
+                    "created_at": item.get("created_at"),
+                    "elapsed_seconds": item.get("elapsed_seconds"),
+                    "profile": hist_data.get("profile"),
+                    "thaicert_summary": hist_data.get("thaicert_summary")
+                }
+        except Exception:
+            pass
+
     if not data:
         data = get_current_report_data()
 

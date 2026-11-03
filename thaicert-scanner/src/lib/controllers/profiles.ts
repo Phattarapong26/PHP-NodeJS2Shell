@@ -492,6 +492,10 @@ export async function renderProfileScanHistory(profileId: number, limitOverride?
 
             <!-- Sub-col 4: Action Button & Kebab Menu -->
             <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+              <button type="button" data-action="handlePreviewScanHistoryReport" data-arg="${h.id}" class="neu-pill-btn px-2.5 py-1.5 rounded-xl text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs active:scale-95" title="เปิดดูตัวอย่างรายงานความมั่นคงปลอดภัยรอบนี้ (TLP:AMBER Preview)">
+                <i class="ph-fill ph-file-pdf text-amber-600 text-sm"></i>
+                <span>ดูรายงาน</span>
+              </button>
               <button type="button" data-action="handleRestoreScanHistory" data-arg="${h.id}" class="neu-pill-btn px-3 py-1.5 rounded-xl text-blue-600 hover:text-blue-700 bg-blue-50/70 hover:bg-blue-100/80 border border-blue-200/80 text-xs font-semibold flex items-center gap-1 cursor-pointer transition shadow-2xs" title="คลิกเพื่อเปิดผลสแกนและรายงานกราฟรอบนี้">
                 <span>ดูรายละเอียด</span>
                 <i class="ph-bold ph-caret-right text-xs"></i>
@@ -560,6 +564,11 @@ export function closeProfileDetailDrawer() {
   setTimeout(() => {
     if (profileDetailDrawer) profileDetailDrawer.classList.add('invisible');
   }, 300);
+}
+
+export function handlePreviewScanHistoryReport(historyId: number | string | undefined) {
+  if (!historyId) return;
+  window.open(apiUrl(`/api/report/preview?history_id=${historyId}`), '_blank');
 }
 
 export async function handleRestoreScanHistory(historyId: number | string | undefined) {

@@ -3,45 +3,33 @@ import { btnExportAmberPdf, btnExportAmberPdfModal, btnExportEvidenceBundle, btn
 import { appState } from './state';
 import { showToast } from './ui';
 
-// TLP:AMBER PDF Export Handlers (Zero Mock, Real Data Direct Download)
+// TLP:AMBER PDF Export Handlers (Opens Preview directly instead of forcing download)
 export async function downloadFullAmberPdfReport(btnElement = null) {
   let origHtml = '';
   if (btnElement) {
     origHtml = btnElement.innerHTML;
-    btnElement.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> <span>กำลังสร้าง PDF...</span>';
+    btnElement.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> <span>กำลังเปิดพรีวิว...</span>';
   }
-  showToast("กำลังประมวลผลและสร้างรายงาน PDF ทางการ สกมช. (TLP:AMBER)...");
+  showToast("กำลังเปิดหน้าตัวอย่างรายงานความมั่นคงปลอดภัย (TLP:AMBER)...");
 
   const targetVal = (mainSubnetInput && mainSubnetInput.value.trim()) || appState.subnet || (appState.activeProfile && appState.activeProfile.network_target) || 'Local Network';
   const hostsToSend = appState.allHosts && appState.allHosts.length > 0 ? appState.allHosts : [];
 
   try {
-    const resp = await apiFetch('/api/report/pdf', {
+    await apiFetch('/api/report/set-current', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         target: targetVal,
-        hosts: hostsToSend
+        subnet: targetVal,
+        hosts: hostsToSend,
+        total_hosts: hostsToSend.length
       })
     });
-
-    if (resp.ok) {
-      const blob = await resp.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `NCSA_Advisory_TLPAMBER_${targetVal.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      showToast("ดาวน์โหลดรายงานความมั่นคงปลอดภัย TLP:AMBER (PDF) สำเร็จ");
-    } else {
-      window.open(apiUrl('/api/report/preview'), '_blank');
-    }
   } catch (err) {
-    window.open(apiUrl('/api/report/preview'), '_blank');
+    console.warn("Could not sync report session:", err);
   } finally {
+    window.open(apiUrl('/api/report/preview'), '_blank');
     if (btnElement && origHtml) {
       btnElement.innerHTML = origHtml;
     }
@@ -119,36 +107,27 @@ export function initReports() {
     btnExportHostPdf.addEventListener('click', async () => {
       const host = appState.selectedAuditHost;
       if (!host) {
-        window.open(apiUrl('/api/report/pdf'), '_blank');
+        window.open(apiUrl('/api/report/preview'), '_blank');
         return;
       }
       const origHtml = btnExportHostPdf.innerHTML;
-      btnExportHostPdf.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> <span>กำลังสร้าง PDF...</span>';
+      btnExportHostPdf.innerHTML = '<i class="ph ph-spinner animate-spin text-sm"></i> <span>กำลังเปิดพรีวิว...</span>';
+      showToast("กำลังเปิดตัวอย่างรายงานเฉพาะโฮสต์นี้...");
       try {
-        const resp = await apiFetch('/api/report/pdf', {
+        await apiFetch('/api/report/set-current', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             target: host.ip || host.target_id,
-            hosts: [host]
+            subnet: host.ip || host.target_id,
+            hosts: [host],
+            total_hosts: 1
           })
         });
-        if (resp.ok) {
-          const blob = await resp.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `NCSA_Advisory_TLPAMBER_${(host.ip || 'target').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          window.URL.revokeObjectURL(url);
-        } else {
-          window.open(apiUrl('/api/report/preview'), '_blank');
-        }
       } catch (e) {
-        window.open(apiUrl('/api/report/preview'), '_blank');
+        console.warn("Could not sync host report data:", e);
       } finally {
+        window.open(apiUrl('/api/report/preview'), '_blank');
         btnExportHostPdf.innerHTML = origHtml;
       }
     });
