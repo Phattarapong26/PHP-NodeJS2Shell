@@ -194,19 +194,84 @@ $$\text{Canary Sum} = \text{seed}_a + \text{seed}_b \quad (\text{เช่น } 
 <?php echo 'THAICERT_CANARY_EVAL_'.(54321+19876); exit; ?>
 ```
 
-### 5.3 การฉีดข้อมูลและค้นหา Inode ของไฟล์เซสชัน
+### 5.3 รายละเอียด 3 ลำดับขั้นการเจาะลึกและตรวจสอบ RCE (3-Vector Proving Engine)
+
+ระบบ [`audit/rce_prover.py`](file:///Users/admin/Desktop/OPScaner/audit/rce_prover.py) ออกแบบให้ทดสอบผ่าน 3 ลำดับขั้นหลักตามลักษณะของเป้าหมาย:
+
+```mermaid
+flowchart TD
+    Start(["เริ่มการตรวจพิสูจน์ RCE<br/>probe_active_rce_proof()"]) --> Gate{"ตรวจสอบ Safety Gate<br/>(allow_active_rce == True?)"}
+    
+    Gate -- "False (ค่าเริ่มต้น)" --> GateBlock["🛡️ ระงับการเจาะระบบชั่วคราว<br/>PROBING_DISABLED_BY_SAFETY_GATE<br/>(แสดงข้อความเตือนให้ระบุ --active-rce)"]
+    
+    Gate -- "True (ได้รับอนุญาต)" --> Recon["1. Dynamic Crawler & FPD Recon<br/>- ค้นหา Form/Endpoint (*.php, *.cgi)<br/>- Regex ตรวจจับ Drive C:, D: และ XAMPP/IIS<br/>- ดึงรายการ Parameter (page, file, cmd ฯลฯ)"]
+    
+    Recon --> Flow1{"Flow 1: Direct OS Command<br/>ตรวจพบพารามิเตอร์ cmd/exec/shell?"}
+    
+    Flow1 -- "พบพารามิเตอร์" --> TestCmd["ส่ง GET ?cmd=echo+THAICERT_CMD_{seed}<br/>ทดสอบการประมวลผลบน cmd.exe/bash"]
+    TestCmd --> CheckCmd{"ผลลัพธ์มีข้อความ<br/>THAICERT_CMD_{sum}?"}
+    CheckCmd -- "ใช่ (สำเร็จ)" --> RCE_Cmd["🔥 RCE_CONFIRMED<br/>Direct OS Command Injection (CWE-78)"]
+    CheckCmd -- "ไม่ใช่" --> Flow2
+    
+    Flow1 -- "ไม่พบ" --> Flow2{"Flow 2: PHP Session Poisoning<br/>เป้าหมายรัน PHP (is_php == True)?"}
+    
+    Flow2 -- "ใช่" --> PrepCanary["สร้าง Dynamic Arithmetic Canary<br/>seed_a (10000-89999) + seed_b (1000-9999)<br/>payload: &lt;?php echo 'THAICERT_CANARY_EVAL_'.(seed_a+seed_b); exit; ?&gt;"]
+    PrepCanary --> PoisonSess["ส่ง Multipart POST พร้อม Header:<br/>PHP_SESSION_UPLOAD_PROGRESS = canary_payload<br/>เพื่อสร้างไฟล์ sess_{PHPSESSID}"]
+    PoisonSess --> InodeScan["วนลูปสแกน Inode ทั่วทั้งระบบไฟล์:<br/>- Windows: C:/Windows/Temp/, C:/xampp/tmp/, D:/temp/<br/>- Linux: /tmp/, /var/lib/php/sessions/<br/>ผ่าน LFI: /?page={session_path}"]
+    InodeScan --> TriState{"Tri-State Evaluation<br/>ผลลัพธ์ที่ตอบกลับมาตรงกับเงื่อนไขใด?"}
+    
+    TriState -- "พบ THAICERT_CANARY_EVAL_{ผลบวกเลข}" --> RCE_Sess["🔥 RCE_CONFIRMED<br/>LFI to Session Upload Progress RCE<br/>(ยืนยันว่า PHP รันคำสั่งบวกเลขจริง)"]
+    TriState -- "พบข้อความดิบ &lt;?php หรือสตริงที่ยังไม่ Eval" --> Canary_LFI["⚠️ CANARY_CONFIRMED<br/>ยืนยัน LFI สำเร็จ (อ่านไฟล์เซสชันได้)<br/>แต่ PHP Engine ไม่ได้ประมวลผลโค้ด"]
+    TriState -- "ไม่พบ หรือตรงกับ 404 Baseline" --> Flow3
+    
+    Flow2 -- "ไม่ใช่" --> Flow3{"Flow 3: PHP-CGI Argument Injection<br/>(CVE-2024-4577 บน Windows)?"}
+    
+    Flow3 -- "is_php && is_windows" --> TestCGI["ส่ง POST /index.php?%ADd+allow_url_include=1...<br/>พร้อมบอดี้: &lt;?php echo 'THAICERT_CGI_RCE_'.(seed_c+seed_d); exit; ?&gt;"]
+    TestCGI --> CheckCGI{"ผลลัพธ์มีข้อความ<br/>THAICERT_CGI_RCE_{sum}?"}
+    CheckCGI -- "ใช่ (สำเร็จ)" --> RCE_CGI["🔥 RCE_CONFIRMED<br/>PHP-CGI Argument Injection (CVE-2024-4577)"]
+    CheckCGI -- "ไม่ใช่" --> Flow4
+    
+    Flow3 -- "ไม่ใช่" --> Flow4["Flow 4: Fallback LFI Read<br/>ทดสอบอ่าน /etc/passwd หรือ win.ini"]
+    Flow4 --> CheckLFI{"อ่านไฟล์ระบบสำเร็จ?"}
+    CheckLFI -- "ใช่" --> Confirmed_LFI["⚠️ CONFIRMED_LFI<br/>Arbitrary File Read (CWE-22 / CWE-98)"]
+    CheckLFI -- "ไม่ใช่" --> NotConfirmed["❌ NOT_CONFIRMED<br/>ไม่พบช่องโหว่การรันคำสั่งหรือการอ่านไฟล์"]
+    
+    RCE_Cmd --> SignSHA256["ออกลายมือชื่อดิจิทัล (Digital Signature)<br/>สร้าง SHA-256 Digest จาก Request/Response<br/>เพื่อใช้เป็นพยานหลักฐานทางนิติวิทยาศาสตร์"]
+    RCE_Sess --> SignSHA256
+    RCE_CGI --> SignSHA256
+    Canary_LFI --> SignSHA256
+    Confirmed_LFI --> SignSHA256
+    NotConfirmed --> End(["จบการประเมิน"])
+    GateBlock --> End
+    SignSHA256 --> End
+```
+
+### 5.4 การฉีดข้อมูลและค้นหา Inode ของไฟล์เซสชัน (Dynamic Inode Traversal Matrix)
 1. ส่งคำขอ Multipart Request ไปยังฟังก์ชันสร้างเซสชัน (`PHP_SESSION_UPLOAD_PROGRESS`)
-2. วนลูปทดสอบเรียกไฟล์เซสชันผ่านพารามิเตอร์ LFI ที่เก็บเกี่ยวได้ (`?page=`, `?file=`, `?include=`)
+2. วนลูปทดสอบเรียกไฟล์เซสชันผ่านพารามิเตอร์ LFI ที่เก็บเกี่ยวได้ (`?page=`, `?file=`, `?include=`, `?view=`, `?template=`, `?doc=`, `?path=`)
 3. สแกนพาธจัดเก็บเซสชันแบบอัตโนมัติครอบคลุมทั้ง Windows และ Linux:
-   * **Windows:** `C:/Windows/Temp/sess_*`, `C:/xampp/tmp/sess_*`, `D:/temp/sess_*`
-   * **Linux:** `/tmp/sess_*`, `/var/lib/php/sessions/sess_*`
+   * **Windows Inode Matrix:**
+     * `C:/Windows/Temp/sess_{id}`
+     * `C:/xampp/tmp/sess_{id}`
+     * `D:/temp/sess_{id}`
+     * `D:/Windows/Temp/sess_{id}`
+     * `C:/inetpub/temp/sess_{id}`
+   * **Linux Inode Matrix:**
+     * `/tmp/sess_{id}`
+     * `/var/lib/php/sessions/sess_{id}`
+     * `/tmp/sessions/sess_{id}`
+     * `/var/tmp/sess_{id}`
 
-### 5.4 การตัดสินผลแบบ 3 ระดับ (Tri-State Categorization)
-* **`RCE_CONFIRMED`:** พบค่าวาจา `THAICERT_CANARY_EVAL_74197` ในผลลัพธ์ ยืนยัน 100% ว่า PHP Engine ได้ทำการประมวลผลโค้ดสำเร็จ
-* **`CANARY_CONFIRMED`:** พบข้อความดิบ `<?php echo ... ?>` สะท้อนกลับมา แสดงว่าอ่านไฟล์ได้ (LFI) แต่คำสั่งไม่รัน (ยังไม่บรรลุ RCE)
-* **`NOT_CONFIRMED`:** ไม่พบการตอบสนอง หรือระบบปฏิเสธการเข้าถึงไฟล์เซสชัน
+### 5.5 การตัดสินผลแบบ 3 ระดับ (Tri-State Categorization Logic)
+ความแตกต่างอย่างมีนัยสำคัญระหว่างการอ่านไฟล์ธรรมดา (LFI) กับการเรียกใช้คำสั่งจากระยะไกล (RCE):
 
-### 5.5 ลายมือชื่อดิจิทัลเพื่อใช้เป็นพยานหลักฐาน (Tamper-Evident SHA-256 Digest)
+| สถานะการตรวจพิสูจน์ (Verdict) | เงื่อนไขการตรวจจับใน HTTP Response | ความหมายทางไซเบอร์ซิเคียวริตี้ | การประเมินผล |
+| :--- | :--- | :--- | :---: |
+| **`RCE_CONFIRMED`** | พบสตริงผลลัพธ์การคำนวณคณิตศาสตร์ เช่น `THAICERT_CANARY_EVAL_74197` | PHP Engine ได้ทำการ **Compile & Execute** คำสั่งจริงบนเครื่องแม่ข่าย พิสูจน์ทราบว่าผู้โจมตีสามารถสั่งรันโค้ดภาษา PHP ใดๆ ก็ได้ตามอำเภอใจ | **Critical (อันตรายสูงสุด)** |
+| **`CANARY_CONFIRMED`** | พบข้อความดิบแท็ก PHP ที่ยังไม่ประมวลผล เช่น `<?php echo 'THAICERT_CANARY_EVAL_'... ?>` | ช่องโหว่เป็นเพียง Local File Inclusion ที่ **อ่านไฟล์ออกมาแสดงผล (File Read)** แต่ PHP ไม่ได้รันคำสั่ง (เช่น ใช้คำสั่ง `readfile()` หรือ `file_get_contents()` แทน `include()`) | **High (ความเสี่ยงสูงระดับ LFI)** |
+| **`NOT_CONFIRMED`** | ไม่พบทั้งผลคำนวณและสตริง Canary หรือผลลัพธ์ตรงกับหน้า 404 Baseline | ระบบเป้าหมายไม่มีช่องโหว่ หรือมีกลไกป้องกัน Path Traversal/WAF สกัดกั้นไว้ | **Low / Safe** |
+
+### 5.6 ลายมือชื่อดิจิทัลเพื่อใช้เป็นพยานหลักฐาน (Tamper-Evident SHA-256 Digest)
 ระบบจะทำการบันทึก Full Request/Response Transcript และคำนวณค่าแฮชตรวจสอบความสมบูรณ์ของหลักฐาน:
 ```json
 {
@@ -214,9 +279,18 @@ $$\text{Canary Sum} = \text{seed}_a + \text{seed}_b \quad (\text{เช่น } 
   "operator": "security-auditor",
   "payload_sha256": "4a7d1e8c...",
   "evidence_sha256": "8e3b9f10...",
-  "transcript": { ... }
+  "transcript": {
+    "request": { "method": "GET", "url": "http://192.168.1.50/?page=C:/xampp/tmp/sess_opscaner123456" },
+    "response": { "status_code": 200, "body_snippet": "THAICERT_CANARY_EVAL_74197" }
+  }
 }
 ```
+
+### 5.7 ความเชื่อมโยงกับมาตรฐานสากล (CVE JSON 5.0, CSAF 2.0, OpenVEX, STIX 2.1)
+สอดคล้องกับมาตรฐานการแลกเปลี่ยนข้อมูลช่องโหว่และ Threat Intelligence ระดับสากล:
+1. **CVE JSON 5.0 / OSV API:** รองรับการนิยามเงื่อนไข CVE ในรูปแบบ JSON Schema (`schema/cve_rule_schema.json`) เพื่อให้อัปเดตช่องโหว่ใหม่เข้าสู่ระบบได้แบบไดนามิกโดยไม่ต้อง Hardcode
+2. **CSAF 2.0 / OpenVEX:** การจัดหมวดหมู่ Tri-State (`RCE_CONFIRMED`, `CANARY_CONFIRMED`, `NOT_CONFIRMED`) เทียบเท่ากับสถานะ `affected`, `under_investigation`, และ `not_affected` ในมาตรฐาน OpenVEX
+3. **STIX 2.1 / TAXII 2.1:** โครงสร้างข้อมูล Forensic Evidence Bundle ที่มีค่าแฮช SHA-256 กำกับ สามารถแปลงเป็น STIX Observables (Network Traffic & File Object) เพื่อส่งต่อให้ระบบ SIEM/SOAR ของหน่วยงานความมั่นคงได้ทันที
 
 ---
 

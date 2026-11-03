@@ -103,18 +103,21 @@
 
   <!-- NAVIGATION TABS -->
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-    <div class="flex flex-wrap gap-2 p-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 max-w-3xl">
+    <div class="flex flex-wrap gap-2 p-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 max-w-4xl">
       <button onclick="switchTab('tab-pipeline')" id="btn-tab-pipeline" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-semibold text-xs sm:text-sm bg-blue-600 text-white shadow transition-all">
-        <i class="ph-bold ph-tree-structure text-base"></i> 1. ผัง 6 ขั้นตอน (Editorial Pipeline)
+        <i class="ph-bold ph-tree-structure text-base"></i> 1. ผัง 6 ขั้นตอน (Pipeline)
+      </button>
+      <button onclick="switchTab('tab-rce-logic')" id="btn-tab-rce-logic" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
+        <i class="ph-bold ph-terminal-window text-base text-rose-400"></i> 2. ตรรกะเจาะลึก RCE (RCE Logic Tree)
       </button>
       <button onclick="switchTab('tab-workflow')" id="btn-tab-workflow" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
-        <i class="ph-bold ph-git-fork text-base"></i> 2. กระบวนการย่อย (Workflow)
+        <i class="ph-bold ph-git-fork text-base"></i> 3. กระบวนการย่อย (Workflow)
       </button>
       <button onclick="switchTab('tab-scope')" id="btn-tab-scope" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
-        <i class="ph-bold ph-crosshair text-base"></i> 3. ขอบเขตระบบ (Scope)
+        <i class="ph-bold ph-crosshair text-base"></i> 4. ขอบเขตระบบ (Scope)
       </button>
       <button onclick="switchTab('tab-limits')" id="btn-tab-limits" class="tab-btn flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-medium text-xs sm:text-sm text-slate-400 hover:text-white transition-all">
-        <i class="ph-bold ph-warning-octagon text-base"></i> 4. ข้อจำกัด (Limitations)
+        <i class="ph-bold ph-warning-octagon text-base"></i> 5. ข้อจำกัด (Limitations)
       </button>
     </div>
   </div>
@@ -413,8 +416,344 @@
     </section>
 
     <!-- ========================================== -->
-    <!-- TAB 1: WORKFLOW & ARCHITECTURE DIAGRAM -->
+    <!-- TAB: RCE VERIFICATION LOGIC & DECISION TREE -->
     <!-- ========================================== -->
+    <section id="tab-rce-logic" class="tab-content space-y-8 hidden">
+      
+      <!-- Banner -->
+      <div class="glass-card rounded-2xl p-6 glow-border">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">Active RCE Prover</span>
+              <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Tri-State Decision Logic</span>
+              <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">SHA-256 Tamper-Evident</span>
+              <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">CVE JSON 5.0 / OpenVEX Aligned</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-600 to-amber-600 text-white flex items-center justify-center text-lg shadow-md"><i class="ph-bold ph-terminal-window"></i></span>
+              ตรรกะการทำงานเจาะลึก RCE (RCE Execution Logic & Decision Tree)
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1.5 leading-relaxed">
+              แผนผังแสดงกระบวนการทำงานจริงตามซอร์สโค้ด <span class="code-pill text-rose-300">audit/rce_prover.py</span>: ตั้งแต่ Safety Gate, การสำรวจและเก็บเกี่ยว Inode, กลไก 3 เวกเตอร์เจาะระบบ, การทดสอบด้วยโจทย์คณิตศาสตร์แบบสุ่ม (Dynamic Arithmetic Canary) เพื่อยืนยันว่าเกิด Code Execution จริงไม่ใช่เพียงการอ่านไฟล์ (LFI)
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-1.5 shrink-0">
+            <span class="text-xs font-mono text-slate-400">Engine Source:</span>
+            <span class="code-pill text-blue-400 font-semibold">audit/rce_prover.py (530 Lines)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Summary Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-blue-500">
+          <div class="text-xs text-slate-400 font-medium">1. Safety Gate Protection</div>
+          <div class="text-lg font-bold text-white mt-1">Strict Default-Deny</div>
+          <p class="text-[11px] text-slate-400 mt-1">ต้องระบุ <span class="font-mono text-blue-400">--active-rce</span> เท่านั้น ป้องกันการยิง Exploit โดยไม่ได้รับอนุญาต</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-rose-500">
+          <div class="text-xs text-slate-400 font-medium">2. Arithmetic Canary Challenge</div>
+          <div class="text-lg font-bold text-rose-400 mt-1">Dynamic Sum Proof</div>
+          <p class="text-[11px] text-slate-400 mt-1">สุ่มเลข <span class="font-mono text-rose-300">seed_a + seed_b</span> ยืนยันการ Compile คำสั่งของ PHP Engine จริง 100%</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-amber-500">
+          <div class="text-xs text-slate-400 font-medium">3. Tri-State Decision Engine</div>
+          <div class="text-lg font-bold text-amber-400 mt-1">3-Level Separation</div>
+          <p class="text-[11px] text-slate-400 mt-1">แยกชัดเจนระหว่าง <span class="text-rose-400 font-bold">RCE_CONFIRMED</span> vs <span class="text-amber-400 font-bold">CANARY_CONFIRMED (LFI)</span></p>
+        </div>
+        <div class="glass-card rounded-xl p-4 border-l-4 border-l-emerald-500">
+          <div class="text-xs text-slate-400 font-medium">4. Forensic Evidence Integrity</div>
+          <div class="text-lg font-bold text-emerald-400 mt-1">SHA-256 Digest</div>
+          <p class="text-[11px] text-slate-400 mt-1">ปั๊มลายเซ็นดิจิทัลพร้อม Transcript และ Timestamp พร้อมใช้อ้างอิงทางกฎหมาย</p>
+        </div>
+      </div>
+
+      <!-- VISUAL LOGIC FLOW PIPELINE (STEP-BY-STEP DECISION TREE) -->
+      <div class="glass-card rounded-2xl p-6 glow-border space-y-6">
+        <div class="border-b border-slate-700/60 pb-3 flex items-center justify-between">
+          <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+            <i class="ph-bold ph-git-commit text-rose-400"></i>
+            แผนผังลำดับขั้นตอนตรรกะและการตัดสินผล (Step-by-Step Execution Tree)
+          </h3>
+          <span class="text-xs text-slate-400 font-mono">probe_active_rce_proof() Execution Path</span>
+        </div>
+
+        <!-- Flow Nodes -->
+        <div class="space-y-4">
+
+          <!-- Step 0: Safety Gate -->
+          <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 font-mono font-bold flex items-center justify-center text-xs">00</span>
+                <span class="font-bold text-white text-sm">การตรวจสอบมาตรการความปลอดภัย (Safety Gate Check)</span>
+              </div>
+              <span class="code-pill text-[11px] text-blue-400">if not allow_active_rce: return PROBING_DISABLED</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed pl-9">
+              ระบบตรวจสอบแฟล็กความปลอดภัยก่อนเสมอ: หากผู้ใช้ไม่ได้เปิดโหมด <span class="code-pill text-amber-300">allow_active_rce = True</span> ระบบจะ **หยุดการส่ง Payload ทันที** และบันทึกผลว่า <span class="code-pill text-blue-300">PROBING_DISABLED_BY_SAFETY_GATE</span> เพื่อให้สอดคล้องกับ พ.ร.บ. ไซเบอร์ฯ โดยจะประเมินเฉพาะ Passive Banner เท่านั้น
+            </p>
+          </div>
+
+          <!-- Step 1: Dynamic Recon & Inode Harvesting -->
+          <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 font-mono font-bold flex items-center justify-center text-xs">01</span>
+                <span class="font-bold text-white text-sm">การสำรวจเป้าหมายและเก็บเกี่ยว Inode แบบไดนามิก (Recon & Inode Harvesting)</span>
+              </div>
+              <span class="code-pill text-[11px] text-purple-400">crawl_target() + FPD Regex</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pl-9 text-xs">
+              <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                <span class="font-semibold text-purple-300 block mb-1">1. Shallow Web Crawler</span>
+                <p class="text-slate-400 text-[11px]">ดึง Form และ Endpoint สูงสุด 15 หน้า (Depth 2, งบเวลา 4s) พร้อมสร้าง 404 Differential Baseline เพื่อตัด False Positives</p>
+              </div>
+              <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                <span class="font-semibold text-purple-300 block mb-1">2. FPD Regex Extraction</span>
+                <p class="text-slate-400 text-[11px]">ตรวจจับข้อความ Error เพื่อหา Drive อักษร <span class="font-mono text-purple-300">C:, D:</span> และรูทโฟลเดอร์ <span class="font-mono text-purple-300">xampp, inetpub</span> บน Windows</p>
+              </div>
+              <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50">
+                <span class="font-semibold text-purple-300 block mb-1">3. LFI Candidate Harvest</span>
+                <p class="text-slate-400 text-[11px]">รวบรวมพารามิเตอร์ส่งไฟล์ เช่น <span class="font-mono text-amber-300">page, file, include, view, template, doc, path, cmd</span></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: 3-Vector Proving Engine -->
+          <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 font-mono font-bold flex items-center justify-center text-xs">02</span>
+                <span class="font-bold text-white text-sm">การทดสอบ 3 เวกเตอร์หลักตามสถาปัตยกรรม (3-Vector Proving Engine)</span>
+              </div>
+              <span class="code-pill text-[11px] text-rose-400">Flow 1 / Flow 2 / Flow 3</span>
+            </div>
+
+            <!-- 3 Vectors Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pl-9">
+              
+              <!-- Vector A: Direct OS Command -->
+              <div class="p-3.5 rounded-xl bg-slate-900/70 border border-slate-700 flex flex-col justify-between space-y-3">
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400">Flow 1</span>
+                    <span class="text-[10px] font-mono text-slate-400">CWE-78</span>
+                  </div>
+                  <h4 class="font-bold text-white text-xs">Direct OS Command Injection</h4>
+                  <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    ทดสอบพารามิเตอร์ส่งคำสั่งเชลล์ เช่น <span class="font-mono text-amber-300">?cmd=</span> หรือ <span class="font-mono text-amber-300">?command=</span> บน endpoint เกี่ยวข้อง
+                  </p>
+                </div>
+                <div class="p-2 rounded bg-slate-950 border border-slate-800 font-mono text-[10px] text-slate-300">
+                  <div class="text-rose-400">Payload:</div>
+                  echo THAICERT_CMD_{seed_a+seed_b}
+                </div>
+                <div class="text-[10px] text-slate-400">
+                  <span class="text-emerald-400 font-semibold">Success Check:</span> ผลลัพธ์ในบอดี้ตรงกับค่าผลบวกของเลขสุ่มเป๊ะๆ
+                </div>
+              </div>
+
+              <!-- Vector B: PHP2Shell Session Upload Progress -->
+              <div class="p-3.5 rounded-xl bg-slate-900/70 border border-rose-500/40 relative overflow-hidden flex flex-col justify-between space-y-3">
+                <div class="absolute top-0 right-0 px-2 py-0.5 rounded-bl bg-rose-500/20 text-rose-300 font-mono text-[9px] font-bold border-b border-l border-rose-500/30">CORE RCE</div>
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">Flow 2</span>
+                    <span class="text-[10px] font-mono text-slate-400">CWE-98 / CWE-94</span>
+                  </div>
+                  <h4 class="font-bold text-white text-xs">PHP2Shell: Session Poisoning</h4>
+                  <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    ฉีด Arithmetic Canary ผ่าน Header <span class="font-mono text-blue-300">PHP_SESSION_UPLOAD_PROGRESS</span> เพื่อสร้างไฟล์เซสชัน แล้วเรียกผ่าน LFI
+                  </p>
+                </div>
+                <div class="p-2 rounded bg-slate-950 border border-slate-800 font-mono text-[10px] text-slate-300">
+                  <div class="text-amber-400">Canary Payload:</div>
+                  &lt;?php echo 'CANARY_'.(54321+19876); exit; ?&gt;
+                </div>
+                <div class="text-[10px] text-slate-400">
+                  <span class="text-emerald-400 font-semibold">Success Check:</span> ตอบกลับค่า <span class="font-mono text-emerald-300">CANARY_74197</span> (ยืนยันคำนวณจริง)
+                </div>
+              </div>
+
+              <!-- Vector C: PHP-CGI Argument Injection -->
+              <div class="p-3.5 rounded-xl bg-slate-900/70 border border-slate-700 flex flex-col justify-between space-y-3">
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400">Flow 3</span>
+                    <span class="text-[10px] font-mono text-slate-400">CVE-2024-4577</span>
+                  </div>
+                  <h4 class="font-bold text-white text-xs">PHP-CGI Windows Argument Injection</h4>
+                  <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    ใช้ช่องโหว่ Best-Fit Character Mapping บน Windows ส่ง directive แทรกผ่าน URL เข้าสู่ CGI Process
+                  </p>
+                </div>
+                <div class="p-2 rounded bg-slate-950 border border-slate-800 font-mono text-[10px] text-slate-300">
+                  <div class="text-purple-400">Query Injection:</div>
+                  %ADd+allow_url_include=1+%ADd+auto_prepend_file=php://input
+                </div>
+                <div class="text-[10px] text-slate-400">
+                  <span class="text-emerald-400 font-semibold">Success Check:</span> โค้ดใน php://input ทำการ Eval สำเร็จ
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Step 3: Inode Traversal Matrix -->
+          <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono font-bold flex items-center justify-center text-xs">03</span>
+                <span class="font-bold text-white text-sm">ตารางค้นหาตำแหน่งไฟล์เซสชันอัตโนมัติ (Dynamic Inode Traversal Matrix)</span>
+              </div>
+              <span class="code-pill text-[11px] text-emerald-400">session_paths[] Resolution</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed pl-9">
+              เมื่อสร้างไฟล์เซสชันสำเร็จ ระบบจะสแกน Inode แบบไดนามิกตามระบบปฏิบัติการเป้าหมายที่ตรวจพบ:
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pl-9 text-xs">
+              <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 space-y-1.5 font-mono text-[11px]">
+                <div class="text-blue-400 font-bold flex items-center gap-1.5">
+                  <i class="ph-bold ph-microsoft-windows-logo"></i> Windows Inode Paths (ค้นหาทุกไดรฟ์ C:, D:)
+                </div>
+                <div class="text-slate-300">• {drive}/Windows/Temp/sess_{session_id}</div>
+                <div class="text-slate-300">• {drive}/xampp/tmp/sess_{session_id}</div>
+                <div class="text-slate-300">• {drive}/tmp/sess_{session_id}</div>
+                <div class="text-slate-300">• {drive}/temp/sess_{session_id}</div>
+                <div class="text-slate-300">• {drive}/inetpub/temp/sess_{session_id}</div>
+              </div>
+              <div class="p-3 rounded-lg bg-slate-900/60 border border-slate-700/50 space-y-1.5 font-mono text-[11px]">
+                <div class="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <i class="ph-bold ph-linux-logo"></i> Linux Inode Paths (POSIX Standard Filesystems)
+                </div>
+                <div class="text-slate-300">• /tmp/sess_{session_id}</div>
+                <div class="text-slate-300">• /var/lib/php/sessions/sess_{session_id}</div>
+                <div class="text-slate-300">• /tmp/sessions/sess_{session_id}</div>
+                <div class="text-slate-300">• /var/tmp/sess_{session_id}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Tri-State Decision Engine -->
+          <div class="p-4 rounded-xl bg-slate-800/80 border border-amber-500/40 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-xs">04</span>
+                <span class="font-bold text-white text-sm">การตัดสินผลแบบ 3 ระดับ (Tri-State Decision Matrix)</span>
+              </div>
+              <span class="code-pill text-[11px] text-amber-400 font-semibold">ทำไมไม่ใช่แค่การอ่านไฟล์ธรรมดา (LFI)</span>
+            </div>
+
+            <div class="overflow-x-auto pl-9">
+              <table class="w-full text-left text-xs border border-slate-700 rounded-lg overflow-hidden">
+                <thead class="bg-slate-900 text-slate-300 text-[11px] font-mono">
+                  <tr>
+                    <th class="p-2.5 border-b border-slate-700">สถานะผลลัพธ์ (Verdict)</th>
+                    <th class="p-2.5 border-b border-slate-700">เงื่อนไขใน Response Body</th>
+                    <th class="p-2.5 border-b border-slate-700">ความหมายเชิงเทคนิค</th>
+                    <th class="p-2.5 border-b border-slate-700 text-center">ระดับอันตราย</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 text-slate-300">
+                  <tr class="bg-rose-950/20">
+                    <td class="p-2.5 font-bold font-mono text-rose-400">🔥 RCE_CONFIRMED</td>
+                    <td class="p-2.5 font-mono text-emerald-300">พบคำตอบผลบวกเลข เช่น "THAICERT_CANARY_EVAL_74197"</td>
+                    <td class="p-2.5 text-slate-300">PHP Engine ได้ทำการ **Compile & Execute** โค้ดคำนวณจริง ยืนยันว่าสั่งรันคำสั่งใดๆ ได้ 100% ไม่ใช่แค่สะท้อนข้อความ</td>
+                    <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-rose-500/30 text-rose-300 border border-rose-500/40">Critical</span></td>
+                  </tr>
+                  <tr class="bg-amber-950/20">
+                    <td class="p-2.5 font-bold font-mono text-amber-400">⚠️ CANARY_CONFIRMED</td>
+                    <td class="p-2.5 font-mono text-amber-300">พบแท็กดิบ "&lt;?php echo 'THAICERT_CANARY_EVAL_'... ?&gt;"</td>
+                    <td class="p-2.5 text-slate-300">อ่านไฟล์เซสชันได้ (LFI สำเร็จ) แต่เซิร์ฟเวอร์ไม่ได้สั่ง Execute โค้ด (เช่น ใช้ <span class="font-mono text-amber-300">readfile()</span> แทนที่จะเป็น <span class="font-mono text-amber-300">include()</span>) จึงยังไม่บรรลุ RCE</td>
+                    <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-amber-500/30 text-amber-300 border border-amber-500/40">High (LFI Only)</span></td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5 font-bold font-mono text-slate-400">🛡️ NOT_CONFIRMED</td>
+                    <td class="p-2.5 font-mono text-slate-400">ไม่พบ Canary หรือตรงกับ 404 Differential Baseline</td>
+                    <td class="p-2.5 text-slate-400">ไม่พบช่องโหว่การเรียกไฟล์หรือการสั่งรันคำสั่งบนเป้าหมาย</td>
+                    <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-slate-700 text-slate-300">Low / Safe</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Step 5: Tamper-Evident SHA-256 Audit Trail -->
+          <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-mono font-bold flex items-center justify-center text-xs">05</span>
+                <span class="font-bold text-white text-sm">การออกพยานหลักฐานดิจิทัล (Tamper-Evident Forensic SHA-256 Digest)</span>
+              </div>
+              <span class="code-pill text-[11px] text-emerald-400">generate_audit_trail()</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed pl-9">
+              ทุกผลลัพธ์ที่ได้รับการยืนยัน จะถูกบันทึก Full HTTP Transcript (Request, Response, Payload, Timestamp UTC) และคำนวณค่าแฮชตรวจสอบความสมบูรณ์ (<span class="font-mono text-emerald-300">payload_sha256</span> และ <span class="font-mono text-emerald-300">evidence_sha256</span>) ป้องกันการแก้ไขพยานหลักฐานย้อนหลังตามระเบียบพยานหลักฐานทางอิเล็กทรอนิกส์
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- STANDARDS ALIGNMENT CARD (Connecting to user image) -->
+      <div class="glass-card rounded-2xl p-6 border-t-4 border-t-blue-500 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-base"><i class="ph-bold ph-seal-check"></i></span>
+            <h3 class="font-bold text-white text-sm sm:text-base">ความสอดคล้องกับมาตรฐานสากลและโปรโตคอลความมั่นคงปลอดภัยไซเบอร์</h3>
+          </div>
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">Standardized Interoperability</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          OPScaner ได้รับการออกแบบโครงสร้างข้อมูลให้เชื่อมต่อกับมาตรฐานกลางที่หน่วยงานด้านความมั่นคงไซเบอร์ (CERT / NVD / OASIS) ใช้งานจริง:
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-blue-400 text-xs">CVE JSON 5.0 / OSV API</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300">จำเป็น</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              รองรับ Schema กฎช่องโหว่แบบ JSON ไม่ Hardcode สามารถ Import / Export ข้อมูล CVE ใหม่ (เช่น Android ADB, OS CVE, Web RCE) เข้าฐานข้อมูล SQLite ได้ทันที
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-emerald-400 text-xs">CSAF 2.0 / OpenVEX</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">แนะนำ</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              โครงสร้าง Tri-State (<span class="font-mono text-rose-300">RCE_CONFIRMED</span>, <span class="font-mono text-amber-300">CANARY_CONFIRMED</span>, <span class="font-mono text-slate-400">NOT_CONFIRMED</span>) สอดคล้องกับสถานะ <span class="font-mono text-emerald-300">affected, under_investigation, not_affected</span> ของ VEX
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-purple-400 text-xs">STIX 2.1 / TAXII 2.1</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">แนะนำ</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              หลักฐาน Forensic Evidence พร้อม SHA-256 Digest สามารถแปลงเข้าสู่ STIX Cyber Observable Objects (Network Traffic & File Hash) เพื่อแลกเปลี่ยน Threat Intel กับ SIEM/SOAR ได้
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/60 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-amber-400 text-xs">Sigma YAML / Suricata</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">แนะนำ</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              กฎการตรวจจับ Pattern และ HTTP Header / Inode Traversal สามารถ Export ออกไปสร้าง Detection Rules บน Suricata IDS/IPS และ SIEM SOC ได้โดยตรง
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </section>
     <section id="tab-workflow" class="tab-content space-y-8 hidden">
       
       <!-- Intro Banner -->
