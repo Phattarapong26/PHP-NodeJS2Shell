@@ -870,21 +870,21 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         </tr>
         """
 
-    # In-Depth Findings Sections
-    findings_html = ""
-    finding_idx = 1
-    arch_matrix_html = ""
+    # In-Depth Findings Sections (Organized by Vulnerable Device)
+    vulnerable_devices_html = ""
+    vuln_device_count = 0
+
     for h in hosts_list:
         h_ip = h.get("ip") or h.get("target_id") or "-"
+        h_ports = ", ".join(str(p) for p in (h.get("ports") or [80]))
         da = h.get("deep_audit") or {}
         matched_cves = h.get("matched_cves") or []
         chains = da.get("security_chains", {}).get("chains", {}) or h.get("security_chains", {}).get("chains", {})
-        
-        # Build Architectural Narrative per host if present (Official Paper Format: No borders, no dark boxes, indented paragraphs)
         matrix = h.get("architecture_matrix") or da.get("architecture_matrix") or []
         rce_proof = h.get("rce_proof") or da.get("rce_proof") or {}
         is_rce_active = bool(rce_proof.get("is_rce_proved"))
         rce_tech = rce_proof.get("technique", "")
+        rce_status = rce_proof.get("proof_status", "")
 
         # Synchronize live RCE verification into exploit chains and matrix
         if is_rce_active:
@@ -897,15 +897,99 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 if m.get("group_id") in (1, 6, 7):
                     m["exploitability"] = "Confirmed"
 
-        # 0. Empirical Live RCE / LFI Proof Section with Cryptographic Evidence
-        status_val = rce_proof.get("proof_status", "")
-        if rce_proof.get("is_rce_proved") or status_val in ("RCE_CONFIRMED", "CANARY_CONFIRMED", "CONFIRMED_LFI"):
-            is_rce = rce_proof.get("is_rce_proved") or status_val == "RCE_CONFIRMED"
+        v_php = h.get("vulnerability")
+        v_node = h.get("vulnerabilityNode")
+        nginx_audit = da.get("nginx_audit", {})
+        v_nginx = nginx_audit.get("severity", "Secure")
+
+        has_actionable_chains = any(
+            c_val.get("verdict_code") in ("CONFIRMED", "VULN", "REVIEW", "AUDIT", "ARCHITECTURAL_RISK", "INFO_DISCLOSURE")
+            for c_val in chains.values()
+        ) if chains else False
+
+        # Determine if host has security findings / is vulnerable
+        is_vuln_host = (
+            is_rce_active
+            or rce_status in ("RCE_CONFIRMED", "CANARY_CONFIRMED", "CONFIRMED_LFI")
+            or any(s in ("Critical", "High", "Medium", "Warning") for s in [v_php, v_node, v_nginx])
+            or bool(matched_cves)
+            or has_actionable_chains
+        )
+
+        if not is_vuln_host:
+            continue
+
+        vuln_device_count += 1
+        dev_name = h.get("device_name") or h.get("hostname") or f"โฮสต์ {h_ip}"
+
+        # Tech stack string
+        tech_stack_parts = []
+        if h.get("is_php") or h.get("php_version"):
+            tech_stack_parts.append(f"PHP {h.get('php_version', '')}".strip())
+        if h.get("is_node") or h.get("runtime_version"):
+            tech_stack_parts.append(f"Node.js {h.get('runtime_version', '')}".strip())
+        srv = h.get("webServer") or h.get("server") or nginx_audit.get("server")
+        if srv and srv not in tech_stack_parts:
+            tech_stack_parts.append(str(srv))
+        tech_summary = ", ".join(tech_stack_parts) if tech_stack_parts else "Web Service / Server"
+
+        # Severity badge
+        if is_rce_active or rce_status == "RCE_CONFIRMED":
+            dev_sev_badge = '<span class="adv-item-badge-crit">ระดับวิกฤต (Critical - RCE Confirmed)</span>'
+        elif "Critical" in [v_php, v_node, v_nginx]:
+            dev_sev_badge = '<span class="adv-item-badge-crit">ระดับวิกฤต (Critical)</span>'
+        elif rce_status in ("CANARY_CONFIRMED", "CONFIRMED_LFI") or "High" in [v_php, v_node, v_nginx]:
+            dev_sev_badge = '<span class="adv-item-badge-high">ระดับสูง (High)</span>'
+        elif "Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]:
+            dev_sev_badge = '<span class="adv-item-badge-med">ระดับปานกลาง (Medium)</span>'
+        else:
+            dev_sev_badge = '<span class="adv-item-badge-sec">ปลอดภัย (Secure)</span>'
+
+        primary_grp_name = da.get("primary_group") or "กลุ่มระบบตามเกณฑ์ความมั่นคงปลอดภัย"
+
+        # 1. ThaiCERT Group Architectural Matrix Analysis
+        matrix_sections_html = ""
+        if matrix:
+            for m in matrix:
+                g_id = m.get("group_id")
+                profile = THAICERT_GROUP_PROFILES.get(g_id, {})
+                g_name = m.get("group_name") or profile.get("name") or f"กลุ่ม {g_id}"
+                sapi_val = m.get("sapi_detected") or profile.get("sapi_typical") or "ไม่ระบุ SAPI"
+                worker_val = m.get("worker_model") or profile.get("worker_model") or "Standard Process"
+                exploit_mech = m.get("exploit_chain_mechanism") or profile.get("exploit_chain_mechanism") or "ไม่มีข้อมูลกลไกในระบบ"
+                prereq_summary = m.get("prerequisite_summary") or "ไม่มีเงื่อนไขจำเป็นเพิ่มเติม"
+                impact_scope = m.get("impact_scope") or profile.get("impact_scope") or "ขอบเขตผลกระทบทั่วไป"
+                mitigation_val = m.get("mitigation") or profile.get("mitigation") or "ปรับปรุงเวอร์ชันและตรวจสอบการตั้งค่า"
+                exploitability = m.get("exploitability") or "Conditional"
+                chains_list = m.get("chains_applicable", [])
+                chains_text = ", ".join([html.escape(c) for c in chains_list]) if chains_list else "ไม่พบห่วงโซ่ที่เข้าข่าย"
+
+                conf_label = "ยืนยันเงื่อนไขครบถ้วน (Confirmed)" if exploitability == "Confirmed" else ("มีความเป็นไปได้สูง (Likely)" if exploitability == "Likely" else ("ขึ้นกับเงื่อนไขเฉพาะ (Conditional)" if exploitability == "Conditional" else ("ไม่มีผลกระทบ (Not Applicable)" if exploitability in ("Not Applicable", "Mitigated") else html.escape(exploitability))))
+                chains_desc = f" ซึ่งมีความเชื่อมโยงกับห่วงโซ่ความเสี่ยง {chains_text}" if chains_list else ""
+
+                matrix_sections_html += f"""
+                <div style="margin-top: 10px; margin-bottom: 12px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                  <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">
+                    การจัดกลุ่มสถาปัตยกรรม ThaiCERT / สมช.: กลุ่ม {html.escape(str(g_id))} — {html.escape(g_name)}
+                  </div>
+                  <p class="adv-para" style="margin-bottom: 6px;">
+                    โครงสร้างบริการทำงานผ่านอินเตอร์เฟซ <strong>{html.escape(sapi_val)}</strong> ในรูปแบบโปรเซส <strong>{html.escape(worker_val)}</strong>{chains_desc} ซึ่งสัมพันธ์กับกลไก: {html.escape(exploit_mech)}
+                  </p>
+                  <p class="adv-para" style="margin-bottom: 0;">
+                    เงื่อนไขทางเทคนิค (Prerequisites): {html.escape(prereq_summary)} | ขอบเขตผลกระทบ: {html.escape(impact_scope)} (ระดับความเป็นไปได้: <strong>{conf_label}</strong>)
+                  </p>
+                </div>
+                """
+
+        # 2. Live RCE / LFI Proof
+        proof_html = ""
+        if rce_proof.get("is_rce_proved") or rce_status in ("RCE_CONFIRMED", "CANARY_CONFIRMED", "CONFIRMED_LFI"):
+            is_rce = rce_proof.get("is_rce_proved") or rce_status == "RCE_CONFIRMED"
             trail = rce_proof.get("audit_trail") or {}
             box_bg = "#fff5f5" if is_rce else "#fefce8"
             box_border = "#dc2626" if is_rce else "#ca8a04"
             title_color = "#991b1b" if is_rce else "#854d0e"
-            badge_text = "[RCE CONFIRMED]" if is_rce else ("[CANARY CONFIRMED]" if status_val == "CANARY_CONFIRMED" else "[LFI CONFIRMED]")
+            badge_text = "[RCE CONFIRMED]" if is_rce else ("[CANARY CONFIRMED]" if rce_status == "CANARY_CONFIRMED" else "[LFI CONFIRMED]")
             header_title = "หลักฐานเชิงประจักษ์ยืนยันการรันคำสั่งควบคุมระบบ (Live RCE Proof)" if is_rce else "หลักฐานเชิงประจักษ์ยืนยันช่องโหว่ LFI / Arbitrary File Read"
             
             trail_html = ""
@@ -917,8 +1001,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 </div>
                 """
 
-            findings_html += f"""
-            <div style="margin-top: 14px; margin-bottom: 18px; padding: 12px 16px; background: {box_bg}; border-left: 4px solid {box_border}; border-radius: 4px;">
+            proof_html = f"""
+            <div style="margin-top: 12px; margin-bottom: 14px; padding: 12px 16px; background: {box_bg}; border-left: 4px solid {box_border}; border-radius: 4px;">
               <div style="font-size: 16pt; font-weight: bold; color: {title_color}; margin-bottom: 4px;">
                 {header_title} บนพอร์ต {html.escape(str(h.get('port','-')))}
               </div>
@@ -937,9 +1021,9 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
               </div>
             </div>
             """
-        elif status_val == "NOT_CONFIRMED":
-            findings_html += f"""
-            <div style="margin-top: 14px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
+        elif rce_status == "NOT_CONFIRMED":
+            proof_html = f"""
+            <div style="margin-top: 10px; margin-bottom: 12px; padding: 10px 14px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
               <div style="font-size: 16pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
                 ผลการทดสอบ Active Canary PoC บนพอร์ต {html.escape(str(h.get('port','-')))}: [NOT CONFIRMED / NO SINK IN SCOPE]
               </div>
@@ -948,96 +1032,44 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
               </p>
             </div>
             """
-        elif status_val == "PROBING_DISABLED_BY_SAFETY_GATE":
-            findings_html += f"""
-            <div style="margin-top: 14px; margin-bottom: 18px; padding: 10px 14px; background: #f8fafc; border-left: 4px solid #64748b; border-radius: 4px;">
-              <div style="font-size: 16pt; font-weight: bold; color: #334155; margin-bottom: 4px;">
-                การประเมินสิทธิ์ความปลอดภัย (Safety Gate Protection) บนพอร์ต {html.escape(str(h.get('port','-')))}
-              </div>
-              <p class="adv-para" style="color: #475569; margin-bottom: 0;">
-                การตรวจสอบในรอบนี้ดำเนินการในโหมด Safe Passive Banner Inspection โดยระงับการส่ง Active Exploit ตามข้อกำหนดความปลอดภัย หากต้องการพิสูจน์ RCE ในเชิงประจักษ์ ต้องได้รับการยืนยันสิทธิ์จากผู้ดูแลระบบตามระเบียบ
-              </p>
-            </div>
-            """
 
-        # Architectural & Behavioral Preconditions Matrix per host (Strict Stack Isolation)
+        # 3. Behavioral Preconditions
         br_pre = da.get("brotli_preconditions") or {}
         nx_pre = da.get("nginx_preconditions") or {}
         srv_str = (h.get("webServer", "") + " " + str(h.get("server", "")) + " " + str(da.get("nginx_audit", {}).get("server", ""))).lower()
         is_host_nginx = "nginx" in srv_str
         is_host_node = bool(h.get("is_node")) or "node" in (str(h.get("runtime", "")) + " " + str(h.get("runtime_version", ""))).lower()
 
-        rows_html = ""
+        precond_rows = ""
         if is_host_node and br_pre:
             br_status = "ยอมรับและถอดรหัสบิตสตรีมเข้า (Active Decompression Confirmed)" if br_pre.get("brotli_request_accepted") else ("รองรับ Brotli ผ่านส่วนหัว (Header Hint Observed)" if br_pre.get("brotli_supported") else "ปฏิเสธ / ไม่พบการใช้งาน (Precondition Absent)")
-            rows_html += f"""<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; width: 35%; color: #475569;">Brotli Stream Processing (CVE-2026-111497 / CWE-20):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(br_status)}</td></tr>"""
+            precond_rows += f"""<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; width: 35%; color: #475569;">Brotli Stream Processing (CVE-2026-111497 / CWE-20):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(br_status)}</td></tr>"""
 
         if is_host_nginx and nx_pre:
             h3_status = "ยืนยันพอร์ต UDP 443 ผ่านแพ็กเก็ต RFC 9000 (Active QUIC Listener Confirmed)" if nx_pre.get("http3_udp_verified") else "ไม่พบการตอบสนองของ QUIC UDP บนพอร์ต 443"
             alias_status = f"ตรวจพบพฤติกรรม Traversal: {nx_pre.get('alias_evidence')}" if nx_pre.get("alias_traversal_observed") else "ปกติ (ไม่พบความผิดปกติจากคำขอ /dir../ เทียบกับ 404 Baseline)"
             ssi_status = f"พบไฟล์: {', '.join(nx_pre.get('ssi_files', []))}" if nx_pre.get("ssi_files") else "ไม่พบไฟล์ .shtml/.shtm บนระบบ"
-            rows_html += f"""
+            precond_rows += f"""
                 <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">HTTP/3 QUIC UDP Transport (CVE-2026-95101 / CWE-400):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(h3_status)}</td></tr>
                 <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 5px 8px; font-weight: bold; color: #475569;">NGINX Alias Path Traversal (CVE-2026-15176 / CWE-22):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(alias_status)}</td></tr>
                 <tr><td style="padding: 5px 8px; font-weight: bold; color: #475569;">SSI Directive Exposure (CVE-2026-97205 / CWE-97):</td><td style="padding: 5px 8px; color: #0f172a;">{html.escape(ssi_status)}</td></tr>
             """
 
-        if rows_html:
-            findings_html += f"""
+        precond_html = ""
+        if precond_rows:
+            precond_html = f"""
             <div style="margin-top: 10px; margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
               <div style="font-size: 16pt; font-weight: bold; color: #1e293b; margin-bottom: 6px;">
-                ตารางประเมินเงื่อนไขจำเป็นทางสถาปัตยกรรม (Architectural & Behavioral Preconditions) บนพอร์ต {html.escape(str(h.get('port','-')))}
+                ตารางประเมินเงื่อนไขจำเป็นทางสถาปัตยกรรม (Architectural Preconditions) บนพอร์ต {html.escape(str(h.get('port','-')))}
               </div>
-              <table style="width: 100%; font-size: 9pt; border-collapse: collapse;">
-                {rows_html}
+              <table style="width: 100%; font-size: 16pt; border-collapse: collapse;">
+                {precond_rows}
               </table>
             </div>
             """
 
-        is_client_node = (not h.get("is_php")) and (not h.get("is_node")) and (not h.get("ports")) and (h.get("vulnerability") in ("Secure", "Low", "None", None))
-        if matrix and not is_client_node and (has_any_risk or h.get("is_php") or h.get("is_node")):
-            arch_matrix_html += f"""
-            <div style="margin-top: 14px; margin-bottom: 20px;">
-            """
-            for m in matrix:
-                g_id = m.get("group_id")
-                profile = THAICERT_GROUP_PROFILES.get(g_id, {})
-                g_name = m.get("group_name") or profile.get("name") or f"กลุ่ม {g_id}"
-                sapi_val = m.get("sapi_detected") or profile.get("sapi_typical") or "ไม่ระบุ SAPI"
-                worker_val = m.get("worker_model") or profile.get("worker_model") or "Standard Process"
-                exploit_mech = m.get("exploit_chain_mechanism") or profile.get("exploit_chain_mechanism") or "ไม่มีข้อมูลกลไกในระบบ"
-                prereq_summary = m.get("prerequisite_summary") or "ไม่มีเงื่อนไขจำเป็นเพิ่มเติม"
-                impact_scope = m.get("impact_scope") or profile.get("impact_scope") or "ขอบเขตผลกระทบทั่วไป"
-                mitigation_val = m.get("mitigation") or profile.get("mitigation") or "ปรับปรุงเวอร์ชันและตรวจสอบการตั้งค่า"
-                exploitability = m.get("exploitability") or "Conditional"
-                chains_list = m.get("chains_applicable", [])
-                chains_text = ", ".join([html.escape(c) for c in chains_list]) if chains_list else "ไม่พบห่วงโซ่ที่เข้าข่าย"
-
-                conf_label = "ยืนยันเงื่อนไขครบถ้วน (Confirmed)" if exploitability == "Confirmed" else ("มีความเป็นไปได้สูง (Likely)" if exploitability == "Likely" else ("ขึ้นกับเงื่อนไขเฉพาะ (Conditional)" if exploitability == "Conditional" else ("ไม่มีผลกระทบ (Not Applicable)" if exploitability in ("Not Applicable", "Mitigated") else html.escape(exploitability))))
-
-                chains_desc = f" ซึ่งมีความเชื่อมโยงกับห่วงโซ่ความเสี่ยง {chains_text}" if chains_list else ""
-
-                arch_matrix_html += f"""
-                <div style="margin-top: 14px; margin-bottom: 16px;">
-                  <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
-                    การวิเคราะห์สถาปัตยกรรมกลุ่ม{html.escape(g_name)} บนระบบเป้าหมาย {html.escape(h_ip)}
-                  </div>
-
-                  <p class="adv-para">
-                    จากการตรวจสอบโครงสร้างบริการของระบบ <code>{html.escape(h_ip)}</code> พบว่าทำงานผ่านอินเตอร์เฟซ {html.escape(sapi_val)} และรูปแบบโปรเซสแบบ {html.escape(worker_val)}{chains_desc} ซึ่งสัมพันธ์กับกลไก: {html.escape(exploit_mech)}
-                  </p>
-
-                  <p class="adv-para">
-                    เงื่อนไขทางเทคนิคในการโจมตี (Prerequisites): {html.escape(prereq_summary)} หากระบบไม่มีเงื่อนไขดังกล่าว การโจมตีจะไม่สัมฤทธิ์ผล โดยผลกระทบจะถูกจำกัดอยู่ที่ {html.escape(impact_scope)} (ระดับความเป็นไปได้: <strong>{conf_label}</strong>) ทั้งนี้ แนะนำแนวทางแก้ไขเชิงโครงสร้าง: {html.escape(mitigation_val)}
-                  </p>
-                </div>
-                """
-
-            arch_matrix_html += """
-            </div>
-            """
-        
-        # 1. Matched CVEs for this host
+        # 4. Matched CVEs for this device
+        cves_html = ""
         for c in matched_cves:
             cve_id = c.get("id") or c.get("cve") or "CVE-VULN"
             cve_name = c.get("name") or "ช่องโหว่ความมั่นคงปลอดภัย"
@@ -1049,7 +1081,6 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             confirm_vuln = c.get("confirm_vuln") or "พบเวอร์ชันอยู่ในช่วงที่ได้รับผลกระทบ"
             confirm_safe = c.get("confirm_safe") or "อัปเดตเป็นเวอร์ชันที่ได้รับแพตช์ความปลอดภัยล่าสุด"
 
-            # Severity mapping in Thai
             sev_th_map = {
                 "Critical": "ระดับวิกฤต (Critical)",
                 "High": "ระดับสูง (High)",
@@ -1070,55 +1101,43 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 else:
                     cve_conf = "Conditional"
 
-            # Format finding title: Start with keyword "ค้นพบ" without numbers
-            finding_title = f"ค้นพบ {html.escape(cve_id)} {html.escape(cve_name)}"
-
             if cve_conf == "Confirmed":
-                cve_narrative = f"""จากการทดสอบเชิงลึกบนระบบเป้าหมาย พบหลักฐานยืนยันชัดเจน (Empirical Evidence) ว่า {html.escape(reason)} จัดเป็นช่องโหว่ระดับ {cve_sev_th} ที่สามารถถูกโจมตีได้จริงผ่านเครือข่าย ทางทีมงานแนะนำให้ผู้ดูแลระบบรีบดำเนินการแก้ไขหรือปิดกั้นการเข้าถึงโดยเร็วที่สุด"""
+                cve_narrative = f"""จากการทดสอบเชิงลึกบนอุปกรณ์นี้ พบหลักฐานยืนยันชัดเจน (Empirical Evidence) ว่า {html.escape(reason)} จัดเป็นช่องโหว่ระดับ {cve_sev_th} ที่สามารถถูกโจมตีได้จริงผ่านเครือข่าย แนะนำให้ผู้ดูแลระบบรีบดำเนินการแก้ไขหรือปิดกั้นการเข้าถึงโดยเร็วที่สุด"""
             else:
-                cve_narrative = f"""จากการตรวจสอบบริการภายนอก พบว่า {html.escape(reason)} ซึ่งจัดเป็นช่องโหว่ระดับ {cve_sev_th} ตามฐานข้อมูลสากล ทั้งนี้ ความเป็นไปได้ในการถูกโจมตีจริงขึ้นอยู่กับเวอร์ชัน การตั้งค่า และการเปิดให้เชื่อมต่อจากภายนอก แนะนำให้ผู้ดูแลระบบตรวจสอบเวอร์ชันและคอนฟิกจริงบนเครื่องเพื่อยืนยันอีกครั้ง"""
+                cve_narrative = f"""จากการตรวจสอบบริการภายนอก พบว่า {html.escape(reason)} จัดเป็นช่องโหว่ระดับ {cve_sev_th} ตามฐานข้อมูลสากล ทั้งนี้ ความเป็นไปได้ในการถูกโจมตีจริงขึ้นอยู่กับเวอร์ชันและการตั้งค่าภายใน แนะนำให้ผู้ดูแลระบบตรวจสอบบนเครื่องจริงเพื่อยืนยันอีกครั้ง"""
 
-            findings_html += f"""
-            <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
-              <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
-                {finding_title}
+            cves_html += f"""
+            <div class="adv-finding-item" style="margin-top: 12px; margin-bottom: 16px; padding: 12px 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+              <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px;">
+                ข้อค้นพบ: {html.escape(cve_id)} — {html.escape(cve_name)}
               </div>
-              <div style="font-size: 16pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
-                <strong>ระบบเป้าหมายที่ได้รับผลกระทบ:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
-                <strong>หมวดหมู่เทคโนโลยี:</strong> {html.escape(cat)} &nbsp;|&nbsp; 
+              <div style="font-size: 16pt; color: #334155; margin-bottom: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                 <strong>ระดับความรุนแรง:</strong> {cve_sev_th} &nbsp;|&nbsp; 
-                <strong>คะแนนมาตรฐาน CVSS:</strong> {cvss} &nbsp;|&nbsp;
-                <strong>ระดับความเชื่อมั่น (Confidence):</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(cve_conf)}</span>
+                <strong>คะแนน CVSS:</strong> {cvss} &nbsp;|&nbsp;
+                <strong>ความเชื่อมั่น:</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(cve_conf)}</span> &nbsp;|&nbsp;
+                <strong>หมวดหมู่:</strong> {html.escape(cat)}
               </div>
-
               <p class="adv-para">
                 {cve_narrative}
               </p>
-
               <p class="adv-para">
-                ระบบจะได้รับผลกระทบหากเข้าเงื่อนไข: {html.escape(confirm_vuln)} โดยมีเป้าหมายความปลอดภัยที่แนะนำคือ: {html.escape(confirm_safe)}
+                เงื่อนไขที่ได้รับผลกระทบ: {html.escape(confirm_vuln)} | เป้าหมายความปลอดภัย: {html.escape(confirm_safe)}
               </p>
-
-              <div class="adv-code-box" style="margin: 8px 0 12px 0;">
+              <div class="adv-code-box" style="margin: 6px 0 10px 0;">
                 <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">คำสั่งสำหรับผู้ดูแลระบบใช้ตรวจสอบจริงบนเครื่อง (Host-Check):</div>
                 <pre><code>{html.escape(host_check)}</code></pre>
               </div>
-
-              <p class="adv-para">
-                แนวทางแก้ไข: แนะนำให้อัปเดตซอฟต์แวร์ {html.escape(cat)} เป็นเวอร์ชันที่ได้รับการแพตช์ความปลอดภัยแล้ว โดยควรทดสอบในสภาพแวดล้อม Staging ก่อนอัปเดตระบบจริง:
-              </p>
-
-              <div class="adv-code-box" style="margin: 8px 0 14px 0;">
-                <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">คำแนะนำในการตั้งค่าและอัปเดตความปลอดภัย:</div>
-                <pre><code># ตัวอย่างแนวทางแก้ไข: ตรวจสอบแพ็กเกจและวิธีติดตั้งให้เหมาะกับระบบจริงก่อนดำเนินการ
-# ควรสำรองข้อมูลและทดสอบใน Staging ก่อนอัปเดต Production
+              <div class="adv-code-box" style="margin: 6px 0 10px 0;">
+                <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">คำแนะนำในการแก้ไขและปรับปรุงความปลอดภัย:</div>
+                <pre><code># คำแนะนำ: อัปเดตซอฟต์แวร์ {html.escape(cat)} เป็นเวอร์ชันที่ได้รับการแพตช์ความปลอดภัยแล้ว
+# ควรสำรองข้อมูลและทดสอบใน Staging ก่อนอัปเดต Production จริง
 # เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(confirm_safe)}</code></pre>
               </div>
             </div>
             """
-            finding_idx += 1
 
-        # 2. PHP Session Chains (if applicable and has details)
+        # 5. Session Chains (if applicable)
+        session_html = ""
         if chains:
             for c_key, c_val in chains.items():
                 c_verdict_code = c_val.get("verdict_code")
@@ -1131,9 +1150,9 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                     if c_verdict_code == "CONFIRMED":
                         eval_status_desc = "ได้รับการยืนยันผลกระทบเชิงประจักษ์แล้ว (Confirmed — Live Proof Verified)"
                     elif c_verdict_code == "VULN":
-                        eval_status_desc = "ตรวจพบเงื่อนไขที่สอดคล้องกับความเสี่ยง ควรตรวจสอบเพิ่มเติมเพื่อยืนยันผลกระทบ (Potential Risk — Verification Required)"
+                        eval_status_desc = "ตรวจพบเงื่อนไขที่สอดคล้องกับความเสี่ยง ควรตรวจสอบเพิ่มเติม (Potential Risk)"
                     elif c_verdict_code == "ARCHITECTURAL_RISK":
-                        eval_status_desc = "เงื่อนไขทางสถาปัตยกรรมที่อาจเพิ่มความเสี่ยง (Architectural Condition — ต้องตรวจสอบเพิ่มเติม)"
+                        eval_status_desc = "เงื่อนไขทางสถาปัตยกรรมที่อาจเพิ่มความเสี่ยง (Architectural Condition)"
                     elif c_verdict_code == "INFO_DISCLOSURE":
                         eval_status_desc = "การเปิดเผยข้อมูลเกี่ยวกับระบบหรือการตั้งค่า (Information Disclosure — CWE-200)"
                     else:
@@ -1141,32 +1160,51 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                     
                     c_conf = c_val.get("confidence") or "Conditional"
 
-                    findings_html += f"""
-                    <div class="adv-finding-item" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
-                      <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
-                        ค้นพบ ข้อควรระวังด้านการจัดการเซสชัน: {html.escape(c_title)}
+                    session_html += f"""
+                    <div class="adv-finding-item" style="margin-top: 10px; margin-bottom: 14px; padding: 12px 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;">
+                      <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">
+                        ข้อควรระวังด้านการจัดการเซสชัน: {html.escape(c_title)}
                       </div>
-                      <div style="font-size: 16pt; color: #334155; margin-bottom: 12px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
-                        <strong>ระบบเป้าหมาย:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; 
+                      <div style="font-size: 16pt; color: #334155; margin-bottom: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #cbd5e1;">
                         <strong>สถานะการประเมิน:</strong> {html.escape(eval_status_desc)} &nbsp;|&nbsp;
-                        <strong>ระดับความเชื่อมั่น (Confidence):</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(c_conf)}</span>
+                        <strong>ระดับความเชื่อมั่น:</strong> <span style="font-weight: bold; color: #0284c7;">{html.escape(c_conf)}</span>
                       </div>
                       <p class="adv-para">
-                        จากการตรวจสอบค่าคอนฟิกและพฤติกรรมการจัดการเซสชัน พบว่า {html.escape(c_verdict)} ข้อค้นพบนี้อาจเพิ่มความเสี่ยงภายใต้เงื่อนไขบางประการ ผู้ดูแลระบบควรตรวจสอบผลกระทบต่อระบบงานและพิจารณาปรับปรุง {html.escape(c_remedy)} ตามความเหมาะสม
+                        {html.escape(c_verdict)} ผู้ดูแลระบบควรตรวจสอบผลกระทบและพิจารณาปรับปรุง {html.escape(c_remedy)} ตามแนวทางความปลอดภัย
                       </p>
-                      <div class="adv-code-box" style="margin: 8px 0 14px 0;">
-                        <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">แนวทางการตั้งค่าคอนฟิก php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:</div>
+                      <div class="adv-code-box" style="margin: 6px 0 10px 0;">
+                        <div style="font-size: 16pt; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">แนวทางการตั้งค่า php.ini ที่แนะนำสำหรับ {html.escape(h_ip)}:</div>
                         <pre><code>{html.escape(c_ini)}</code></pre>
                       </div>
                     </div>
                     """
-                    finding_idx += 1
 
-    if not findings_html:
-        findings_html = """
+        # Combine into complete Device Block
+        vulnerable_devices_html += f"""
+        <div class="adv-device-block" style="margin-bottom: 28px; padding: 16px 18px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px;">
+          <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <span>อุปกรณ์ที่พบความเสี่ยงลำดับที่ {vuln_device_count}: {html.escape(dev_name)} ({html.escape(h_ip)})</span>
+            <div>{dev_sev_badge}</div>
+          </div>
+          
+          <div style="font-size: 16pt; color: #334155; margin-bottom: 12px; background: #f1f5f9; padding: 8px 14px; border-radius: 6px;">
+            <div><strong>ที่อยู่ IP:</strong> <code>{html.escape(h_ip)}</code> &nbsp;|&nbsp; <strong>พอร์ตบริการ:</strong> <code>{html.escape(h_ports)}</code> &nbsp;|&nbsp; <strong>ซอฟต์แวร์/บริการ:</strong> {html.escape(tech_summary)}</div>
+            <div style="margin-top: 4px;"><strong>กลุ่มระบบ (ThaiCERT):</strong> <span style="font-weight: bold; color: #0369a1;">{html.escape(primary_grp_name)}</span></div>
+          </div>
+
+          {matrix_sections_html}
+          {proof_html}
+          {precond_html}
+          {cves_html}
+          {session_html}
+        </div>
+        """
+
+    if not vulnerable_devices_html:
+        vulnerable_devices_html = """
         <div class="adv-finding-item">
           <p class="adv-para" style="text-align: center; color: #16a34a; font-weight: bold; margin: 24px 0;">
-            ✓ จากการตรวจสอบตามขอบเขตและวิธีการที่กำหนด ยังไม่พบหลักฐานของข้อค้นพบระดับวิกฤต (Critical) หรือระดับสูง (High)
+            ✓ จากการตรวจสอบตามขอบเขตและวิธีการที่กำหนด ยังไม่พบหลักฐานของข้อค้นพบระดับวิกฤต (Critical) หรือระดับสูง (High) บนอุปกรณ์ใดในเครือข่าย
             <br><span style="font-size: 16pt; color: #475569; font-weight: normal;">(ผลดังกล่าวไม่ใช่การรับรองว่าระบบปลอดภัยทั้งหมด ผู้ดูแลระบบควรติดตามแพตช์และทบทวนการตั้งค่าตามรอบระยะเวลาที่เหมาะสม)</span>
           </p>
         </div>
@@ -1244,15 +1282,13 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         ทางทีมงานขอแนะนำให้ผู้ดูแลระบบเร่งตรวจสอบและดำเนินการแก้ไขตามลำดับความสำคัญ โดยควรเน้นไปที่ระบบที่มีหลักฐานยืนยันช่องโหว่ชัดเจน และเป็นระบบที่เชื่อมต่อหรือเปิดให้เข้าถึงได้จากเครือข่ายภายนอกก่อนเป็นอันดับแรก
       </p>
         """
-        page2_heading = "รายละเอียดข้อค้นพบทางเทคนิคและแนวทางการแก้ไข (Technical Findings &amp; Remediation)"
+        page2_heading = "รายละเอียดข้อค้นพบทางเทคนิคและแนวทางการแก้ไขจำแนกตามอุปกรณ์ (Technical Findings by Device)"
         page2_content = f"""
       <p class="adv-para">
-        ส่วนนี้นำเสนอรายละเอียดเชิงเทคนิคของช่องโหว่ที่ตรวจพบ พร้อมระดับความเชื่อมั่นตามหลักฐาน (เช่น ยืนยันแล้ว, มีแนวโน้มสูง หรือขึ้นกับเงื่อนไขเฉพาะ) รวมถึงกลไกการโจมตี คำสั่งสำหรับผู้ดูแลระบบใช้ตรวจสอบจริงบนเครื่อง และตัวอย่างคอนฟิกที่แนะนำเพื่อปิดช่องโหว่ได้อย่างตรงจุด
+        ส่วนนี้นำเสนอรายละเอียดเชิงเทคนิคของข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยโดยจำแนกตามอุปกรณ์ที่ตรวจพบ เพื่อให้ผู้ดูแลระบบเห็นภาพรวมความเสี่ยงและรายละเอียดเฉพาะของแต่ละอุปกรณ์อย่างชัดเจน พร้อมการจัดกลุ่มตามเกณฑ์ ThaiCERT สถาปัตยกรรมระบบ คำสั่งตรวจสอบจริงบนเครื่อง (Host-Check) และแนวทางการแก้ไขที่เหมาะสมกับอุปกรณ์นั้นๆ
       </p>
 
-      {arch_matrix_html}
-
-      {findings_html}
+      {vulnerable_devices_html}
         """
 
     return f"""<!DOCTYPE html>
