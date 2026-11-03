@@ -734,7 +734,8 @@ def scan():
                         mptcp_results={},
                         is_container=False
                     )
-                    matched_cves = [k_finding] if k_finding else []
+                    # Only treat as matched active vulnerability if MPTCP is empirically verified active
+                    matched_cves = [k_finding] if (k_finding and k_finding.get("confidence") == "Likely") else []
                     if k_finding and k_note:
                         cve_note = f"{cve_note} | {k_note}"
 
@@ -871,7 +872,8 @@ def scan():
                             mptcp_results={},
                             is_container=False
                         )
-                        matched_cves = [k_finding] if k_finding else []
+                        # Only treat as matched active vulnerability if MPTCP is empirically verified active
+                        matched_cves = [k_finding] if (k_finding and k_finding.get("confidence") == "Likely") else []
                         if k_finding and k_note:
                             cve_note = f"{cve_note} | {k_note}"
 

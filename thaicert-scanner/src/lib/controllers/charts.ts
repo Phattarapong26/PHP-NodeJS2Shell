@@ -456,41 +456,51 @@ export function renderLollipopChart(stats) {
 }
 
 export function getTopDetectedCves() {
-  const cveMap = {};
+  const cveMap: Record<string, any> = {};
   const allHosts = appState.allHosts || [];
 
   allHosts.forEach(h => {
+    // Only count active vulnerabilities on hosts that are not fully secure
+    const isHostVulnerable = h.vulnerability && h.vulnerability !== 'Secure' && h.vulnerability !== 'Review Needed';
+
     (h.matched_cves || []).forEach(c => {
+      // Skip conditional or host-check advisories on secure devices
+      if (!isHostVulnerable && c.confidence === 'Conditional') return;
+
       const cveId = c.cve || c.id || 'CVE-UNKNOWN';
       if (!cveMap[cveId]) {
         cveMap[cveId] = {
           id: cveId,
           severity: c.severity || 'Critical',
-          title: c.title || c.description || 'ช่องโหว่ความเสี่ยงระดับสูงที่ตรวจพบ',
+          title: c.title || c.description || c.name || 'ช่องโหว่ความเสี่ยงระดับสูงที่ตรวจพบ',
           count: 0,
           hosts: []
         };
       }
-      cveMap[cveId].count += 1;
       if (!cveMap[cveId].hosts.includes(h.ip)) {
+        cveMap[cveId].count += 1;
         cveMap[cveId].hosts.push(h.ip);
       }
     });
 
-    if (h.kernel_audit && h.kernel_audit.cve) {
-      const cveId = h.kernel_audit.cve;
-      if (!cveMap[cveId]) {
-        cveMap[cveId] = {
-          id: cveId,
-          severity: 'High',
-          title: h.kernel_audit.note || 'Linux Kernel Network Vulnerability',
-          count: 0,
-          hosts: []
-        };
-      }
-      cveMap[cveId].count += 1;
-      if (!cveMap[cveId].hosts.includes(h.ip)) {
-        cveMap[cveId].hosts.push(h.ip);
+    // For kernel_audit: ONLY count if MPTCP-ACTIVE was empirically verified on open ports
+    if (h.kernel_audit && h.kernel_audit.mptcp_results && h.kernel_audit.cve) {
+      const hasActiveMptcp = Object.values(h.kernel_audit.mptcp_results).some(st => st === 'MPTCP-ACTIVE');
+      if (hasActiveMptcp) {
+        const cveId = h.kernel_audit.cve;
+        if (!cveMap[cveId]) {
+          cveMap[cveId] = {
+            id: cveId,
+            severity: 'Critical',
+            title: h.kernel_audit.note || 'Linux Kernel Network Vulnerability (MPTCP-ACTIVE)',
+            count: 0,
+            hosts: []
+          };
+        }
+        if (!cveMap[cveId].hosts.includes(h.ip)) {
+          cveMap[cveId].count += 1;
+          cveMap[cveId].hosts.push(h.ip);
+        }
       }
     }
   });

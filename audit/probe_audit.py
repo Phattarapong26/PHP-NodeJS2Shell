@@ -988,7 +988,7 @@ async def probe_endpoint(
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
                 rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if kernel_cve else None
+                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
             )
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
             if rce_proof.get("is_rce_proved"):
@@ -1052,7 +1052,7 @@ async def probe_endpoint(
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
                 rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if kernel_cve else None
+                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
             )
             display_ver = node_version_str
             if has_brotli and "[Brotli]" not in display_ver:
@@ -1110,7 +1110,7 @@ async def probe_endpoint(
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
                 rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if kernel_cve else None
+                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
             )
             return {
                 "target_id": f"{display_ip}:{port}",
@@ -1184,7 +1184,7 @@ async def probe_endpoint(
                 rce_confirmed=rce_proof.get("is_rce_proved", False),
                 rce_technique=rce_proof.get("technique", ""),
                 rce_endpoint=rce_proof.get("exploit_endpoint", ""),
-                extra_cves=[kernel_cve] if kernel_cve else None
+                extra_cves=[kernel_cve] if (kernel_cve and kernel_cve.get("confidence") == "Likely") else None
             )
             return {
                 "target_id": f"{display_ip}:{port}",

@@ -116,6 +116,10 @@ def evaluate_cve_2026_98432(
     if is_windows or any(k in server_low for k in ["iis", "windows", "win32", "win64"]):
         return None, "ไม่ใช่ระบบปฏิบัติการ Linux (Windows) — ไม่เข้าข่าย CVE-2026-98432"
 
+    # If all network ports are closed and this is not a container audit, no network vector exists
+    if not is_container and not open_ports and not mptcp_results:
+        return None, "พอร์ตเครือข่ายปิดทั้งหมด — ไม่พบเวกเตอร์ความเสี่ยงระดับเครือข่าย (CVE-2026-98432)"
+
     mptcp_active_ports = [p for p, st in mptcp_results.items() if st == "MPTCP-ACTIVE"]
     plain_tcp_ports = [p for p, st in mptcp_results.items() if st == "PLAIN-TCP"]
 
