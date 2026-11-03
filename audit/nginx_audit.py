@@ -155,7 +155,7 @@ def collect_target_cves(
     # 2. PHP CVE Mapping
     if is_php:
         # CVE-2024-4577 (Windows CGI Argument Injection - STRICTLY Windows Only)
-        if is_windows and v_php in ("Critical", "Outdated"):
+        if is_windows and v_php in ("Critical", "Outdated", "Lifecycle Risk (EOL)"):
             cves.append({
                 "id": "CVE-2024-4577",
                 "cve": "CVE-2024-4577",
@@ -163,10 +163,15 @@ def collect_target_cves(
                 "category": "PHP",
                 "severity": "Critical",
                 "cvss": 9.8,
+                "cvss_version": "CVSS v3.1",
+                "score_source": "PHP Group / NVD",
+                "vendor_severity": "Critical",
+                "verification_type": "Confirmed Vulnerability" if is_cgi_rce else "Conditional Finding",
+                "evidence_confidence": "High (Empirical Callback)" if is_cgi_rce else "Medium (Observed Windows / CGI Fingerprint)",
                 "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ส่ง directives ผ่าน PHP-CGI Argument Injection และสั่งประมวลผลโค้ดสำเร็จ" if is_cgi_rce else f"PHP ({php_ver}) บนระบบปฏิบัติการ Windows เสี่ยงต่อ CVE-2024-4577 ผ่านการแปลง Best-fit mapping",
                 "host_check": "php -v && (php -i | grep 'Server API')",
                 "confirm_vuln": "PHP < 8.2.20 / 8.3.8 บน Windows CGI/FastCGI",
-                "confirm_safe": "PHP ≥ 8.2.20 / 8.3.8 หรือย้ายไปรันบนระบบปฏิบัติการ Linux",
+                "confirm_safe": "การแก้ไขถาวร: PHP ≥ 8.2.20 / 8.3.8 หรือย้ายสู่ Linux | มาตรการบรรเทา: mod_rewrite บล็อกอักขระ %AD",
                 "confidence": "Confirmed" if is_cgi_rce else "Likely",
                 "confirmed": is_cgi_rce,
                 "verification_status": "RCE_CONFIRMED" if is_cgi_rce else "SUSPECTED_RISK"
@@ -182,11 +187,16 @@ def collect_target_cves(
                     "name": "ช่องโหว่ระดับวิกฤตประเภท Use-After-Free จากเงื่อนไข OOM Multipart Bailout บน PHP (CWE-416)",
                     "category": "PHP",
                     "severity": "Critical",
-                    "cvss": 9.8,
+                    "cvss": 9.2,
+                    "cvss_version": "CVSS v4.0",
+                    "score_source": "PHP Security Advisory GHSA-w8hw-w9fx-j79w",
+                    "vendor_severity": "Critical",
+                    "verification_type": "Conditional Finding",
+                    "evidence_confidence": "Medium (Observed PHP Version)",
                     "reason": f"PHP {php_ver} ต่ำกว่าแพตช์ 8.2.35 / 8.3.36",
                     "host_check": "php -v",
                     "confirm_vuln": "php -v ต่ำกว่า 8.2.35 / 8.3.36 และ Server API เป็น FPM/Apache Handler",
-                    "confirm_safe": "php -v ≥ 8.2.35 / 8.3.36",
+                    "confirm_safe": "การแก้ไขถาวร: php -v ≥ 8.2.35 / 8.3.36 | มาตรการบรรเทา: จำกัด post_max_size",
                     "confidence": "Likely",
                     "verification_status": "SUSPECTED_RISK"
                 })
@@ -196,11 +206,16 @@ def collect_target_cves(
                     "name": "ช่องโหว่ระดับวิกฤตประเภท Stale Global State ผ่าน Session Upload Progress บน PHP (CWE-665)",
                     "category": "PHP",
                     "severity": "Critical",
-                    "cvss": 9.8,
+                    "cvss": 9.2,
+                    "cvss_version": "CVSS v4.0",
+                    "score_source": "PHP Security Advisory GHSA-6wmf-4rv5-p3rp",
+                    "vendor_severity": "Critical",
+                    "verification_type": "Conditional Finding (Architectural Risk)",
+                    "evidence_confidence": "Medium (Observed FastCGI Architecture)",
                     "reason": f"PHP {php_ver} ต่ำกว่าแพตช์ 8.2.35 / 8.3.36 ร่วมกับ upload_progress",
                     "host_check": "php -i | grep session.upload_progress",
                     "confirm_vuln": "session.upload_progress.enabled = On บน PHP < 8.2.35 / 8.3.36",
-                    "confirm_safe": "session.upload_progress.enabled = Off หรือ PHP ≥ 8.2.35",
+                    "confirm_safe": "การแก้ไขถาวร: PHP ≥ 8.2.35 / 8.3.36 | มาตรการบรรเทา: กำหนด pm.max_requests > 0 และปิด session.upload_progress",
                     "confidence": "Likely",
                     "verification_status": "SUSPECTED_RISK"
                 })
@@ -212,12 +227,17 @@ def collect_target_cves(
                 "cve": "CVE-2026-115560",
                 "name": "ช่องโหว่การสลับรูปแบบ Serializer ผ่าน Session Upload Progress (CWE-98 / CWE-94)",
                 "category": "PHP",
-                "severity": "Critical" if is_session_rce else "Medium-High",
-                "cvss": 9.8 if is_session_rce else 8.1,
+                "severity": "Critical" if is_session_rce else "High",
+                "cvss": 9.8 if is_session_rce else None,
+                "cvss_version": "CVSS v3.1" if is_session_rce else "Pending Official NVD Scoring",
+                "score_source": "Empirical Assessment" if is_session_rce else "PHP Security Advisory (2026-10-23)",
+                "vendor_severity": "Advisory Workaround",
+                "verification_type": "Confirmed Vulnerability" if is_session_rce else "Conditional Finding",
+                "evidence_confidence": "High (Canary Execution)" if is_session_rce else "Medium (Observable LFI Vector)",
                 "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ตรวจพบ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด Canary ใน Session Upload Progress สำเร็จ" if is_session_rce else "ตรวจพบเงื่อนไข Session Upload Progress เสี่ยงต่อการสลับ serialize_handler",
                 "host_check": "php -i | grep -E 'session.serialize_handler|session.upload_progress'",
                 "confirm_vuln": "แอปสลับ serialize_handler ข้ามรูปแบบตอน runtime หรือเปิดรับ LFI parameter สู่ session directory",
-                "confirm_safe": "session.upload_progress.enabled = Off หรือปิดการเข้าถึง Local File Inclusion",
+                "confirm_safe": "การแก้ไขถาวร: รอแพตช์ทางการ | มาตรการบรรเทา: ตั้ง session.upload_progress.enabled = Off ใน php.ini",
                 "confirmed": is_session_rce,
                 "confidence": "Confirmed" if is_session_rce else "Conditional",
                 "verification_status": "RCE_CONFIRMED" if is_session_rce else "PRECONDITION_IDENTIFIED"

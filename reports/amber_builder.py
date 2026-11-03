@@ -799,6 +799,20 @@ def get_css_styles() -> str:
         margin-bottom: 2px !important;
       }
 
+      #sheet-page-1 .adv-list li {
+        font-size: 14pt !important;
+        line-height: 1.25 !important;
+        margin-bottom: 2px !important;
+        padding-left: 0.6cm !important;
+      }
+
+      #sheet-page-1 .adv-tlp-rule-box {
+        margin: 4px 0 6px 0 !important;
+        padding: 3px 8px !important;
+        font-size: 13.5pt !important;
+        line-height: 1.3 !important;
+      }
+
       .adv-heading, .adv-subhead, .adv-device-title, .adv-port-title, .adv-item-title {
         break-after: avoid !important;
         page-break-after: avoid !important;
@@ -923,10 +937,9 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
     affected_hosts_count = 0
     safe_hosts_count = 0
 
-    total_findings_count = 0
-    crit_findings_count = 0
-    high_findings_count = 0
-    med_findings_count = 0
+    confirmed_vulns_count = 0
+    conditional_findings_count = 0
+    lifecycle_risks_count = 0
 
     all_matched_cves = []
     seen_finding_keys = set()
@@ -942,27 +955,24 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             rce_st = rce_p.get("proof_status", "")
             v_php = h.get("vulnerability")
             v_node = h.get("vulnerabilityNode")
-            v_nginx = (da.get("nginx_audit") or {}).get("severity", "Secure")
             cves = h.get("matched_cves") or []
             chains = (da.get("security_chains") or {}).get("chains") or (h.get("security_chains") or {}).get("chains") or {}
 
-            # 1. RCE Proof finding
+            # 1. RCE Proof finding (Confirmed Vulnerability)
             if rce_p.get("is_rce_proved") or rce_st == "RCE_CONFIRMED":
                 f_key = (ip, port_val, "RCE")
                 if f_key not in seen_finding_keys:
                     seen_finding_keys.add(f_key)
-                    crit_findings_count += 1
-                    total_findings_count += 1
+                    confirmed_vulns_count += 1
                     host_is_affected = True
             elif rce_st in ("CANARY_CONFIRMED", "CONFIRMED_LFI"):
                 f_key = (ip, port_val, "LFI")
                 if f_key not in seen_finding_keys:
                     seen_finding_keys.add(f_key)
-                    high_findings_count += 1
-                    total_findings_count += 1
+                    confirmed_vulns_count += 1
                     host_is_affected = True
 
-            # 2. CVE findings
+            # 2. CVE findings (Confirmed or Conditional)
             for c in cves:
                 c_id = c.get("id") or c.get("cve")
                 if c_id and c_id not in [x.get("id") or x.get("cve") for x in all_matched_cves]:
@@ -970,48 +980,35 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 f_key = (ip, port_val, c_id)
                 if f_key not in seen_finding_keys:
                     seen_finding_keys.add(f_key)
-                    c_sev = c.get("severity", "High")
-                    if c_sev == "Critical":
-                        crit_findings_count += 1
-                    elif c_sev == "High":
-                        high_findings_count += 1
+                    if c.get("confirmed") or c.get("verification_type") == "Confirmed Vulnerability":
+                        confirmed_vulns_count += 1
                     else:
-                        med_findings_count += 1
-                    total_findings_count += 1
+                        conditional_findings_count += 1
                     host_is_affected = True
 
-            # 3. Standalone Outdated / EOL finding if no CVEs on this port
-            if not cves and (v_php in ("Critical", "High", "Medium", "Warning") or v_node in ("Critical", "High", "Medium", "Warning")):
+            # 3. Standalone Outdated / EOL finding if no CVEs on this port (Lifecycle Risk)
+            if not cves and (v_php in ("Critical", "High", "Medium", "Warning", "Lifecycle Risk (EOL)", "Outdated") or v_node in ("Critical", "High", "Medium", "Warning")):
                 f_key = (ip, port_val, "EOL_RUNTIME")
                 if f_key not in seen_finding_keys:
                     seen_finding_keys.add(f_key)
-                    if v_php == "Critical" or v_node == "Critical":
-                        crit_findings_count += 1
-                    elif v_php == "High" or v_node == "High":
-                        high_findings_count += 1
-                    else:
-                        med_findings_count += 1
-                    total_findings_count += 1
+                    lifecycle_risks_count += 1
                     host_is_affected = True
 
-            # 4. Actionable security chains
+            # 4. Actionable security chains (Conditional)
             for ch_tag, ch_data in chains.items():
                 if ch_data.get("verdict_code") in ("CONFIRMED", "VULN", "ARCHITECTURAL_RISK"):
                     f_key = (ip, port_val, f"CHAIN_{ch_tag}")
                     if f_key not in seen_finding_keys:
                         seen_finding_keys.add(f_key)
-                        total_findings_count += 1
+                        conditional_findings_count += 1
                         host_is_affected = True
-                        if ch_data.get("verdict_code") in ("CONFIRMED", "VULN"):
-                            high_findings_count += 1
-                        else:
-                            med_findings_count += 1
 
         if host_is_affected:
             affected_hosts_count += 1
         else:
             safe_hosts_count += 1
 
+    total_findings_count = confirmed_vulns_count + conditional_findings_count + lifecycle_risks_count
     has_any_risk = (affected_hosts_count > 0 or total_findings_count > 0)
 
     header_banner = get_ncsa_header_banner_html()
@@ -1346,13 +1343,19 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 cve_id = c.get("id") or c.get("cve") or "CVE-VULN"
                 cve_name = c.get("name") or "ช่องโหว่ความมั่นคงปลอดภัย"
                 cve_sev = c.get("severity") or "High"
-                cvss = c.get("cvss") or 7.5
-                cvss_ver = c.get("cvss_version") or ("CVSS v4.0" if float(cvss) >= 9.0 else "CVSS v3.1")
-                cvss_str = f"{cvss} ({cvss_ver})"
+                cvss = c.get("cvss")
+                cvss_ver = c.get("cvss_version") or ("CVSS v4.0" if (cvss and float(cvss) >= 9.0) else "CVSS v3.1")
+                cvss_str = f"{cvss} ({cvss_ver})" if cvss is not None else f"N/A ({cvss_ver})"
+                score_src = c.get("score_source") or "NVD / NIST"
+                vendor_sev = c.get("vendor_severity") or "Medium"
+                v_type = c.get("verification_type") or ("ช่องโหว่ที่ยืนยันผลกระทบได้ (Confirmed Vulnerability)" if c.get("confirmed") else "ข้อค้นพบตามเงื่อนไข (Conditional Finding)")
+                e_conf = c.get("evidence_confidence") or ("ยืนยันด้วยโค้ดทดสอบ (High - Empirical Proof)" if c.get("confirmed") else "ตรวจพบจากภายนอก (Medium - Externally Observable)")
                 cat = c.get("category") or "Web Stack"
                 reason = c.get("reason") or c.get("desc") or "ตรวจพบเวอร์ชันซอฟต์แวร์ที่ตรงกับเงื่อนไขความเสี่ยง"
                 host_check = c.get("host_check") or "php -v || node -v || nginx -v"
-                confirm_vuln = c.get("confirm_vuln") or "พบเวอร์ชันอยู่ในช่วงที่ได้รับผลกระทบ"
+                exp_vuln = c.get("expected_vuln") or c.get("confirm_vuln") or "พบเวอร์ชันอยู่ในช่วงที่ได้รับผลกระทบ"
+                exp_safe = c.get("expected_safe") or c.get("confirm_safe") or "อัปเดตเป็นเวอร์ชันที่ได้รับแพตช์ความปลอดภัยล่าสุด"
+                cmd_limits = c.get("command_limitations") or "คำสั่งตรวจสอบเฉพาะคอนฟิกหลักที่ระบบตรวจพบ ไม่ครอบคลุมคอนฟิกที่กระจายตัวในพาธอื่นหรือคอนเทนเนอร์"
                 confirm_safe = c.get("confirm_safe") or "อัปเดตเป็นเวอร์ชันที่ได้รับแพตช์ความปลอดภัยล่าสุด"
 
                 sev_th_map = {
@@ -1363,63 +1366,80 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                     "Warning": "ระดับควรเฝ้าระวัง (Warning)"
                 }
                 cve_sev_th = sev_th_map.get(cve_sev, f"ระดับ {cve_sev}")
-                cve_conf = c.get("confidence") or ("Confirmed" if c.get("confirmed") else "Conditional")
 
                 cves_html += f"""
                 <div class="adv-finding-item">
                   <div class="adv-item-title" style="font-size: 16pt; font-weight: bold; color: #000000; margin-bottom: 3px;">
                     ข้อค้นพบ: {html.escape(cve_id)} — {html.escape(cve_name)}
                   </div>
-                  <div style="font-size: 15pt; color: #334155; margin-bottom: 6px;">
-                    ระดับความรุนแรง: {cve_sev_th} &nbsp;|&nbsp; 
-                    คะแนน CVSS: {cvss_str} &nbsp;|&nbsp;
-                    ความเชื่อมั่น: {html.escape(cve_conf)} &nbsp;|&nbsp;
-                    หมวดหมู่: {html.escape(cat)}
+                  <div style="font-size: 14.5pt; color: #334155; margin-bottom: 6px; line-height: 1.4;">
+                    ประเภทข้อค้นพบ: {html.escape(v_type)} &nbsp;|&nbsp; 
+                    ระดับความเชื่อมั่นหลักฐาน: {html.escape(e_conf)} <br>
+                    คะแนน CVSS: {html.escape(cvss_str)} (แหล่งอ้างอิง: {html.escape(score_src)}) &nbsp;|&nbsp; 
+                    Vendor Severity: {html.escape(vendor_sev)}
                   </div>
                   <p class="adv-para">
-                    จากการตรวจสอบบริการบนพอร์ต {html.escape(str(port_val or '-'))} พบว่า {html.escape(reason)} จัดเป็นข้อค้นพบ {cve_sev_th} โดยมีเงื่อนไขผลกระทบ: {html.escape(confirm_vuln)}
+                    จากการประเมินบริการบนพอร์ต {html.escape(str(port_val or '-'))} {html.escape(reason)}
                   </p>
                   <div class="adv-code-box">
-                    <div style="font-size: 15pt; color: #475569; margin-bottom: 2px;">คำสั่งสำหรับผู้ดูแลระบบใช้ตรวจสอบจริงบนเครื่อง (Host-Check):</div>
+                    <div style="font-size: 14pt; color: #1e293b; font-weight: bold; margin-bottom: 2px;">
+                      Host-based Verification Guide (คำแนะนำสำหรับผู้ดูแลระบบที่มีสิทธิ์ Root/Administrator):
+                    </div>
+                    <div style="font-size: 12.5pt; color: #64748b; margin-bottom: 4px;">
+                      *คำสั่งนี้จัดทำขึ้นเป็นแนวทางสำหรับผู้ดูแลระบบนำไปตรวจสอบคอนฟิกภายในเครื่องเป้าหมาย มิได้ถูกรันโดยเครื่องสแกน OPScaner จากภายนอกเครือข่าย*
+                    </div>
                     <pre>{html.escape(host_check)}</pre>
+                    <div style="font-size: 13.5pt; color: #334155; margin-top: 4px; line-height: 1.35;">
+                      • ผลลัพธ์ที่เข้าข่ายความเสี่ยง: {html.escape(exp_vuln)}<br>
+                      • ผลลัพธ์ที่ไม่พบความเสี่ยง: {html.escape(exp_safe)}<br>
+                      • ข้อจำกัดของคำสั่ง: {html.escape(cmd_limits)}
+                    </div>
                   </div>
                   <div class="adv-code-box">
-                    <div style="font-size: 15pt; color: #475569; margin-bottom: 2px;">แนวทางแก้ไขและเกณฑ์ความปลอดภัยที่แนะนำ:</div>
-                    <pre># คำแนะนำ: อัปเดตซอฟต์แวร์ {html.escape(cat)} ให้เป็นไปตามเกณฑ์ความปลอดภัย
-# เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(confirm_safe)}
+                    <div style="font-size: 14pt; color: #475569; margin-bottom: 2px;">แนวทางแก้ไขและเกณฑ์ความปลอดภัยที่แนะนำ:</div>
+                    <pre># แนวทางแก้ไข: {html.escape(confirm_safe)}
 # ควรสำรองข้อมูลและทดสอบในสภาพแวดล้อม Staging ก่อนปรับปรุงระบบจริง</pre>
                   </div>
                 </div>
                 """
 
             # If no specific CVEs matched but port has a critical/high/outdated runtime status (e.g. EOL PHP 7.4)
-            if not cves and (v_p in ("Critical", "High", "Medium", "Warning") or v_n in ("Critical", "High", "Medium", "Warning")):
+            if not cves and (v_p in ("Critical", "High", "Medium", "Warning", "Lifecycle Risk (EOL)", "Outdated") or v_n in ("Critical", "High", "Medium", "Warning")):
                 rt_version = h.get("runtime_version") or h.get("php_version") or h.get("node_version") or "ไม่ระบุเวอร์ชัน"
-                note_text = h.get("cveNote") or f"ตรวจพบการเปิดให้บริการซอฟต์แวร์เวอร์ชันที่มีความเสี่ยงหรือสิ้นสุดการสนับสนุน ({rt_version})"
+                note_text = h.get("cveNote") or f"ตรวจพบการเปิดให้บริการซอฟต์แวร์เวอร์ชันที่สิ้นสุดการสนับสนุนอย่างเป็นทางการ ({rt_version})"
                 h_check = (h.get("deep_audit") or {}).get("host_verify_cmd") or "php -v || node -v"
                 safe_crit = (h.get("deep_audit") or {}).get("safe_criteria") or "อัปเกรดเป็นเวอร์ชันล่าสุดที่ได้รับการสนับสนุนอย่างเป็นทางการ"
-
-                sev_label = "ระดับวิกฤต (Critical)" if (v_p == "Critical" or v_n == "Critical") else ("ระดับสูง (High)" if (v_p == "High" or v_n == "High") else "ระดับควรเฝ้าระวัง (Warning / Outdated)")
 
                 cves_html += f"""
                 <div class="adv-finding-item">
                   <div class="adv-item-title" style="font-size: 16pt; font-weight: bold; color: #000000; margin-bottom: 3px;">
-                    ข้อค้นพบ: สถานะซอฟต์แวร์และการหมดอายุการสนับสนุน ({html.escape(rt_version)})
+                    ข้อค้นพบ: ความเสี่ยงตามวงจรชีวิตซอฟต์แวร์และการหมดอายุการสนับสนุน ({html.escape(rt_version)})
                   </div>
-                  <div style="font-size: 15pt; color: #334155; margin-bottom: 6px;">
-                    ระดับความรุนแรง: {sev_label} &nbsp;|&nbsp;
+                  <div style="font-size: 14.5pt; color: #334155; margin-bottom: 6px; line-height: 1.4;">
+                    ประเภทข้อค้นพบ: Software Lifecycle Risk (EOL) &nbsp;|&nbsp;
+                    ระดับความเชื่อมั่นหลักฐาน: ตรวจพบเวอร์ชันจากภายนอก (Externally Observable Fingerprint) <br>
+                    ระดับความเสี่ยงตามนโยบาย: ระดับสูง (High - Outdated Lifecycle Risk) &nbsp;|&nbsp; 
                     สถานะ: สิ้นสุดระยะสนับสนุน (End-of-Life / EOL)
                   </div>
                   <p class="adv-para">
                     {html.escape(note_text)}
                   </p>
                   <div class="adv-code-box">
-                    <div style="font-size: 15pt; color: #475569; margin-bottom: 2px;">คำสั่งสำหรับผู้ดูแลระบบใช้ตรวจสอบจริงบนเครื่อง (Host-Check):</div>
+                    <div style="font-size: 14pt; color: #1e293b; font-weight: bold; margin-bottom: 2px;">
+                      Host-based Verification Guide (คำแนะนำสำหรับผู้ดูแลระบบที่มีสิทธิ์ Root/Administrator):
+                    </div>
+                    <div style="font-size: 12.5pt; color: #64748b; margin-bottom: 4px;">
+                      *คำสั่งนี้จัดทำขึ้นเป็นแนวทางสำหรับผู้ดูแลระบบนำไปตรวจสอบคอนฟิกภายในเครื่องเป้าหมาย มิได้ถูกรันโดยเครื่องสแกน OPScaner จากภายนอกเครือข่าย*
+                    </div>
                     <pre>{html.escape(h_check)}</pre>
+                    <div style="font-size: 13.5pt; color: #334155; margin-top: 4px;">
+                      • เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(safe_crit)}<br>
+                      • ข้อจำกัดของคำสั่ง: ตรวจสอบเวอร์ชัน CLI เริ่มต้นของระบบ แนะนำตรวจสอบแพ็กเกจที่ติดตั้งผ่าน dpkg / rpm เพิ่มเติม
+                    </div>
                   </div>
                   <div class="adv-code-box">
-                    <div style="font-size: 15pt; color: #475569; margin-bottom: 2px;">แนวทางแก้ไขและเกณฑ์ความปลอดภัยที่แนะนำ:</div>
-                    <pre># คำแนะนำ: วางแผนปรับปรุงและอัปเกรดซอฟต์แวร์เป็นเวอร์ชันที่ยังได้รับการบำรุงรักษา
+                    <div style="font-size: 14pt; color: #475569; margin-bottom: 2px;">แนวทางแก้ไขและเกณฑ์ความปลอดภัยที่แนะนำ:</div>
+                    <pre># แนวทางแก้ไข: วางแผนปรับปรุงและอัปเกรดซอฟต์แวร์เป็นเวอร์ชันที่ยังได้รับการบำรุงรักษา
 # เกณฑ์ความปลอดภัยที่แนะนำ: {html.escape(safe_crit)}</pre>
                   </div>
                 </div>
@@ -1536,27 +1556,29 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       </div>
         """
     else:
-        breakdown_parts = []
-        if crit_findings_count > 0:
-            breakdown_parts.append(f"ระดับวิกฤต (Critical) {crit_findings_count} รายการ")
-        if high_findings_count > 0:
-            breakdown_parts.append(f"ระดับสูง (High) {high_findings_count} รายการ")
-        if med_findings_count > 0:
-            breakdown_parts.append(f"ระดับปานกลาง (Medium) {med_findings_count} รายการ")
-        vuln_breakdown = f"จำแนกตามระดับความรุนแรง ได้แก่ {', '.join(breakdown_parts)}" if breakdown_parts else ""
-        cve_summary = f" ครอบคลุมรายการช่องโหว่ความมั่นคงปลอดภัยสากล (Unique CVEs) รวม {len(all_matched_cves)} รายการ" if all_matched_cves else ""
-        safe_tail = f" โดยมีอุปกรณ์ที่ไม่พบความเสี่ยงตามขอบเขตการตรวจประเมินจำนวน {safe_hosts_count} ระบบ" if safe_hosts_count > 0 else ""
+        tax_items = []
+        if confirmed_vulns_count > 0:
+            tax_items.append(f"<li>ช่องโหว่ที่ยืนยันผลกระทบได้ (Confirmed Vulnerabilities): {confirmed_vulns_count} รายการ (มีหลักฐานเชิงประจักษ์จากการทดสอบภายนอก เช่น RCE หรือไฟล์หลุด)</li>")
+        if conditional_findings_count > 0:
+            tax_items.append(f"<li>ข้อค้นพบตามเงื่อนไขสถาปัตยกรรม (Conditional Findings): {conditional_findings_count} รายการ (ตรวจพบบริการหรือเวอร์ชันที่ตรงกับช่องโหว่ ซึ่งต้องตรวจสอบคอนฟิกภายในเพิ่มเติม)</li>")
+        if lifecycle_risks_count > 0:
+            tax_items.append(f"<li>ความเสี่ยงตามวงจรชีวิตซอฟต์แวร์ (Software Lifecycle Risks - EOL): {lifecycle_risks_count} รายการ (ซอฟต์แวร์สิ้นสุดระยะสนับสนุนอย่างเป็นทางการ)</li>")
+        tax_list_html = f"""<ul class="adv-list" style="margin: 2px 0 4px 18px; line-height: 1.3;">{''.join(tax_items)}</ul>""" if tax_items else ""
+
+        cve_summary = f" โดยมีรายการช่องโหว่ความมั่นคงปลอดภัยสากลที่เกี่ยวข้อง (Unique CVEs) รวม {len(all_matched_cves)} รายการ" if all_matched_cves else ""
+        safe_tail = f" และมีอุปกรณ์ที่ไม่พบสัญญาณความเสี่ยงตามขอบเขตและระเบียบวิธีตรวจประเมินจำนวน {safe_hosts_count} ระบบ" if safe_hosts_count > 0 else ""
 
         exec_summary_html = f"""
-      <div class="adv-heading">สรุปผลการประเมินภาพรวมความเสี่ยงเชิงรุก</div>
-      <p class="adv-para">
-        รายงานฉบับนี้จัดทำขึ้นเพื่อแจ้งข้อค้นพบทางเทคนิคและแนวทางแก้ไขสำหรับผู้ดูแลระบบ โดยจากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในวง IP {html.escape(target_scope)} (รวมทั้งสิ้น {total_scanned} ระบบ) อ้างอิงตามระเบียบวิธี NIST SP 800-115, ฐานข้อมูลช่องโหว่สากล (CVE / NVD) และเอกสารอ้างอิงจากผู้พัฒนา
+      <div class="adv-heading" style="margin-bottom: 4px;">สรุปผลการประเมินภาพรวมความเสี่ยงเชิงรุก</div>
+      <p class="adv-para" style="margin-bottom: 4px;">
+        รายงานฉบับนี้จัดทำขึ้นเพื่อแจ้งข้อค้นพบทางเทคนิคสำหรับผู้ดูแลระบบ จากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในวง IP {html.escape(target_scope)} (รวม {total_scanned} ระบบ) อ้างอิงตามกรอบมาตรฐาน NIST SP 800-115, ฐานข้อมูลช่องโหว่สากล (CVE / NVD) และข้อกำหนด FIRST TLP v2.0
       </p>
-      <p class="adv-para">
-        ผลการประเมินพบระบบหรืออุปกรณ์ที่พบความเสี่ยง (Affected Assets) จำนวน {affected_hosts_count} ระบบ รวมข้อค้นพบความเสี่ยงทั้งหมด {total_findings_count} รายการ{cve_summary} ซึ่ง{vuln_breakdown}{safe_tail}
+      <p class="adv-para" style="margin-bottom: 3px;">
+        ผลการประเมินพบระบบหรืออุปกรณ์ที่พบความเสี่ยง (Affected Assets) จำนวน {affected_hosts_count} ระบบ รวมข้อค้นพบความเสี่ยงทั้งหมด {total_findings_count} รายการ{cve_summary} โดยจำแนกตามมาตรฐานการตรวจประเมิน (Assessment Taxonomy) ออกเป็นดังนี้:
       </p>
-      <p class="adv-para">
-        ทางทีมงานขอแนะนำให้ผู้ดูแลระบบเร่งตรวจสอบและดำเนินการแก้ไขตามลำดับความสำคัญ โดยควรเน้นไปที่ระบบที่มีหลักฐานยืนยันช่องโหว่ชัดเจน และเป็นระบบที่เชื่อมต่อหรือเปิดให้เข้าถึงได้จากเครือข่ายภายนอกก่อนเป็นอันดับแรก
+      {tax_list_html}
+      <p class="adv-para" style="margin-top: 3px; margin-bottom: 4px;">
+        {safe_tail.strip()} โดยทางทีมงานขอแนะนำให้ผู้ดูแลระบบเร่งดำเนินการแก้ไขตามลำดับความสำคัญ โดยเน้นข้อค้นพบลักษณะ Confirmed ก่อนเป็นอันดับแรก จากนั้นนำคำสั่งในคู่มือ Host-based Verification Guide ไปตรวจสอบคอนฟิกภายในสำหรับรายการ Conditional ต่อไป
       </p>
         """
         page2_heading = "รายละเอียดข้อค้นพบทางเทคนิคและแนวทางการแก้ไขจำแนกตามอุปกรณ์"
@@ -1627,7 +1649,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
       <div class="adv-doc-title">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
       <div class="adv-doc-meta">
-        รหัสอ้างอิง: {ref_id} &nbsp;|&nbsp; วันที่: {date_str} &nbsp;|&nbsp; ขอบเขต: {html.escape(target_scope)}
+        รหัสอ้างอิง: {ref_id} &nbsp;|&nbsp; วันที่: {date_str} &nbsp;|&nbsp; ขอบเขต: {html.escape(target_scope)} &nbsp;|&nbsp; เครื่องมือ: OPScaner Engine v2.0 (Non-intrusive Heuristic Scan)
       </div>
 
       <div class="adv-tlp-rule-box">

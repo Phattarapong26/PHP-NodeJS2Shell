@@ -944,7 +944,7 @@ async def probe_endpoint(
         }
 
         # Step 5: Evaluate & Return Classification
-        sev_order = {"Critical": 4, "High": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Patched for this CVE": 0, "Secure": 0}
+        sev_order = {"Critical": 4, "High": 3, "Lifecycle Risk (EOL)": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Patched for this CVE": 0, "Secure": 0}
 
         if is_node and is_php:
             v_php, note_php = evaluate_php_security(php_version_str or "PHP")

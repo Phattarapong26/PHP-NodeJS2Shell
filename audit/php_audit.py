@@ -26,18 +26,18 @@ def evaluate_php_security(version_str: str):
     """
     v = (version_str or "").lower().strip()
 
-    # PHP 5.x / 7.x: Critical (EOL upstream, unpatched against multiple historical CVEs)
+    # PHP 5.x / 7.x: Lifecycle Risk (EOL upstream)
     if any(pat in v for pat in ["php/5.", "php 5.", "5.4.", "5.5.", "5.6.", "php/7.", "php 7.", "7.0.", "7.1.", "7.2.", "7.3.", "7.4."]):
         return (
-            "Critical",
-            "PHP 5.x/7.x สิ้นสุดระยะสนับสนุนอย่างเป็นทางการ (End-of-Life) เสี่ยงต่อช่องโหว่สะสมหลายรายการ แนะนำอัปเกรดเป็น PHP เวอร์ชันที่ยังได้รับการสนับสนุน หรือตรวจสอบแพตช์ Backport ของระบบปฏิบัติการ"
+            "Lifecycle Risk (EOL)",
+            "PHP 5.x/7.x สิ้นสุดระยะสนับสนุนอย่างเป็นทางการ (End-of-Life / Lifecycle Risk) ขาดแพตช์ความปลอดภัยสะสม แนะนำวางแผนปรับปรุงสู่ PHP 8.2+ / 8.3+ หรือตรวจสอบ Security Backport ของระบบปฏิบัติการ"
         )
 
-    # PHP 8.0 / 8.1: Security EOL upstream
+    # PHP 8.0 / 8.1: Security EOL upstream (Lifecycle Risk)
     if any(pat in v for pat in ["php/8.0", "8.0.", "php/8.1", "8.1."]):
         return (
-            "Outdated",
-            "PHP 8.0/8.1 สิ้นสุดระยะสนับสนุนด้านความปลอดภัย (Security EOL) ควรตรวจสอบแพตช์ Backport ของระบบปฏิบัติการ หรือวางแผนปรับปรุงสู่ PHP 8.2+ / 8.3+"
+            "Lifecycle Risk (EOL)",
+            "PHP 8.0/8.1 สิ้นสุดระยะสนับสนุนด้านความปลอดภัย (Security EOL / Lifecycle Risk) ควรตรวจสอบแพตช์ Backport ของระบบปฏิบัติการ หรือวางแผนปรับปรุงสู่ PHP 8.2+ / 8.3+"
         )
 
     # PHP 8.2 / 8.3 / 8.4 / 8.5
