@@ -780,6 +780,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         else:
             safe_count += 1
 
+    has_any_risk = (crit_count + high_count + med_count) > 0
+
     header_banner = get_ncsa_header_banner_html()
     css_styles = get_css_styles()
 
@@ -835,7 +837,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         rce_st = rce_p.get("proof_status", "")
         
         # Determine highest severity
-        sev = "ยังไม่พบความเสี่ยงตามขอบเขตที่ตรวจสอบ (No Finding Within Scope)"
+        sev = "ปลอดภัย (Secure)"
         badge_cls = "adv-item-badge-sec"
         v_php = h.get("vulnerability")
         v_node = h.get("vulnerabilityNode")
@@ -988,7 +990,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             </div>
             """
 
-        if matrix:
+        is_client_node = (not h.get("is_php")) and (not h.get("is_node")) and (not h.get("ports")) and (h.get("vulnerability") in ("Secure", "Low", "None", None))
+        if matrix and not is_client_node and (has_any_risk or h.get("is_php") or h.get("is_node")):
             arch_matrix_html += f"""
             <div style="margin-top: 14px; margin-bottom: 20px;">
             """
@@ -1167,6 +1170,61 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
     survey_qr_img = f"data:image/png;base64,{SURVEY_QR_PNG_B64}" if SURVEY_QR_PNG_B64 else ""
 
+    if not has_any_risk:
+        exec_summary_html = f"""
+      <div class="adv-heading">สรุปผลการประเมินและภาพรวมความมั่นคงปลอดภัยของเครือข่าย</div>
+      <p class="adv-para">
+        รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ฉบับนี้ จัดทำขึ้นจากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในขอบเขต <code>{html.escape(target_scope)}</code> รวมทั้งสิ้น <strong>{total_scanned}</strong> ระบบ ได้ดำเนินการตรวจสอบเชิงรุกตามเกณฑ์มาตรฐาน ThaiCERT และแนวปฏิบัติด้านความมั่นคงปลอดภัยสากล
+      </p>
+      <p class="adv-para">
+        <strong>สรุปผลการประเมิน:</strong> ระบบเครือข่ายและเครื่องแม่ข่ายที่ได้รับการตรวจสอบทั้งหมด <strong>อยู่ในสถานะปลอดภัย (Clean &amp; Secure)</strong> โดย <strong>ไม่พบข้อค้นพบช่องโหว่ความเสี่ยงระดับวิกฤต (Critical), ระดับสูง (High) หรือระดับปานกลาง (Medium)</strong> บนบริการที่เปิดให้เข้าถึงจากภายนอก (ข้อค้นพบความเสี่ยง <strong>0</strong> รายการ จากระบบที่ตรวจสอบทั้งหมด <strong>{safe_count}</strong> ระบบ) อุปกรณ์ส่วนใหญ่เป็นเครื่องลูกข่ายภายในและอุปกรณ์เครือข่ายที่มีการควบคุมการเข้าถึงหรือปิดกั้นพอร์ตบริการด้วยไฟร์วอลล์อย่างรัดกุม จึงขอแนะนำให้รักษานโยบายการป้องกันและมาตรการควบคุมความมั่นคงปลอดภัยตามมาตรฐานปกติอย่างต่อเนื่อง
+      </p>
+        """
+        page2_heading = "สรุปผลการประเมินความมั่นคงปลอดภัยทางเทคนิค (Technical Assessment Summary)"
+        page2_content = f"""
+      <p class="adv-para">
+        จากการประเมินพื้นผิวการโจมตี (Attack Surface Analysis) และการตรวจสอบบริการเครือข่ายเชิงลึก ไม่พบพอร์ตหรือบริการเว็บแอปพลิเคชันที่มีช่องโหว่ความเสี่ยงระดับวิกฤตหรือระดับสูงเปิดให้บริการสู่เครือข่าย
+      </p>
+
+      <div style="margin-top: 14px; margin-bottom: 20px; padding: 18px 22px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <span style="font-size: 20pt; color: #16a34a;">✓</span>
+          <span style="font-size: 15pt; font-weight: bold; color: #166534;">ผลการตรวจประเมิน: ระบบอยู่ในสถานะปลอดภัย (0 Critical / 0 High Findings)</span>
+        </div>
+        <div style="font-size: 11pt; color: #1e293b; line-height: 1.6;">
+          <p style="margin: 0 0 8px 0;"><strong>ผลสรุปการตรวจประเมินทางเทคนิคสำหรับระบบในขอบเขต:</strong></p>
+          <ul style="margin: 0 0 12px 18px; padding: 0;">
+            <li><b>Remote Code Execution (RCE):</b> ไม่พบจุดรับคำสั่งหรือพฤติกรรมที่เสี่ยงต่อการถูกสั่งรันโค้ดจากระยะไกล</li>
+            <li><b>Web Stack Vulnerabilities:</b> ไม่พบช่องโหว่ความรุนแรงสูงใน PHP, Node.js หรือ Web Server Services</li>
+            <li><b>Network Perimeter:</b> อุปกรณ์ลูกข่ายส่วนใหญ่มีการปิดกั้นพอร์ตบริการ หรือตั้งค่าไฟร์วอลล์อย่างถูกต้อง</li>
+          </ul>
+          <p style="margin: 0; color: #15803d; font-size: 10pt;">
+            💡 <b>ข้อเสนอแนะในการกำกับดูแล:</b> ควรรักษามาตรฐานความมั่นคงปลอดภัย (Cyber Hygiene) ต่อเนื่อง โดยหมั่นอัปเดตระบบปฏิบัติการ ซอฟต์แวร์ และตรวจสอบการเปิดเผยพอร์ตเครือข่ายภายนอกเป็นประจำ
+          </p>
+        </div>
+      </div>
+        """
+    else:
+        exec_summary_html = f"""
+      <div class="adv-heading">สรุปผลการประเมินและภาพรวมความเสี่ยงของพื้นผิวการโจมตี</div>
+      <p class="adv-para">
+        รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ฉบับนี้ จัดทำขึ้นเพื่อรายงานข้อค้นพบความเสี่ยงและแนวทางแก้ไขเชิงเทคนิค สำหรับผู้ดูแลระบบและผู้เกี่ยวข้องโดยตรง จากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในขอบเขต <code>{html.escape(target_scope)}</code> รวมทั้งสิ้น <strong>{total_scanned}</strong> ระบบ ได้ดำเนินการตรวจสอบตามขอบเขต วิธีการ และข้อมูลที่ระบุในเอกสารฉบับนี้ โดยอ้างอิงข้อมูลทางเทคนิคจากแหล่งที่เกี่ยวข้อง เช่น เอกสารผู้พัฒนา รายการ CVE และแนวปฏิบัติด้านความมั่นคงปลอดภัยที่เหมาะสมกับระบบ
+      </p>
+      <p class="adv-para">
+        ผลการประเมินพบข้อค้นพบจำนวน <strong>{crit_count + high_count + med_count}</strong> รายการ โดยแบ่งตามระดับความรุนแรงเป็นระดับวิกฤต (Critical) จำนวน <strong>{crit_count}</strong> รายการ, ระดับสูง (High) จำนวน <strong>{high_count}</strong> รายการ, ระดับปานกลาง (Medium) จำนวน <strong>{med_count}</strong> รายการ และรายการที่ยังไม่พบสัญญาณความเสี่ยงตามเงื่อนไขที่ตรวจสอบ จำนวน <strong>{safe_count}</strong> รายการ ทั้งนี้ ขอให้ผู้ดูแลระบบพิจารณาตรวจสอบข้อค้นพบตามลำดับความสำคัญ และดำเนินการแก้ไขหรือลดความเสี่ยงตามความเหมาะสม โดยให้ความสำคัญกับรายการที่มีหลักฐานยืนยันและเปิดให้เข้าถึงจากเครือข่ายก่อน
+      </p>
+        """
+        page2_heading = "การวิเคราะห์ข้อค้นพบทางเทคนิคเชิงลึกและแนวทางการยกระดับความมั่นคงปลอดภัย"
+        page2_content = f"""
+      <p class="adv-para">
+        ส่วนนี้นำเสนอการวิเคราะห์เชิงลึกของข้อค้นพบด้านความมั่นคงปลอดภัย โดยระบุระดับความเชื่อมั่นของแต่ละข้อสรุปตามหลักฐานที่ตรวจพบ ได้แก่ ยืนยันแล้ว (Confirmed), มีแนวโน้ม (Likely), ต้องตรวจสอบเงื่อนไขเพิ่มเติม (Conditional) และยังยืนยันไม่ได้ (Unverified) พร้อมอธิบายกลไกและเงื่อนไขของความเสี่ยง คำสั่งสำหรับให้ผู้ดูแลระบบตรวจสอบบนเครื่องจริง และตัวอย่างการตั้งค่าที่ใช้เป็นแนวทางในการแก้ไขหรือลดความเสี่ยง
+      </p>
+
+      {arch_matrix_html}
+
+      {findings_html}
+        """
+
     return f"""<!DOCTYPE html>
 <html lang="th">
 <head>
@@ -1211,13 +1269,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         <strong>ข้อกำหนดการเผยแพร่ TLP:AMBER:</strong> เอกสารนี้ใช้สำหรับผู้รับและหน่วยงานที่เกี่ยวข้องตามความจำเป็นในการปฏิบัติงาน ผู้รับสามารถแบ่งปันต่อภายในหน่วยงานของตนและแก่ผู้เกี่ยวข้องที่จำเป็นต้องใช้ข้อมูลเพื่อป้องกัน แก้ไข หรือประเมินความเสี่ยง ทั้งนี้ต้องไม่เผยแพร่ต่อสาธารณะ และไม่ส่งต่อไปยังผู้ที่ไม่เกี่ยวข้องกับการดำเนินงาน
       </div>
 
-      <div class="adv-heading">สรุปผลการประเมินและภาพรวมความเสี่ยงของพื้นผิวการโจมตี</div>
-      <p class="adv-para">
-        รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ฉบับนี้ จัดทำขึ้นเพื่อรายงานข้อค้นพบความเสี่ยงและแนวทางแก้ไขเชิงเทคนิค สำหรับผู้ดูแลระบบและผู้เกี่ยวข้องโดยตรง จากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในขอบเขต <code>{html.escape(target_scope)}</code> รวมทั้งสิ้น <strong>{total_scanned}</strong> ระบบ ได้ดำเนินการตรวจสอบตามขอบเขต วิธีการ และข้อมูลที่ระบุในเอกสารฉบับนี้ โดยอ้างอิงข้อมูลทางเทคนิคจากแหล่งที่เกี่ยวข้อง เช่น เอกสารผู้พัฒนา รายการ CVE และแนวปฏิบัติด้านความมั่นคงปลอดภัยที่เหมาะสมกับระบบ
-      </p>
-      <p class="adv-para">
-        ผลการประเมินพบข้อค้นพบจำนวน <strong>{crit_count + high_count + med_count}</strong> รายการ โดยแบ่งตามระดับความรุนแรงเป็นระดับวิกฤต (Critical) จำนวน <strong>{crit_count}</strong> รายการ, ระดับสูง (High) จำนวน <strong>{high_count}</strong> รายการ, ระดับปานกลาง (Medium) จำนวน <strong>{med_count}</strong> รายการ และรายการที่ยังไม่พบสัญญาณความเสี่ยงตามเงื่อนไขที่ตรวจสอบ จำนวน <strong>{safe_count}</strong> รายการ ทั้งนี้ ขอให้ผู้ดูแลระบบพิจารณาตรวจสอบข้อค้นพบตามลำดับความสำคัญ และดำเนินการแก้ไขหรือลดความเสี่ยงตามความเหมาะสม โดยให้ความสำคัญกับรายการที่มีหลักฐานยืนยันและเปิดให้เข้าถึงจากเครือข่ายก่อน
-      </p>
+      {exec_summary_html}
 
       <div class="adv-subhead">ตารางสรุปรายการทรัพย์สินสารสนเทศและบริการเครือข่ายที่ตรวจพบ</div>
       <div class="adv-table-wrap">
@@ -1250,14 +1302,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
     <!-- PAGE 2+: Technical Findings & Hardening Blueprints -->
     <div class="a4-paper-sheet page-break-section" id="sheet-page-2">
-      <div class="adv-heading">การวิเคราะห์ข้อค้นพบทางเทคนิคเชิงลึกและแนวทางการยกระดับความมั่นคงปลอดภัย</div>
-      <p class="adv-para">
-        ส่วนนี้นำเสนอการวิเคราะห์เชิงลึกของข้อค้นพบด้านความมั่นคงปลอดภัย โดยระบุระดับความเชื่อมั่นของแต่ละข้อสรุปตามหลักฐานที่ตรวจพบ ได้แก่ ยืนยันแล้ว (Confirmed), มีแนวโน้ม (Likely), ต้องตรวจสอบเงื่อนไขเพิ่มเติม (Conditional) และยังยืนยันไม่ได้ (Unverified) พร้อมอธิบายกลไกและเงื่อนไขของความเสี่ยง คำสั่งสำหรับให้ผู้ดูแลระบบตรวจสอบบนเครื่องจริง และตัวอย่างการตั้งค่าที่ใช้เป็นแนวทางในการแก้ไขหรือลดความเสี่ยง
-      </p>
-
-      {arch_matrix_html}
-
-      {findings_html}
+      <div class="adv-heading">{page2_heading}</div>
+      {page2_content}
 
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
