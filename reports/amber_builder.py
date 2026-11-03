@@ -1431,10 +1431,6 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         </table>
       </div>
 
-      <div style="margin-top: 10px; padding: 10px 14px; background: #f8fafc; border-left: 3.5px solid #94a3b8; border-radius: 4px; font-size: 16pt; line-height: 1.38; color: #475569; text-align: justify; text-justify: inter-cluster;">
-        <strong>ข้อสงวนสิทธิ์และข้อพึงระวัง:</strong> รายงานฉบับนี้จัดทำขึ้นโดยอ้างอิงจากข้อมูลเชิงเทคนิคตามขอบเขตและช่วงเวลาที่ตรวจประเมินเท่านั้น มาตรการแก้ไขมีจุดมุ่งหมายเพื่อยกระดับความมั่นคงปลอดภัย โดยก่อนดำเนินการปรับปรุงการตั้งค่าบนระบบงานจริง ผู้ดูแลระบบควรทดสอบในสภาพแวดล้อมจำลอง (Staging Environment) และจัดทำสำเนาสำรองข้อมูล (Backup) ให้เรียบร้อย
-      </div>
-
       <div class="sheet-footer no-print">
         <div class="sheet-footer-line"></div>
         <div class="sheet-footer-row">
