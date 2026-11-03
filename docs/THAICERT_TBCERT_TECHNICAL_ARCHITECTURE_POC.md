@@ -14,7 +14,7 @@
 4. [การประเมินสถาปัตยกรรม 8 กลุ่มของ ThaiCERT (8 System Groups Architecture Matrix)](#4-การประเมินสถาปัตยกรรม-8-กลุ่มของ-thaicert)
 5. [การวิเคราะห์ 5 ห่วงโซ่ความมั่นคงปลอดภัย (5 Defensive Security Chains Modeling)](#5-การวิเคราะห์-5-ห่วงโซ่ความมั่นคงปลอดภัย)
 6. [เครื่องมือย่อยตรวจสอบเชิงประจักษ์แบบหลายเทคโนโลยี (Multi-Stack Active Verification Sub-Tools)](#6-เครื่องมือย่อยตรวจสอบเชิงประจักษ์แบบหลายเทคโนโลยี)
-7. [การวิเคราะห์เปรียบเทียบเชิงลึก: OPScaner vs CybersRMUTL (security-audit-toolkit)](#7-การวิเคราะห์เปรียบเทียบเชิงลึก-opscaner-vs-cybersrmutl)
+7. [การวิเคราะห์เปรียบเทียบเชิงลึก: OPScaner vs สคริปต์ตรวจสอบแบบดั้งเดิม](#7-การวิเคราะห์เปรียบเทียบเชิงลึก-opscaner-vs-สคริปต์ตรวจสอบแบบดั้งเดิม)
 8. [สิ่งที่ส่งมอบและโครงสร้างข้อมูลทางเทคนิค (Deliverables & Data Telemetry)](#8-สิ่งที่ส่งมอบและโครงสร้างข้อมูลทางเทคนิค)
 
 ---
@@ -186,11 +186,11 @@ OPScaner เป็นเครื่องมือแรกที่นำ **Th
 
 ---
 
-## 7. การวิเคราะห์เปรียบเทียบเชิงลึก: OPScaner vs CybersRMUTL (security-audit-toolkit)
+## 7. การวิเคราะห์เปรียบเทียบเชิงลึก: OPScaner vs สคริปต์ตรวจสอบแบบดั้งเดิม
 
-| มิติการเปรียบเทียบ | 🛡️ CybersRMUTL (security-audit-toolkit) | 🏛️ OPScaner (ThaiCERT / TBCERT Architecture) |
+| มิติการเปรียบเทียบ | 🛡️ สคริปต์ตรวจสอบทั่วไป (Traditional Audit Scripts) | 🏛️ OPScaner (Enterprise Architecture) |
 | :--- | :--- | :--- |
-| **สถาปัตยกรรมและอินเทอร์เฟซ** | Python Script ไฟล์เดียว (~9.6k บรรทัด) รันผ่าน Terminal CLI / Curses Menu | Web Application สมบูรณ์แบบ (Flask Backend + Docker Container + Neumorphic Real-time Dashboard) |
+| **สถาปัตยกรรมและอินเทอร์เฟซ** | Python Script ไฟล์เดียว รันผ่าน Terminal CLI / Curses Menu | Web Application สมบูรณ์แบบ (Flask Backend + Docker Container + Neumorphic Real-time Dashboard) |
 | **ปรัชญาการตรวจสอบ (Audit Philosophy)** | **Offensive PoC Execution:** เน้นการยิงเจาะจริงเพื่อหาหลักฐานการรันคำสั่ง (RCE Proof) | **Evidence-Based Architectural Modeling:** จำลอง Exploit Chains ละเอียด 6 ขั้นตอน และวิเคราะห์จุดตัดตอนความเสี่ยง |
 | **การจำแนกประเภทเป้าหมาย** | **One-Size-Fits-All:** ทุกเป้าหมายถูกสแกนด้วยรูปแบบเดียวกัน ไม่ได้แยกแยะกลุ่มระบบ | **8 ThaiCERT Target Groups:** คัดกรองเป้าหมายเข้าสู่ 8 สถาปัตยกรรมตามข้อกำหนดของ ThaiCERT อัตโนมัติ |
 | **การจัดการอุปกรณ์ Non-Web / IoT** | สแกนพอร์ต 80/443 ตามปกติ อาจส่งคำขอ PHP ใส่เครื่องพิมพ์หรือเราเตอร์ | มี **Embedded Appliance Probe** ตรวจสอบไส้ในไบนารี ยืนยันการไร้ PHP Engine และตัด False Positive เป็น 0 |
