@@ -90,13 +90,17 @@ def build_pdf_footer_overlay(total_pages: int) -> io.BytesIO:
         agency_text = "รายงานประเมินความมั่นคงปลอดภัยไซเบอร์ (Cybersecurity Technical Assessment Report)"
         c.drawString(margin_left, 24, agency_text)
 
-        # 3. Center TLP:AMBER Symbol (Clean text, no background box)
+        # 3. Center TLP:AMBER with vector dot indicator (Scalable vector, zero missing glyphs / tofu)
         cx = page_w / 2.0
-        tlp_text = "TLP:AMBER  ●"
-        c.setFont(font_name, 9)
-        c.setFillColorRGB(0.85, 0.55, 0.04) # amber color
-        tw = c.stringWidth(tlp_text, font_name, 9)
-        c.drawString(cx - (tw / 2.0), 24, tlp_text)
+        tlp_text = "TLP:AMBER"
+        c.setFont(bold_name, 9)
+        c.setFillColorRGB(0.85, 0.55, 0.04)  # amber color
+        tw = c.stringWidth(tlp_text, bold_name, 9)
+        total_w = tw + 8  # text + gap + dot
+        start_x = cx - (total_w / 2.0)
+        c.drawString(start_x, 24, tlp_text)
+        # Vector dot drawn dynamically (never produces missing glyphs)
+        c.circle(start_x + tw + 6, 27, 2.2, fill=1, stroke=0)
 
         # 4. Right Page Number
         c.setFont(font_name, 10)

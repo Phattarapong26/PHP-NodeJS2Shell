@@ -496,8 +496,9 @@ def get_css_styles() -> str:
     .adv-table th {
       border: 1px solid #94a3b8 !important;
       background: transparent !important;
-      padding: 6px 8px;
-      font-size: 16pt !important;
+      padding: 4px 6px !important;
+      font-size: 15pt !important;
+      line-height: 1.25 !important;
       font-weight: normal !important;
       text-align: center;
       color: #000000;
@@ -520,8 +521,9 @@ def get_css_styles() -> str:
     .adv-table td {
       border: 1px solid #94a3b8 !important;
       background: transparent !important;
-      padding: 6px 8px;
-      font-size: 16pt !important;
+      padding: 4px 6px !important;
+      font-size: 15pt !important;
+      line-height: 1.25 !important;
       font-weight: normal !important;
       color: #000000;
       vertical-align: top;
@@ -539,14 +541,28 @@ def get_css_styles() -> str:
       page-break-inside: auto;
     }
 
+    .adv-port-section {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      margin-top: 14px;
+      margin-bottom: 14px;
+    }
+
+    .adv-precond-box {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      margin-top: 6px;
+      margin-bottom: 10px;
+    }
+
     .adv-finding-item {
       margin-top: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       padding: 4px 0;
       background: transparent !important;
       border: none !important;
-      break-inside: auto;
-      page-break-inside: auto;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
     }
 
     .adv-finding-head {
@@ -562,11 +578,15 @@ def get_css_styles() -> str:
       background: transparent !important;
     }
 
-    .adv-item-title {
+    .adv-item-title,
+    .adv-port-title,
+    .adv-device-title {
       font-size: 16pt !important;
       font-weight: bold !important;
       color: #000000;
       line-height: 1.35;
+      break-after: avoid !important;
+      page-break-after: avoid !important;
     }
 
     /* Severity Text Labels: Text color only, Strictly NO BACKGROUND, Normal Weight */
@@ -755,7 +775,7 @@ def get_css_styles() -> str:
         page-break-inside: avoid !important;
       }
 
-      .adv-heading, .adv-subhead {
+      .adv-heading, .adv-subhead, .adv-device-title, .adv-port-title, .adv-item-title {
         break-after: avoid !important;
         page-break-after: avoid !important;
         break-inside: avoid !important;
@@ -778,7 +798,10 @@ def get_css_styles() -> str:
         border: 1px solid #94a3b8 !important;
       }
 
-      .adv-code-box {
+      .adv-code-box,
+      .adv-finding-item,
+      .adv-port-section,
+      .adv-precond-box {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
@@ -931,7 +954,10 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 if p and p not in all_ports:
                     all_ports.append(p)
         sorted_ports = sorted(all_ports)
-        if len(sorted_ports) > 1:
+        if len(sorted_ports) > 4:
+            # Pair ports: 2 ports per line for compact readability
+            h_ports = "<br>".join(", ".join(html.escape(str(p)) for p in sorted_ports[i:i+2]) for i in range(0, len(sorted_ports), 2))
+        elif len(sorted_ports) > 1:
             h_ports = "<br>".join(html.escape(str(p)) for p in sorted_ports)
         elif sorted_ports:
             h_ports = html.escape(str(sorted_ports[0]))
@@ -1002,6 +1028,10 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         if dev_name in ("โฮสต์เครื่องตรวจการ (Host Machine)", "โฮสต์เครื่องตรวจการ", "Host Machine") or "เครื่องตรวจการ" in dev_name:
             dev_name = "เครื่องนี้"
 
+        display_dev_name = dev_name
+        if "Private Wi-Fi" in display_dev_name:
+            display_dev_name = "อุปกรณ์ไร้สาย (Private Wi-Fi)"
+
         tech_parts = []
         for h in p_hosts:
             if h.get("php") and f"PHP {h.get('php')}" not in tech_parts:
@@ -1013,12 +1043,12 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 tech_parts.append(ws)
         tech_str = " · ".join(tech_parts)
 
-        mac_badge = f'<div style="font-size: 13pt; color: #64748b;">MAC: {html.escape(macs[0])}</div>' if macs else ""
-        service_badge = f'<div style="font-size: 15pt; color: #475569; margin-top: 1px;">บริการ: {html.escape(tech_str)}</div>' if tech_str else ""
+        mac_badge = f'<div style="font-size: 11pt; color: #64748b; line-height: 1.15;">MAC: {html.escape(macs[0])}</div>' if macs else ""
+        service_badge = f'<div style="font-size: 13pt; color: #475569; margin-top: 1px; line-height: 1.2;">บริการ: {html.escape(tech_str)}</div>' if tech_str else ""
 
         dev_service_cell = f"""
         <div>
-          <div style="font-size: 16pt; color: #000000;">{html.escape(dev_name)}</div>
+          <div style="font-size: 15pt; color: #000000; line-height: 1.2;">{html.escape(display_dev_name)}</div>
           {service_badge}
           {mac_badge}
         </div>
@@ -1227,9 +1257,9 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             precond_html = ""
             if precond_rows:
                 precond_html = f"""
-                <div style="margin-top: 6px; margin-bottom: 10px;">
-                  <div style="font-size: 15pt; color: #1e293b; margin-bottom: 2px;">
-                    ตารางประเมินเงื่อนไขจำเป็นทางสถาปัตยกรรม (Architectural Preconditions) พอร์ต {html.escape(str(port_val or '-'))}:
+                <div class="adv-precond-box" style="margin-top: 6px; margin-bottom: 10px; break-inside: avoid; page-break-inside: avoid;">
+                  <div style="font-size: 15pt; font-weight: bold; color: #1e293b; margin-bottom: 2px; break-after: avoid; page-break-after: avoid;">
+                    การตรวจพิสูจน์เงื่อนไขสภาพแวดล้อม (Environmental Verification) พอร์ต {html.escape(str(port_val or '-'))}:
                   </div>
                   <table style="width: 100%; font-size: 15pt; border-collapse: collapse; border: none;">
                     {precond_rows}
@@ -1350,16 +1380,17 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                         </div>
                         """
 
-            # Combine port section
+            # Combine port section (only render if there are actionable findings on this port)
+            port_content = f"{proof_html}{precond_html}{cves_html}{session_html}".strip()
+            if not port_content:
+                continue
+
             host_port_findings_html += f"""
-            <div style="margin-top: 14px; margin-bottom: 14px;">
-              <div class="adv-port-title" style="font-size: 16pt; font-weight: bold; color: #000000; margin-bottom: 6px;">
+            <div class="adv-port-section" style="margin-top: 14px; margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid;">
+              <div class="adv-port-title" style="font-size: 16pt; font-weight: bold; color: #000000; margin-bottom: 6px; break-after: avoid; page-break-after: avoid;">
                 พอร์ตบริการ: {html.escape(str(port_val or '-'))} — {html.escape(port_service_name)}
               </div>
-              {proof_html}
-              {precond_html}
-              {cves_html}
-              {session_html}
+              {port_content}
             </div>
             """
 
@@ -1463,7 +1494,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         page2_heading = "รายละเอียดข้อค้นพบทางเทคนิคและแนวทางการแก้ไขจำแนกตามอุปกรณ์"
         page2_content = f"""
       <p class="adv-para">
-        ส่วนนี้นำเสนอรายละเอียดเชิงเทคนิคของข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยโดยจำแนกตามอุปกรณ์ที่ตรวจพบ เพื่อให้ผู้ดูแลระบบเห็นภาพรวมความเสี่ยงและรายละเอียดเฉพาะของแต่ละอุปกรณ์อย่างชัดเจน พร้อมการจัดกลุ่มตามเกณฑ์ ThaiCERT สถาปัตยกรรมระบบ คำสั่งตรวจสอบจริงบนเครื่อง (Host-Check) และแนวทางการแก้ไขที่เหมาะสมกับอุปกรณ์นั้นๆ
+        ส่วนนี้นำเสนอรายละเอียดเชิงเทคนิคของข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยโดยจำแนกตามอุปกรณ์ที่ตรวจพบ เพื่อให้ผู้ดูแลระบบเห็นภาพรวมความเสี่ยงและรายละเอียดเฉพาะของแต่ละอุปกรณ์อย่างชัดเจน พร้อมข้อมูลบริการที่เปิด คำสั่งตรวจสอบจริงบนเครื่อง (Host-Check) และแนวทางการแก้ไขที่เหมาะสมกับอุปกรณ์นั้นๆ
       </p>
 
       {vulnerable_devices_html}
