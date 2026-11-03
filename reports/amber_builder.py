@@ -53,7 +53,7 @@ def get_tlp_amber_traffic_light_html() -> str:
         <span class="ncsa-tlp-circle" style="background: #64748b; width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
       </div>
       <div style="font-size: 12pt; color: #64748b; margin-top: 2px;">
-        จำกัดการเผยแพร่ภายในหน่วยงาน
+        จำกัดการเผยแพร่ตามหลัก Need-to-know
       </div>
     </div>
     """
@@ -775,6 +775,30 @@ def get_css_styles() -> str:
         page-break-inside: avoid !important;
       }
 
+      #sheet-references .adv-list li {
+        font-size: 14pt !important;
+        line-height: 1.25 !important;
+        margin-bottom: 2px !important;
+        padding-left: 0.6cm !important;
+      }
+
+      #sheet-references .adv-para {
+        font-size: 14pt !important;
+        line-height: 1.3 !important;
+        margin-bottom: 4px !important;
+      }
+
+      #sheet-references .adv-heading {
+        font-size: 16pt !important;
+        margin-bottom: 4px !important;
+      }
+
+      #sheet-references .adv-subhead {
+        font-size: 15pt !important;
+        margin-top: 6px !important;
+        margin-bottom: 2px !important;
+      }
+
       .adv-heading, .adv-subhead, .adv-device-title, .adv-port-title, .adv-item-title {
         break-after: avoid !important;
         page-break-after: avoid !important;
@@ -885,7 +909,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
     ref_id = f"NCSA-AMBER-{now.year}-{int(now.timestamp()) % 10000:04d}"
 
     target_scope = scan_report_data.get("target") or scan_report_data.get("target_id") or scan_report_data.get("subnet") or "ระบบสารสนเทศเป้าหมาย"
-    hosts_list = scan_report_data.get("hosts", [])
+    hosts_list = scan_report_data.get("hosts") or scan_report_data.get("all_hosts") or scan_report_data.get("results") or []
     if not hosts_list and "deep_audit" in scan_report_data:
         hosts_list = [scan_report_data]
 
@@ -896,50 +920,99 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         hosts_by_ip.setdefault(ip, []).append(h)
 
     total_scanned = len(hosts_by_ip) if len(hosts_by_ip) > 0 else len(hosts_list)
-    crit_count = 0
-    high_count = 0
-    med_count = 0
-    safe_count = 0
+    affected_hosts_count = 0
+    safe_hosts_count = 0
+
+    total_findings_count = 0
+    crit_findings_count = 0
+    high_findings_count = 0
+    med_findings_count = 0
 
     all_matched_cves = []
-    
-    # Calculate summary counts per unique host
+    seen_finding_keys = set()
+
+    # Calculate rigorous metrics per host and across all findings (scalable & dynamic)
     for ip, p_hosts in hosts_by_ip.items():
-        host_has_crit = False
-        host_has_high = False
-        host_has_med = False
+        host_is_affected = False
 
         for h in p_hosts:
-            v_php = h.get("vulnerability")
-            v_node = h.get("vulnerabilityNode")
+            port_val = h.get("port")
             da = h.get("deep_audit") or {}
-            v_nginx = (da.get("nginx_audit") or {}).get("severity", "Secure")
             rce_p = h.get("rce_proof") or da.get("rce_proof") or {}
             rce_st = rce_p.get("proof_status", "")
-
+            v_php = h.get("vulnerability")
+            v_node = h.get("vulnerabilityNode")
+            v_nginx = (da.get("nginx_audit") or {}).get("severity", "Secure")
             cves = h.get("matched_cves") or []
+            chains = (da.get("security_chains") or {}).get("chains") or (h.get("security_chains") or {}).get("chains") or {}
+
+            # 1. RCE Proof finding
+            if rce_p.get("is_rce_proved") or rce_st == "RCE_CONFIRMED":
+                f_key = (ip, port_val, "RCE")
+                if f_key not in seen_finding_keys:
+                    seen_finding_keys.add(f_key)
+                    crit_findings_count += 1
+                    total_findings_count += 1
+                    host_is_affected = True
+            elif rce_st in ("CANARY_CONFIRMED", "CONFIRMED_LFI"):
+                f_key = (ip, port_val, "LFI")
+                if f_key not in seen_finding_keys:
+                    seen_finding_keys.add(f_key)
+                    high_findings_count += 1
+                    total_findings_count += 1
+                    host_is_affected = True
+
+            # 2. CVE findings
             for c in cves:
                 c_id = c.get("id") or c.get("cve")
                 if c_id and c_id not in [x.get("id") or x.get("cve") for x in all_matched_cves]:
                     all_matched_cves.append(c)
+                f_key = (ip, port_val, c_id)
+                if f_key not in seen_finding_keys:
+                    seen_finding_keys.add(f_key)
+                    c_sev = c.get("severity", "High")
+                    if c_sev == "Critical":
+                        crit_findings_count += 1
+                    elif c_sev == "High":
+                        high_findings_count += 1
+                    else:
+                        med_findings_count += 1
+                    total_findings_count += 1
+                    host_is_affected = True
 
-            if rce_p.get("is_rce_proved") or rce_st == "RCE_CONFIRMED" or "Critical" in [v_php, v_node, v_nginx]:
-                host_has_crit = True
-            elif rce_st in ("CANARY_CONFIRMED", "CONFIRMED_LFI") or "High" in [v_php, v_node, v_nginx]:
-                host_has_high = True
-            elif "Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]:
-                host_has_med = True
+            # 3. Standalone Outdated / EOL finding if no CVEs on this port
+            if not cves and (v_php in ("Critical", "High", "Medium", "Warning") or v_node in ("Critical", "High", "Medium", "Warning")):
+                f_key = (ip, port_val, "EOL_RUNTIME")
+                if f_key not in seen_finding_keys:
+                    seen_finding_keys.add(f_key)
+                    if v_php == "Critical" or v_node == "Critical":
+                        crit_findings_count += 1
+                    elif v_php == "High" or v_node == "High":
+                        high_findings_count += 1
+                    else:
+                        med_findings_count += 1
+                    total_findings_count += 1
+                    host_is_affected = True
 
-        if host_has_crit:
-            crit_count += 1
-        elif host_has_high:
-            high_count += 1
-        elif host_has_med:
-            med_count += 1
+            # 4. Actionable security chains
+            for ch_tag, ch_data in chains.items():
+                if ch_data.get("verdict_code") in ("CONFIRMED", "VULN", "ARCHITECTURAL_RISK"):
+                    f_key = (ip, port_val, f"CHAIN_{ch_tag}")
+                    if f_key not in seen_finding_keys:
+                        seen_finding_keys.add(f_key)
+                        total_findings_count += 1
+                        host_is_affected = True
+                        if ch_data.get("verdict_code") in ("CONFIRMED", "VULN"):
+                            high_findings_count += 1
+                        else:
+                            med_findings_count += 1
+
+        if host_is_affected:
+            affected_hosts_count += 1
         else:
-            safe_count += 1
+            safe_hosts_count += 1
 
-    has_any_risk = (crit_count + high_count + med_count) > 0
+    has_any_risk = (affected_hosts_count > 0 or total_findings_count > 0)
 
     header_banner = get_ncsa_header_banner_html()
     css_styles = get_css_styles()
@@ -969,7 +1042,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         web_srvs = []
         macs = []
         primary_groups = []
-        host_highest_sev = "ปลอดภัย (Secure)"
+        host_highest_sev = "ไม่พบความเสี่ยง"
         host_badge_cls = "adv-item-badge-sec"
 
         for h in p_hosts:
@@ -1003,7 +1076,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             elif (rce_st in ("CANARY_CONFIRMED", "CONFIRMED_LFI") or "High" in [v_php, v_node, v_nginx]) and "Critical" not in host_highest_sev:
                 host_highest_sev = "สูง (High - LFI Confirmed)" if rce_st in ("CANARY_CONFIRMED", "CONFIRMED_LFI") else "สูง (High)"
                 host_badge_cls = "adv-item-badge-high"
-            elif ("Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]) and host_highest_sev == "ปลอดภัย (Secure)":
+            elif ("Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]) and host_highest_sev == "ไม่พบความเสี่ยง":
                 host_highest_sev = "ปานกลาง (Medium)"
                 host_badge_cls = "adv-item-badge-med"
 
@@ -1076,7 +1149,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         host_is_vuln = False
         host_rce_active = False
         host_rce_status = ""
-        host_max_sev = "ปลอดภัย (Secure)"
+        host_max_sev = "ไม่พบความเสี่ยง"
         host_badge_cls = "adv-item-badge-sec"
 
         for h in p_hosts:
@@ -1109,12 +1182,12 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                     host_badge_cls = "adv-item-badge-crit"
             elif "High" in [v_php, v_node, v_nginx]:
                 host_is_vuln = True
-                if host_max_sev in ("ปลอดภัย (Secure)", "ระดับปานกลาง (Medium)"):
+                if host_max_sev in ("ไม่พบความเสี่ยง", "ระดับปานกลาง (Medium)"):
                     host_max_sev = "ระดับสูง (High)"
                     host_badge_cls = "adv-item-badge-high"
             elif "Medium" in [v_php, v_node, v_nginx] or "Warning" in [v_php, v_node]:
                 host_is_vuln = True
-                if host_max_sev == "ปลอดภัย (Secure)":
+                if host_max_sev == "ไม่พบความเสี่ยง":
                     host_max_sev = "ระดับปานกลาง (Medium)"
                     host_badge_cls = "adv-item-badge-med"
 
@@ -1274,6 +1347,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 cve_name = c.get("name") or "ช่องโหว่ความมั่นคงปลอดภัย"
                 cve_sev = c.get("severity") or "High"
                 cvss = c.get("cvss") or 7.5
+                cvss_ver = c.get("cvss_version") or ("CVSS v4.0" if float(cvss) >= 9.0 else "CVSS v3.1")
+                cvss_str = f"{cvss} ({cvss_ver})"
                 cat = c.get("category") or "Web Stack"
                 reason = c.get("reason") or c.get("desc") or "ตรวจพบเวอร์ชันซอฟต์แวร์ที่ตรงกับเงื่อนไขความเสี่ยง"
                 host_check = c.get("host_check") or "php -v || node -v || nginx -v"
@@ -1297,7 +1372,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                   </div>
                   <div style="font-size: 15pt; color: #334155; margin-bottom: 6px;">
                     ระดับความรุนแรง: {cve_sev_th} &nbsp;|&nbsp; 
-                    คะแนน CVSS: {cvss} &nbsp;|&nbsp;
+                    คะแนน CVSS: {cvss_str} &nbsp;|&nbsp;
                     ความเชื่อมั่น: {html.escape(cve_conf)} &nbsp;|&nbsp;
                     หมวดหมู่: {html.escape(cat)}
                   </div>
@@ -1421,16 +1496,16 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         """
 
     survey_qr_img = f"data:image/png;base64,{SURVEY_QR_PNG_B64}" if SURVEY_QR_PNG_B64 else ""
-    total_vulns = crit_count + high_count + med_count
+    total_vulns = total_findings_count
 
     if not has_any_risk:
         exec_summary_html = f"""
       <div class="adv-heading">สรุปผลการประเมินภาพรวมความปลอดภัยเชิงรุก</div>
       <p class="adv-para">
-        รายงานฉบับนี้จัดทำขึ้นเพื่อแจ้งผลการตรวจสอบความมั่นคงปลอดภัยสำหรับผู้ดูแลระบบ โดยจากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในวง IP {html.escape(target_scope)} (รวมทั้งสิ้น {total_scanned} ระบบ) อ้างอิงตามเกณฑ์มาตรฐานความปลอดภัยสากลและข้อมูลช่องโหว่ (CVE)
+        รายงานฉบับนี้จัดทำขึ้นเพื่อแจ้งผลการตรวจสอบความมั่นคงปลอดภัยสำหรับผู้ดูแลระบบ โดยจากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในวง IP {html.escape(target_scope)} (รวมทั้งสิ้น {total_scanned} ระบบ) อ้างอิงตามเกณฑ์มาตรฐานความปลอดภัยสากล NIST SP 800-115 และข้อมูลช่องโหว่ (CVE)
       </p>
       <p class="adv-para">
-        ผลการตรวจสอบพบว่า ระบบทั้งหมดอยู่ในสถานะปลอดภัย (Clean &amp; Secure) โดยไม่พบช่องโหว่ความเสี่ยงระดับวิกฤต (Critical), ระดับสูง (High) หรือระดับปานกลาง (Medium) บนบริการที่เปิดให้เข้าถึงได้ อุปกรณ์ส่วนใหญ่เป็นเครื่องลูกข่ายภายในและอุปกรณ์เครือข่ายที่มีการปิดกั้นพอร์ตบริการด้วยไฟร์วอลล์อย่างถูกต้อง
+        ผลการตรวจสอบพบว่า ระบบทั้งหมดอยู่ในสถานะไม่พบสัญญาณความเสี่ยงตามขอบเขตการตรวจประเมิน โดยไม่พบช่องโหว่ความเสี่ยงระดับวิกฤต (Critical), ระดับสูง (High) หรือระดับปานกลาง (Medium) บนบริการที่เปิดให้เข้าถึงได้ อุปกรณ์ส่วนใหญ่เป็นเครื่องลูกข่ายภายในและอุปกรณ์เครือข่ายที่มีการปิดกั้นพอร์ตบริการด้วยไฟร์วอลล์อย่างถูกต้อง
       </p>
       <p class="adv-para">
         ทางทีมงานขอแนะนำให้ผู้ดูแลระบบรักษาระดับการป้องกันตามมาตรฐานความปลอดภัย (Cyber Hygiene) อย่างต่อเนื่อง โดยหมั่นตรวจสอบการเปิดเผยพอร์ตบริการและอัปเดตระบบตามรอบการบำรุงรักษาปกติ
@@ -1445,7 +1520,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       <div style="margin-top: 14px; margin-bottom: 20px;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
           <span style="font-size: 18pt; color: #16a34a;">✓</span>
-          <span style="font-size: 16pt; color: #166534;">ผลการตรวจประเมิน: ระบบอยู่ในสถานะปลอดภัย ไม่พบช่องโหว่ความเสี่ยงระดับวิกฤตหรือระดับสูง</span>
+          <span style="font-size: 16pt; color: #166534;">ผลการตรวจประเมิน: ไม่พบข้อค้นพบความเสี่ยงระดับวิกฤตหรือระดับสูงตามขอบเขตการตรวจสอบ</span>
         </div>
         <div style="font-size: 16pt; color: #1e293b; line-height: 1.6;">
           <p style="margin: 0 0 8px 0;">ผลสรุปการตรวจประเมินทางเทคนิคสำหรับระบบในขอบเขต:</p>
@@ -1461,31 +1536,24 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       </div>
         """
     else:
-        if crit_count == total_vulns and crit_count > 0:
-            vuln_breakdown = "ซึ่งทั้งหมดอยู่ในระดับวิกฤต (Critical)"
-        elif high_count == total_vulns and high_count > 0:
-            vuln_breakdown = "ซึ่งทั้งหมดอยู่ในระดับสูง (High)"
-        elif med_count == total_vulns and med_count > 0:
-            vuln_breakdown = "ซึ่งทั้งหมดอยู่ในระดับปานกลาง (Medium)"
-        else:
-            breakdown_parts = []
-            if crit_count > 0:
-                breakdown_parts.append(f"ระดับวิกฤต (Critical) {crit_count} รายการ")
-            if high_count > 0:
-                breakdown_parts.append(f"ระดับสูง (High) {high_count} รายการ")
-            if med_count > 0:
-                breakdown_parts.append(f"ระดับปานกลาง (Medium) {med_count} รายการ")
-            vuln_breakdown = f"โดยแบ่งเป็น {', '.join(breakdown_parts)}"
-
-        safe_tail = f" ส่วนอีก {safe_count} ระบบที่เหลือยังไม่พบสัญญาณความเสี่ยงตามเงื่อนไขที่กำหนด" if safe_count > 0 else ""
+        breakdown_parts = []
+        if crit_findings_count > 0:
+            breakdown_parts.append(f"ระดับวิกฤต (Critical) {crit_findings_count} รายการ")
+        if high_findings_count > 0:
+            breakdown_parts.append(f"ระดับสูง (High) {high_findings_count} รายการ")
+        if med_findings_count > 0:
+            breakdown_parts.append(f"ระดับปานกลาง (Medium) {med_findings_count} รายการ")
+        vuln_breakdown = f"จำแนกตามระดับความรุนแรง ได้แก่ {', '.join(breakdown_parts)}" if breakdown_parts else ""
+        cve_summary = f" ครอบคลุมรายการช่องโหว่ความมั่นคงปลอดภัยสากล (Unique CVEs) รวม {len(all_matched_cves)} รายการ" if all_matched_cves else ""
+        safe_tail = f" โดยมีอุปกรณ์ที่ไม่พบความเสี่ยงตามขอบเขตการตรวจประเมินจำนวน {safe_hosts_count} ระบบ" if safe_hosts_count > 0 else ""
 
         exec_summary_html = f"""
       <div class="adv-heading">สรุปผลการประเมินภาพรวมความเสี่ยงเชิงรุก</div>
       <p class="adv-para">
-        รายงานฉบับนี้จัดทำขึ้นเพื่อแจ้งข้อค้นพบทางเทคนิคและแนวทางแก้ไขสำหรับผู้ดูแลระบบ โดยจากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในวง IP {html.escape(target_scope)} (รวมทั้งสิ้น {total_scanned} ระบบ) อ้างอิงตามเกณฑ์มาตรฐานความปลอดภัยสากล ข้อมูลช่องโหว่ (CVE) และเอกสารอ้างอิงจากผู้พัฒนา
+        รายงานฉบับนี้จัดทำขึ้นเพื่อแจ้งข้อค้นพบทางเทคนิคและแนวทางแก้ไขสำหรับผู้ดูแลระบบ โดยจากการตรวจสอบระบบสารสนเทศและบริการเครือข่ายในวง IP {html.escape(target_scope)} (รวมทั้งสิ้น {total_scanned} ระบบ) อ้างอิงตามระเบียบวิธี NIST SP 800-115, ฐานข้อมูลช่องโหว่สากล (CVE / NVD) และเอกสารอ้างอิงจากผู้พัฒนา
       </p>
       <p class="adv-para">
-        ผลการตรวจสอบพบช่องโหว่ทั้งหมด {total_vulns} รายการ {vuln_breakdown}{safe_tail}
+        ผลการประเมินพบระบบหรืออุปกรณ์ที่พบความเสี่ยง (Affected Assets) จำนวน {affected_hosts_count} ระบบ รวมข้อค้นพบความเสี่ยงทั้งหมด {total_findings_count} รายการ{cve_summary} ซึ่ง{vuln_breakdown}{safe_tail}
       </p>
       <p class="adv-para">
         ทางทีมงานขอแนะนำให้ผู้ดูแลระบบเร่งตรวจสอบและดำเนินการแก้ไขตามลำดับความสำคัญ โดยควรเน้นไปที่ระบบที่มีหลักฐานยืนยันช่องโหว่ชัดเจน และเป็นระบบที่เชื่อมต่อหรือเปิดให้เข้าถึงได้จากเครือข่ายภายนอกก่อนเป็นอันดับแรก
@@ -1563,7 +1631,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       </div>
 
       <div class="adv-tlp-rule-box">
-        ข้อกำหนดการเผยแพร่ TLP:AMBER: เอกสารนี้ใช้สำหรับผู้รับและหน่วยงานที่เกี่ยวข้องตามความจำเป็นในการปฏิบัติงาน ผู้รับสามารถแบ่งปันต่อภายในหน่วยงานของตนและแก่ผู้เกี่ยวข้องที่จำเป็นต้องใช้ข้อมูลเพื่อป้องกัน แก้ไข หรือประเมินความเสี่ยง ทั้งนี้ต้องไม่เผยแพร่ต่อสาธารณะ และไม่ส่งต่อไปยังผู้ที่ไม่เกี่ยวข้องกับการดำเนินงาน
+        ข้อกำหนดการเผยแพร่ตามมาตรฐาน FIRST TLP v2.0 (TLP:AMBER): ข้อมูลในรายงานฉบับนี้จำกัดการเข้าถึงเฉพาะบุคคลหรือหน่วยงานที่มีความจำเป็นต้องใช้ข้อมูลในการปฏิบัติงาน (Need-to-know) ผู้รับสามารถแบ่งปันต่อได้ภายในองค์กรของตน รวมถึงคู่ค้าหรือบุคคลภายนอกที่มีความจำเป็นต้องทราบเพื่อการป้องกัน ตรวจสอบ หรือบรรเทาผลกระทบจากภัยคุกคาม ห้ามเผยแพร่สู่สาธารณะ
       </div>
 
       {exec_summary_html}
@@ -1596,45 +1664,54 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
     </div>
 
     <!-- PAGE 3: References & Incident Coordination (Independent Standalone Page) -->
-    <div class="a4-paper-sheet page-break-section" id="sheet-references">
-      <div class="adv-heading">เอกสารอ้างอิงและช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัย</div>
+    <div class="a4-paper-sheet page-break-section" id="sheet-references" style="font-size: 14pt; line-height: 1.35;">
+      <div class="adv-heading" style="margin-bottom: 6px;">เอกสารอ้างอิงและช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัย</div>
       
-      <p class="adv-para">
+      <p class="adv-para" style="margin-bottom: 4px;">
         การตรวจประเมินและจัดทำรายงานฉบับนี้ ดำเนินการโดยอ้างอิงตามกรอบมาตรฐานความมั่นคงปลอดภัยสารสนเทศและแนวปฏิบัติสากล ได้แก่:
       </p>
-      <ul class="adv-list">
-        <li>NIST SP 800-115: Technical Guide to Information Security Testing and Assessment (กรอบการตรวจประเมินและทดสอบช่องโหว่)</li>
+      <ul class="adv-list" style="margin: 2px 0 6px 18px; line-height: 1.3;">
+        <li>NIST SP 800-115: Technical Guide to Information Security Testing and Assessment (กรอบการประเมินและทดสอบช่องโหว่)</li>
         <li>ThaiCERT Advisory &amp; Guidance: แนวปฏิบัติการบริหารจัดการและรับมือช่องโหว่ความมั่นคงปลอดภัยบนเว็บแอปพลิเคชัน</li>
         <li>CIS Benchmarks: Center for Internet Security (แนวทางการตั้งค่าความมั่นคงปลอดภัยระบบแม่ข่าย Nginx, PHP และ Node.js)</li>
         <li>National Vulnerability Database (NVD/NIST): ฐานข้อมูลรายการช่องโหว่และความเสี่ยงสากล (Common Vulnerabilities and Exposures)</li>
         <li>FIRST Standards: Traffic Light Protocol (TLP) Version 2.0 มาตรฐานการจำแนกชั้นความลับและการแลกเปลี่ยนข้อมูลไซเบอร์</li>
       </ul>
 
-      <div class="adv-heading" style="margin-top: 18px;">ช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัยไซเบอร์</div>
-      <p class="adv-para">
+      <div class="adv-subhead" style="margin-top: 8px; margin-bottom: 2px; font-weight: bold;">ระเบียบวิธีและขอบเขตการตรวจประเมิน (Assessment Methodology &amp; Scope)</div>
+      <p class="adv-para" style="margin-bottom: 6px;">
+        การประเมินนี้ใช้ระเบียบวิธีทดสอบแบบไม่รุกล้ำระบบ (Non-intrusive Heuristic Assessment) โดยเครื่องมือ OPScaner v2.0 ทำการตรวจค้นหาพอร์ตบริการ (Port Identification), ตรวจสอบเวอร์ชันและ Banner ข้อมูลบริการ (Service Fingerprinting) และประเมินเงื่อนไขช่องโหว่ตามสถาปัตยกรรม (Architectural Preconditions) ทั้งนี้ผลการประเมินระบุเฉพาะสถานะที่ตรวจพบจากมุมมองภายนอกเครือข่าย ณ เวลาทดสอบ (Point-in-time External Assessment)
+      </p>
+
+      <div class="adv-subhead" style="margin-top: 8px; margin-bottom: 2px; font-weight: bold;">ช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัย (Incident Response Contacts)</div>
+      <p class="adv-para" style="margin-bottom: 4px;">
         หากหน่วยงานของท่านตรวจพบเหตุการณ์ภัยคุกคามทางไซเบอร์ หรือประสงค์ขอรับคำปรึกษาทางเทคนิคเพิ่มเติม สามารถประสานงานฝ่ายปฏิบัติการได้ตามช่องทางดังต่อไปนี้:
       </p>
 
-      <div style="margin: 10px 0 16px 0; font-size: 16pt;">
-        <div style="color: #000000; margin-bottom: 6px;">
+      <div style="margin: 4px 0 6px 0; font-size: 14pt;">
+        <div style="color: #000000; margin-bottom: 3px;">
           ศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT / สกมช.)
         </div>
-        <table style="width: 100%; font-size: 16pt; border-collapse: collapse; border: none; line-height: 1.4;">
+        <table style="width: 100%; font-size: 14pt; border-collapse: collapse; border: none; line-height: 1.25;">
           <tr>
-            <td style="width: 28%; color: #475569; padding: 3px 0; border: none;">เว็บไซต์หลัก:</td>
-            <td style="padding: 3px 0; border: none;"><a href="https://www.ncsa.or.th" target="_blank" style="color: #0284c7; text-decoration: underline;">https://www.ncsa.or.th</a></td>
+            <td style="width: 28%; color: #475569; padding: 1px 0; border: none;">เว็บไซต์หลัก:</td>
+            <td style="padding: 1px 0; border: none;"><a href="https://www.ncsa.or.th" target="_blank" style="color: #0284c7; text-decoration: underline;">https://www.ncsa.or.th</a></td>
           </tr>
           <tr>
-            <td style="color: #475569; padding: 3px 0; border: none;">อีเมลรับแจ้งเหตุ:</td>
-            <td style="padding: 3px 0; border: none;"><a href="mailto:incident@thaicert.or.th" style="color: #0284c7; text-decoration: underline;">incident@thaicert.or.th</a></td>
+            <td style="color: #475569; padding: 1px 0; border: none;">สายด่วนรับแจ้งเหตุ (24 ชม.):</td>
+            <td style="padding: 1px 0; border: none;">02-114-3531 (สายด่วนรับแจ้งเหตุฉุกเฉินทางไซเบอร์ สกมช.)</td>
           </tr>
           <tr>
-            <td style="color: #475569; padding: 3px 0; border: none;">อีเมลประสานงาน:</td>
-            <td style="padding: 3px 0; border: none;"><a href="mailto:saraban@ncsa.or.th" style="color: #0284c7; text-decoration: underline;">saraban@ncsa.or.th</a></td>
+            <td style="color: #475569; padding: 1px 0; border: none;">โทรศัพท์สำนักงาน:</td>
+            <td style="padding: 1px 0; border: none;">02-143-7777 (ในวันและเวลาราชการ)</td>
           </tr>
           <tr>
-            <td style="color: #475569; padding: 3px 0; border: none;">สายด่วนรับแจ้งเหตุ:</td>
-            <td style="padding: 3px 0; border: none;">02-143-7777 (ในวันและเวลาราชการ)</td>
+            <td style="color: #475569; padding: 1px 0; border: none;">อีเมลประสานงาน ThaiCERT:</td>
+            <td style="padding: 1px 0; border: none;"><a href="mailto:thaicert@ncsa.or.th" style="color: #0284c7; text-decoration: underline;">thaicert@ncsa.or.th</a></td>
+          </tr>
+          <tr>
+            <td style="color: #475569; padding: 1px 0; border: none;">อีเมลรับแจ้งเหตุสำรอง:</td>
+            <td style="padding: 1px 0; border: none;"><a href="mailto:incident@thaicert.or.th" style="color: #0284c7; text-decoration: underline;">incident@thaicert.or.th</a></td>
           </tr>
         </table>
       </div>

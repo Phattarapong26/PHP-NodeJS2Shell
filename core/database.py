@@ -19,61 +19,67 @@ NGINX_CVE_DESCS = {
         "name": "NGINX Heap Buffer Overflow (alias + rewrite)",
         "category": "NGINX",
         "severity": "Critical",
-        "cvss": 9.8,
+        "cvss": 9.2,
+        "cvss_version": "CVSS v4.0",
         "trigger": "alias + rewrite + $request_filename",
-        "host_check": "nginx -T 2>/dev/null | grep -B5 -A15 'alias' || echo 'ไม่พบ alias (ปลอดภัย)'",
+        "host_check": "nginx -T 2>/dev/null | grep -B5 -A15 'alias' || echo 'ไม่พบ alias'",
         "confirm_vuln": "พบบล็อก location ที่มีทั้ง alias และ rewrite $request_filename บน NGINX < 1.30.6 / 1.31.7",
-        "confirm_safe": "ไม่พบ alias ร่วมกับ rewrite หรือ NGINX ≥ 1.30.6 / 1.31.7"
+        "confirm_safe": "การแก้ไขถาวร: อัปเกรดเป็น NGINX ≥ 1.30.6 / 1.31.7 | มาตรการบรรเทา: ปรับแก้คอนฟิกไม่ใช้ alias ร่วมกับ rewrite $request_filename"
     },
     "CVE-2026-93479": {
         "name": "NGINX Heap Buffer Overflow (map + regex)",
         "category": "NGINX",
         "severity": "Critical",
-        "cvss": 9.8,
+        "cvss": 9.2,
+        "cvss_version": "CVSS v4.0",
         "trigger": "map regex + capture vars",
-        "host_check": "nginx -T 2>/dev/null | grep -B3 -A10 'map.*~' || echo 'ไม่พบ map regex (ปลอดภัย)'",
+        "host_check": "nginx -T 2>/dev/null | grep -B3 -A10 'map.*~' || echo 'ไม่พบ map regex'",
         "confirm_vuln": "พบคำสั่ง map regex capture ตัวแปรไปประกอบพาธไฟล์บน NGINX < 1.30.6 / 1.31.7",
-        "confirm_safe": "ไม่พบ map regex หรือ NGINX ≥ 1.30.6 / 1.31.7"
+        "confirm_safe": "การแก้ไขถาวร: อัปเกรดเป็น NGINX ≥ 1.30.6 / 1.31.7 | มาตรการบรรเทา: หลีกเลี่ยง regex capture ในคำสั่ง map"
     },
     "CVE-2026-97205": {
         "name": "NGINX Use-After-Free (AIO + SSI)",
-        "category": "NGINX",
-        "severity": "Critical",
-        "cvss": 9.8,
+        "category": "High",
+        "severity": "High",
+        "cvss": 8.1,
+        "cvss_version": "CVSS v3.1",
         "trigger": "aio on + ssi on",
-        "host_check": "nginx -T 2>/dev/null | grep -E 'aio\\s+on|ssi\\s+on' || echo 'ไม่พบ aio/ssi (ปลอดภัย)'",
+        "host_check": "nginx -T 2>/dev/null | grep -E 'aio\\s+on|ssi\\s+on' || echo 'ไม่พบ aio/ssi'",
         "confirm_vuln": "พบบรรทัด aio on และ ssi on เปิดพร้อมกันบน NGINX < 1.30.6 / 1.31.7",
-        "confirm_safe": "ไม่พบ aio หรือ ssi เปิดคู่กัน หรือ NGINX ≥ 1.30.6 / 1.31.7"
+        "confirm_safe": "การแก้ไขถาวร: อัปเกรดเป็น NGINX ≥ 1.30.6 / 1.31.7 | มาตรการบรรเทา: ปิดใช้งาน ssi off หรือ aio off หากไม่จำเป็น"
     },
     "CVE-2026-95101": {
         "name": "NGINX Request Body Injection (HTTP/3)",
         "category": "NGINX",
         "severity": "Medium",
         "cvss": 6.5,
+        "cvss_version": "CVSS v3.1",
         "trigger": "listen quic / http3 on",
-        "host_check": "nginx -T 2>/dev/null | grep -E 'listen.*quic|http3\\s+on' || echo 'ไม่พบ HTTP/3 (ปลอดภัย)'",
+        "host_check": "nginx -T 2>/dev/null | grep -E 'listen.*quic|http3\\s+on' || echo 'ไม่พบ HTTP/3'",
         "confirm_vuln": "เปิดใช้งาน HTTP/3 QUIC บน NGINX 1.25.0–1.30.5 / 1.31.0–1.31.6",
-        "confirm_safe": "ไม่ได้เปิด HTTP/3 หรือ NGINX ≥ 1.30.6 / 1.31.7"
+        "confirm_safe": "การแก้ไขถาวร: อัปเกรดเป็น NGINX ≥ 1.30.6 / 1.31.7 | มาตรการบรรเทา: ปิด HTTP/3 ชั่วคราว"
     },
     "CVE-2026-97629": {
         "name": "NGINX Session Forgery (TLS tickets)",
         "category": "NGINX",
         "severity": "Medium",
         "cvss": 6.5,
+        "cvss_version": "CVSS v3.1",
         "trigger": "ssl_session_tickets on",
         "host_check": "nginx -T 2>/dev/null | grep ssl_session_ticket || echo 'ไม่พบการตั้งค่า ticket'",
         "confirm_vuln": "เปิดใช้ TLS Session Tickets บน NGINX 1.23.2–1.30.5 / 1.31.0–1.31.6",
-        "confirm_safe": "ระบุ ssl_session_tickets off หรือ NGINX ≥ 1.30.6 / 1.31.7"
+        "confirm_safe": "การแก้ไขถาวร: อัปเกรดเป็น NGINX ≥ 1.30.6 / 1.31.7 | มาตรการบรรเทา: ระบุ ssl_session_tickets off;"
     },
     "CVE-2021-23017": {
         "name": "NGINX 1-byte Memory Overwrite in DNS resolver",
         "category": "NGINX",
         "severity": "High",
-        "cvss": 8.1,
+        "cvss": 7.7,
+        "cvss_version": "CVSS v3.1",
         "trigger": "resolver directive",
         "host_check": "nginx -T 2>/dev/null | grep resolver || echo 'ไม่พบ directive resolver'",
         "confirm_vuln": "พบ directive resolver ในคอนฟิกบน NGINX < 1.20.1 / 1.21.0",
-        "confirm_safe": "ไม่มี directive resolver หรือ NGINX ≥ 1.20.1"
+        "confirm_safe": "การแก้ไขถาวร: อัปเกรดเป็น NGINX ≥ 1.20.1 / 1.21.0 | มาตรการบรรเทา: ปิด directive resolver หากไม่จำเป็น"
     }
 }
 
@@ -120,12 +126,13 @@ CVE_DATABASE = [
         "category": "PHP",
         "severity": "Critical",
         "cvss": 9.8,
+        "cvss_version": "CVSS v3.1",
         "name": "PHP Use-After-Free (stale global state in session)",
         "desc": "Global state ไม่รีเซ็ตหลัง fatal error ทำให้ session.upload_progress อ้างอิงหน่วยความจำที่ถูก Free ไปแล้ว",
-        "patched": "PHP 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12+",
+        "patched": "การแก้ไขถาวร: PHP 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12+ | มาตรการบรรเทาความเสี่ยง: กำหนด pm.max_requests และปิด session.upload_progress",
         "host_check": "php -i | grep session.upload_progress",
         "confirm_vuln": "session.upload_progress.enabled = On ร่วมกับ PHP ต่ำกว่า 8.2.35 / 8.3.36",
-        "confirm_safe": "ปิด session.upload_progress.enabled = 0 หรืออัปเกรด PHP"
+        "confirm_safe": "อัปเกรดเวอร์ชัน PHP หรือปิด session.upload_progress.enabled = 0 และระบุ pm.max_requests > 0"
     },
     {
         "id": "CVE-2026-115560",
@@ -251,7 +258,8 @@ CVE_DATABASE = [
         "id": "CVE-2021-23017",
         "category": "NGINX",
         "severity": "High",
-        "cvss": 8.1,
+        "cvss": 7.7,
+        "cvss_version": "CVSS v3.1",
         "name": "NGINX 1-byte Memory Overwrite in DNS resolver",
         "desc": "ข้อผิดพลาด 1-byte memory overwrite ในโมดูล DNS resolver เมื่อประมวลผลคำตอบ DNS ที่ผิดปกติ",
         "patched": "NGINX 1.20.1 / 1.21.0+",

@@ -637,7 +637,7 @@ def evaluate_security_chains(
         chain_e_verdict_code = "HARDENED"
         conf_e = "Not Applicable"
 
-    chain_e_remedy = "; ใน /etc/php/*/fpm/pool.d/www.conf:\npm.max_requests = 500\n; ใน /etc/php/*/fpm/php.ini:\nsession.upload_progress.enabled = Off\nmemory_limit = 256M\npost_max_size = 32M"
+    chain_e_remedy = "; [มาตรการแก้ไขถาวร (Permanent Fix)]:\n; อัปเกรด PHP เป็นเวอร์ชันที่ได้รับการแก้ไข: PHP >= 8.2.35, 8.3.36, 8.4.27 หรือ 8.5.12+\n\n; [มาตรการบรรเทาความเสี่ยงเชิงโครงสร้าง (Configuration Mitigation)]:\n; ใน /etc/php/*/fpm/pool.d/www.conf:\npm.max_requests = 500\n; ใน /etc/php/*/fpm/php.ini:\nsession.upload_progress.enabled = Off\nmemory_limit = 256M\npost_max_size = 32M"
     chain_e_cli_stages = [
         {"num": "1/6", "name": "tcp reachability", "status": "PASS", "evidence": "target port responsive (HTTP open)"},
         {"num": "2/6", "name": "FastCGI worker lifecycle", "status": "PASS" if is_fpm else "STANDALONE", "evidence": f"PHP-FPM worker pool ({sapi_desc})" if is_fpm else "Apache prefork / mod_php"},
