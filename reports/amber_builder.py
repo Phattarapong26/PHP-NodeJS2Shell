@@ -463,7 +463,7 @@ def get_css_styles() -> str:
       color: #000000;
     }
 
-    /* Tables: Strictly NO BORDER, NO BACKGROUND, Normal Weight Cells */
+    /* Tables: Clear borders for ease of reading */
     .adv-table-wrap {
       overflow-x: auto;
       margin: 8px 0 14px 0;
@@ -475,7 +475,7 @@ def get_css_styles() -> str:
       width: 100%;
       border-collapse: collapse;
       margin: 8px 0 14px 0;
-      border: none !important;
+      border: 1px solid #94a3b8 !important;
       background: transparent !important;
       font-size: 16pt !important;
       break-inside: auto;
@@ -484,50 +484,47 @@ def get_css_styles() -> str:
 
     .adv-table thead {
       display: table-header-group !important;
-      border: none !important;
       background: transparent !important;
     }
 
     .adv-table thead tr {
       break-inside: avoid !important;
       page-break-inside: avoid !important;
-      border: none !important;
       background: transparent !important;
     }
 
     .adv-table th {
-      border: none !important;
+      border: 1px solid #94a3b8 !important;
       background: transparent !important;
-      padding: 4px 6px;
+      padding: 6px 8px;
       font-size: 16pt !important;
       font-weight: normal !important;
       text-align: center;
       color: #000000;
+      vertical-align: middle;
       break-inside: avoid !important;
       page-break-inside: avoid !important;
     }
 
     .adv-table tbody {
       display: table-row-group !important;
-      border: none !important;
       background: transparent !important;
     }
 
     .adv-table tr {
       break-inside: avoid !important;
       page-break-inside: avoid !important;
-      border: none !important;
       background: transparent !important;
     }
 
     .adv-table td {
-      border: none !important;
+      border: 1px solid #94a3b8 !important;
       background: transparent !important;
-      padding: 4px 6px;
+      padding: 6px 8px;
       font-size: 16pt !important;
       font-weight: normal !important;
       color: #000000;
-      vertical-align: middle;
+      vertical-align: top;
       break-inside: avoid !important;
       page-break-inside: avoid !important;
     }
@@ -775,6 +772,12 @@ def get_css_styles() -> str:
         page-break-inside: avoid !important;
       }
 
+      .adv-table,
+      .adv-table th,
+      .adv-table td {
+        border: 1px solid #94a3b8 !important;
+      }
+
       .adv-code-box {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
@@ -787,17 +790,18 @@ def get_css_styles() -> str:
 def extract_compact_thaicert_groups(p_hosts: List[Dict[str, Any]]) -> str:
     """
     Extract concise, deduplicated ThaiCERT group labels for table display.
-    Avoids verbose descriptions and finding-level details.
+    Keywords: Website, Software, Hosting, Network, Container, Window, Backup/Staging.
+    Formatted as one group per line for clean readability.
     """
     SHORT_GROUP_NAMES = {
-        1: "กลุ่ม 1 (Web / CMS)",
-        2: "กลุ่ม 2 (API)",
-        3: "กลุ่ม 3 (Control Panel)",
-        4: "กลุ่ม 4 (Network / IoT)",
-        5: "กลุ่ม 5 (Container)",
-        6: "กลุ่ม 6 (Windows / IIS)",
-        7: "กลุ่ม 7 (Dev / Backup)",
-        8: "กลุ่ม 8 (Cloud)",
+        1: "Website",
+        2: "Software",
+        3: "Hosting",
+        4: "Network",
+        5: "Container",
+        6: "Window",
+        7: "Backup/Staging",
+        8: "Hosting",
     }
     
     found_group_ids = set()
@@ -838,7 +842,13 @@ def extract_compact_thaicert_groups(p_hosts: List[Dict[str, Any]]) -> str:
         return "-"
 
     sorted_ids = sorted(list(found_group_ids))
-    return ", ".join(SHORT_GROUP_NAMES[gid] for gid in sorted_ids)
+    labels = []
+    for gid in sorted_ids:
+        lbl = SHORT_GROUP_NAMES.get(gid, f"Group {gid}")
+        if lbl not in labels:
+            labels.append(lbl)
+
+    return "<br>".join(labels)
 
 
 def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
@@ -920,7 +930,13 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             for p in (h.get("ports") or [h.get("port")]):
                 if p and p not in all_ports:
                     all_ports.append(p)
-        h_ports = ", ".join(str(p) for p in sorted(all_ports)) if all_ports else "-"
+        sorted_ports = sorted(all_ports)
+        if len(sorted_ports) > 1:
+            h_ports = "<br>".join(html.escape(str(p)) for p in sorted_ports)
+        elif sorted_ports:
+            h_ports = html.escape(str(sorted_ports[0]))
+        else:
+            h_ports = "-"
         
         # Determine Device Name and Technology Stack
         dev_name = ""
@@ -983,6 +999,9 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
             else:
                 dev_name = "อุปกรณ์เครือข่ายภายใน (LAN Device)"
 
+        if dev_name in ("โฮสต์เครื่องตรวจการ (Host Machine)", "โฮสต์เครื่องตรวจการ", "Host Machine") or "เครื่องตรวจการ" in dev_name:
+            dev_name = "เครื่องนี้"
+
         tech_parts = []
         for h in p_hosts:
             if h.get("php") and f"PHP {h.get('php')}" not in tech_parts:
@@ -1011,9 +1030,9 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         <tr>
           <td style="text-align: center;">{idx}</td>
           <td>{html.escape(h_ip)}</td>
-          <td style="text-align: center;">{html.escape(h_ports)}</td>
+          <td style="text-align: center;">{h_ports}</td>
           <td>{dev_service_cell}</td>
-          <td>{html.escape(grp_str)}</td>
+          <td>{grp_str}</td>
           <td style="text-align: center;"><span class="{host_badge_cls}">[{host_highest_sev}]</span></td>
         </tr>
         """
@@ -1093,6 +1112,8 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                 break
         if not dev_name:
             dev_name = f"เซิร์ฟเวอร์หลัก ({ip})"
+        if dev_name in ("โฮสต์เครื่องตรวจการ (Host Machine)", "โฮสต์เครื่องตรวจการ", "Host Machine") or "เครื่องตรวจการ" in dev_name:
+            dev_name = "เครื่องนี้"
 
         # All ports on this host
         all_ports = []

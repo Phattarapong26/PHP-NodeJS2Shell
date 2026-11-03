@@ -633,7 +633,7 @@ def scan():
                             r["device_type"] = mv_info["device_type"]
                     
                     if not r.get("device_name") or r.get("device_name") == "None":
-                        r["device_name"] = "โฮสต์เครื่องตรวจการ (Host Machine)" if ip_addr == curr_host_ip else (r.get("webServer") or f"Web Service ({ip_addr})")
+                        r["device_name"] = "เครื่องนี้" if ip_addr == curr_host_ip else (r.get("webServer") or f"Web Service ({ip_addr})")
                     all_active.append(r)
                     if r.get("is_php"):
                         php_results.append(r)
