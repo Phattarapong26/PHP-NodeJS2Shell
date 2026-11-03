@@ -1,17 +1,18 @@
 <!--
   @component ProfileFormModal
-  Markup ported 1:1 from the original GUI.html (lines 1567-1824).
-  Element ids are preserved: the controllers in src/lib/controllers bind to them.
+  Profile Create / Edit Modal with Main Views (Basic Info, Target Network, Port Mode)
+  and Collapsible Advanced Settings (Speed & Concurrency, Stealth Headers).
 -->
 <script lang="ts">
   import FormBasicInfo from './form/FormBasicInfo.svelte';
   import FormTargetNetwork from './form/FormTargetNetwork.svelte';
+  import FormPortMode from './form/FormPortMode.svelte';
   import FormSpeedConcurrency from './form/FormSpeedConcurrency.svelte';
   import FormStealthHeaders from './form/FormStealthHeaders.svelte';
-  import FormPortMode from './form/FormPortMode.svelte';
-  import FormEnterpriseScope from './form/FormEnterpriseScope.svelte';
   import FormActiveToggle from './form/FormActiveToggle.svelte';
   import { closeProfileFormModal } from '../../controllers/profiles';
+
+  let showAdvanced = $state(false);
 </script>
 
 <!-- 3. PROFILE CREATE / EDIT MODAL (Comprehensive Scan & Stealth Config - Elevated z-[130] above Results) -->
@@ -26,10 +27,10 @@
         </div>
         <div>
           <h3 id="profileFormHeading" class="font-bold text-slate-800 text-sm">เพิ่ม Profile การสแกน</h3>
-          <p class="text-[10px] text-slate-400">กำหนดเป้าหมายเครือข่าย, ความเร็ว, และ Header อำพรางตัว</p>
+          <p class="text-[10px] text-slate-400">กำหนดเป้าหมายเครือข่าย, รูปแบบพอร์ต, และการตั้งค่าขั้นสูง</p>
         </div>
       </div>
-      <button id="btnCloseProfileFormModal" type="button" onclick={() => closeProfileFormModal()} class="w-7 h-7 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer">
+      <button id="btnCloseProfileFormModal" type="button" aria-label="ปิดหน้าต่างตั้งค่า Profile" onclick={() => closeProfileFormModal()} class="w-7 h-7 rounded-full neu-pill-btn text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer">
         <i class="ph-bold ph-x text-sm"></i>
       </button>
     </div>
@@ -37,19 +38,51 @@
     <!-- Scrollable Form Body -->
     <form id="profileForm" class="flex-1 overflow-y-auto pr-1 space-y-4 text-xs">
       <input type="hidden" id="profileFormId" value="">
+      <!-- Default ThaiCERT scope: All 8 groups assessed without partitioning -->
+      <input type="hidden" name="profile_scope_preset" value="all" checked>
 
+      <!-- 1. Basic Info (Title & Description) -->
       <FormBasicInfo />
 
+      <!-- 2. Target Network (Subnet / IP Range) -->
       <FormTargetNetwork />
 
-      <FormSpeedConcurrency />
-
-      <FormStealthHeaders />
-
+      <!-- 3. Port Mode (Main View - Not hidden in Advanced Settings) -->
       <FormPortMode />
 
-      <FormEnterpriseScope />
+      <!-- 4. Advanced Settings Dropdown / Collapsible Accordion -->
+      <div class="rounded-2xl border border-slate-200/90 bg-white/50 overflow-hidden shadow-2xs">
+        <button
+          type="button"
+          onclick={() => { showAdvanced = !showAdvanced; }}
+          class="w-full flex items-center justify-between p-3.5 bg-slate-50/70 hover:bg-slate-100/70 transition cursor-pointer text-xs"
+        >
+          <div class="flex items-center gap-2.5 text-left">
+            <div class="w-7 h-7 rounded-xl bg-blue-100/80 text-blue-700 flex items-center justify-center font-bold shadow-2xs">
+              <i class="ph-bold ph-sliders text-sm"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800 text-xs">การตั้งค่าขั้นสูง (Advanced Settings)</span>
+                <span class="text-[9.5px] px-2 py-0.2 rounded-full font-semibold bg-slate-200/80 text-slate-600">ความเร็ว & Header</span>
+              </div>
+              <p class="text-[10px] text-slate-400">กำหนดความเร็วการสแกน (Speed & Concurrency) และ Header อำพรางตัว (Stealth Headers)</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 text-slate-400">
+            <span class="text-[10px] font-semibold hidden sm:inline">{showAdvanced ? 'ซ่อนการตั้งค่า' : 'กดเพื่อตั้งค่า'}</span>
+            <i class="ph-bold ph-caret-down text-sm transition-transform duration-200 {showAdvanced ? 'rotate-180 text-blue-600' : ''}"></i>
+          </div>
+        </button>
 
+        <!-- Dropdown Body containing Speed Concurrency & Stealth Headers -->
+        <div class="p-3.5 space-y-3.5 border-t border-slate-200/70 bg-white {showAdvanced ? 'block' : 'hidden'}">
+          <FormSpeedConcurrency />
+          <FormStealthHeaders />
+        </div>
+      </div>
+
+      <!-- 5. Active Profile Toggle -->
       <FormActiveToggle />
 
       <!-- Form Buttons -->
