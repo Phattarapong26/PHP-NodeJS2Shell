@@ -431,7 +431,7 @@ def get_css_styles() -> str:
 
     /* Lists */
     .adv-list {
-      margin: 6px 0 12px 0;
+      margin: 6px 0 10px 0;
       padding: 0;
       list-style: none;
     }
@@ -439,11 +439,10 @@ def get_css_styles() -> str:
     .adv-list li {
       font-size: 16pt !important;
       line-height: 1.4;
-      margin-bottom: 6px;
-      padding-left: 1.85cm;
-      text-indent: -0.6cm;
-      text-align: justify;
-      text-justify: inter-cluster;
+      margin-bottom: 5px;
+      padding-left: 1.25cm;
+      text-indent: -0.45cm;
+      text-align: left !important;
       orphans: 4 !important;
       widows: 4 !important;
     }
@@ -715,6 +714,13 @@ def get_css_styles() -> str:
       .page-break-section {
         break-before: page !important;
         page-break-before: always !important;
+      }
+
+      #sheet-references, #sheet-survey {
+        break-before: page !important;
+        page-break-before: always !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
       }
 
       .adv-heading, .adv-subhead {
@@ -1227,7 +1233,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         ทางทีมงานขอแนะนำให้ผู้ดูแลระบบรักษาระดับการป้องกันตามมาตรฐานความปลอดภัย (Cyber Hygiene) อย่างต่อเนื่อง โดยหมั่นตรวจสอบการเปิดเผยพอร์ตบริการและอัปเดตระบบตามรอบการบำรุงรักษาปกติ
       </p>
         """
-        page2_heading = "สรุปผลการประเมินความปลอดภัยทางเทคนิค (Technical Assessment Summary)"
+        page2_heading = "สรุปผลการประเมินความปลอดภัยทางเทคนิค"
         page2_content = f"""
       <p class="adv-para">
         จากการประเมินและตรวจสอบบริการเครือข่ายเชิงลึก ไม่พบพอร์ตหรือบริการเว็บแอปพลิเคชันที่มีช่องโหว่ความเสี่ยงระดับวิกฤตหรือระดับสูงเปิดให้บริการสู่เครือข่ายภายนอก
@@ -1236,7 +1242,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       <div style="margin-top: 14px; margin-bottom: 20px; padding: 18px 22px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
           <span style="font-size: 18pt; color: #16a34a;">✓</span>
-          <span style="font-size: 16pt; font-weight: bold; color: #166534;">ผลการตรวจประเมิน: ระบบอยู่ในสถานะปลอดภัย (0 Critical / 0 High Findings)</span>
+          <span style="font-size: 16pt; font-weight: bold; color: #166534;">ผลการตรวจประเมิน: ระบบอยู่ในสถานะปลอดภัย ไม่พบช่องโหว่ความเสี่ยงระดับวิกฤตหรือระดับสูง</span>
         </div>
         <div style="font-size: 16pt; color: #1e293b; line-height: 1.6;">
           <p style="margin: 0 0 8px 0;"><strong>ผลสรุปการตรวจประเมินทางเทคนิคสำหรับระบบในขอบเขต:</strong></p>
@@ -1282,7 +1288,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         ทางทีมงานขอแนะนำให้ผู้ดูแลระบบเร่งตรวจสอบและดำเนินการแก้ไขตามลำดับความสำคัญ โดยควรเน้นไปที่ระบบที่มีหลักฐานยืนยันช่องโหว่ชัดเจน และเป็นระบบที่เชื่อมต่อหรือเปิดให้เข้าถึงได้จากเครือข่ายภายนอกก่อนเป็นอันดับแรก
       </p>
         """
-        page2_heading = "รายละเอียดข้อค้นพบทางเทคนิคและแนวทางการแก้ไขจำแนกตามอุปกรณ์ (Technical Findings by Device)"
+        page2_heading = "รายละเอียดข้อค้นพบทางเทคนิคและแนวทางการแก้ไขจำแนกตามอุปกรณ์"
         page2_content = f"""
       <p class="adv-para">
         ส่วนนี้นำเสนอรายละเอียดเชิงเทคนิคของข้อค้นพบและช่องโหว่ความมั่นคงปลอดภัยโดยจำแนกตามอุปกรณ์ที่ตรวจพบ เพื่อให้ผู้ดูแลระบบเห็นภาพรวมความเสี่ยงและรายละเอียดเฉพาะของแต่ละอุปกรณ์อย่างชัดเจน พร้อมการจัดกลุ่มตามเกณฑ์ ThaiCERT สถาปัตยกรรมระบบ คำสั่งตรวจสอบจริงบนเครื่อง (Host-Check) และแนวทางการแก้ไขที่เหมาะสมกับอุปกรณ์นั้นๆ
@@ -1386,29 +1392,47 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       <div class="adv-heading">เอกสารอ้างอิงและช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัย</div>
       
       <p class="adv-para">
-        การประเมินและการจัดทำเอกสารฉบับนี้ อ้างอิงตามกรอบมาตรฐานความมั่นคงปลอดภัยสารสนเทศและแนวปฏิบัติสากล ได้แก่:
+        การตรวจประเมินและจัดทำรายงานฉบับนี้ ดำเนินการโดยอ้างอิงตามกรอบมาตรฐานความมั่นคงปลอดภัยสารสนเทศและแนวปฏิบัติสากล ได้แก่:
       </p>
       <ul class="adv-list">
-        <li>แนวทางการบริหารจัดการช่องโหว่ความมั่นคงปลอดภัยไซเบอร์สากล (NIST SP 800-115 / Vulnerability Management)</li>
-        <li>ThaiCERT Cybersecurity Advisory &amp; Guidance — คำแนะนำการรับมือช่องโหว่ความปลอดภัยบนเว็บแอปพลิเคชัน</li>
-        <li>CIS Benchmarks — Center for Internet Security (Nginx, PHP, and Node.js Hardening Benchmarks)</li>
-        <li>National Vulnerability Database (NVD / NIST) — Common Vulnerabilities and Exposures (CVE Catalog)</li>
-        <li>FIRST Standards — Traffic Light Protocol (TLP) Version 2.0 User Guidance</li>
+        <li><b>NIST SP 800-115:</b> Technical Guide to Information Security Testing and Assessment (กรอบการตรวจประเมินและทดสอบช่องโหว่)</li>
+        <li><b>ThaiCERT Advisory &amp; Guidance:</b> แนวปฏิบัติการบริหารจัดการและรับมือช่องโหว่ความมั่นคงปลอดภัยบนเว็บแอปพลิเคชัน</li>
+        <li><b>CIS Benchmarks:</b> Center for Internet Security (แนวทางการตั้งค่าความมั่นคงปลอดภัยระบบแม่ข่าย Nginx, PHP และ Node.js)</li>
+        <li><b>National Vulnerability Database (NVD/NIST):</b> ฐานข้อมูลรายการช่องโหว่และความเสี่ยงสากล (Common Vulnerabilities and Exposures)</li>
+        <li><b>FIRST Standards:</b> Traffic Light Protocol (TLP) Version 2.0 มาตรฐานการจำแนกชั้นความลับและการแลกเปลี่ยนข้อมูลไซเบอร์</li>
       </ul>
 
-      <div class="adv-heading" style="margin-top: 24px;">ช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัยไซเบอร์</div>
+      <div class="adv-heading" style="margin-top: 14px;">ช่องทางการประสานงานรับมือเหตุการณ์ความมั่นคงปลอดภัยไซเบอร์</div>
       <p class="adv-para">
-        หากหน่วยงานของท่านตรวจพบเหตุการณ์ภัยคุกคามทางไซเบอร์ หรือประสงค์ขอรับคำปรึกษาเพิ่มเติมในการปิดช่องโหว่และยกระดับความมั่นคงปลอดภัย สามารถติดต่อฝ่ายปฏิบัติการได้ตามช่องทางดังต่อไปนี้:
+        หากหน่วยงานของท่านตรวจพบเหตุการณ์ภัยคุกคามทางไซเบอร์ หรือประสงค์ขอรับคำปรึกษาทางเทคนิคเพิ่มเติม สามารถประสานงานฝ่ายปฏิบัติการได้ตามช่องทางดังต่อไปนี้:
       </p>
-      <ul class="adv-list">
-        <li>ศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT / สกมช.)</li>
-        <li>เว็บไซต์หลัก: <a href="https://www.ncsa.or.th" target="_blank" style="color: #0284c7; text-decoration: underline;">https://www.ncsa.or.th</a></li>
-        <li>ไปรษณีย์อิเล็กทรอนิกส์: <a href="mailto:saraban@ncsa.or.th" style="color: #0284c7; text-decoration: underline;">saraban@ncsa.or.th</a> / <a href="mailto:incident@thaicert.or.th" style="color: #0284c7; text-decoration: underline;">incident@thaicert.or.th</a></li>
-        <li>สายด่วนรับแจ้งเหตุความมั่นคงปลอดภัยไซเบอร์: 02-143-7777 (ในวันและเวลาราชการ)</li>
-      </ul>
 
-      <div style="margin-top: 32px; font-size: 16pt; line-height: 1.45; color: #475569; text-align: justify;">
-        <strong>คำสงวนสิทธิ์ (Disclaimer):</strong> เอกสารนี้จัดทำขึ้นโดยอิงจากข้อมูลเชิงเทคนิคที่ได้จากการตรวจประเมินระบบสารสนเทศตามขอบเขตและช่วงเวลาที่ระบุไว้เท่านั้น ข้อแนะนำและมาตรการแก้ไขที่ระบุไว้มีจุดมุ่งหมายเพื่อยกระดับความมั่นคงปลอดภัยของระบบ ทั้งนี้ ก่อนดำเนินการปรับปรุงคอนฟิกบนระบบงานจริง ผู้ดูแลระบบควรดำเนินการทดสอบในสภาพแวดล้อมจำลอง (Staging Environment) และจัดทำสำเนาสำรองข้อมูล (Backup) ให้เรียบร้อย
+      <div style="margin: 8px 0 12px 0; padding: 10px 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-left: 4px solid #0284c7; border-radius: 6px; font-size: 16pt;">
+        <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;">
+          ศูนย์ประสานการรักษาความมั่นคงปลอดภัยระบบคอมพิวเตอร์แห่งชาติ (ThaiCERT / สกมช.)
+        </div>
+        <table style="width: 100%; font-size: 16pt; border-collapse: collapse; line-height: 1.35;">
+          <tr>
+            <td style="width: 28%; font-weight: bold; color: #475569; padding: 2px 0;">เว็บไซต์หลัก:</td>
+            <td style="padding: 2px 0;"><a href="https://www.ncsa.or.th" target="_blank" style="color: #0284c7; text-decoration: underline;">https://www.ncsa.or.th</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #475569; padding: 2px 0;">อีเมลรับแจ้งเหตุ:</td>
+            <td style="padding: 2px 0;"><a href="mailto:incident@thaicert.or.th" style="color: #0284c7; text-decoration: underline;">incident@thaicert.or.th</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #475569; padding: 2px 0;">อีเมลประสานงาน:</td>
+            <td style="padding: 2px 0;"><a href="mailto:saraban@ncsa.or.th" style="color: #0284c7; text-decoration: underline;">saraban@ncsa.or.th</a></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #475569; padding: 2px 0;">สายด่วนรับแจ้งเหตุ:</td>
+            <td style="padding: 2px 0;"><strong>02-143-7777</strong> (ในวันและเวลาราชการ)</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="margin-top: 10px; padding: 10px 14px; background: #f8fafc; border-left: 3.5px solid #94a3b8; border-radius: 4px; font-size: 16pt; line-height: 1.38; color: #475569; text-align: justify; text-justify: inter-cluster;">
+        <strong>ข้อสงวนสิทธิ์และข้อพึงระวัง:</strong> รายงานฉบับนี้จัดทำขึ้นโดยอ้างอิงจากข้อมูลเชิงเทคนิคตามขอบเขตและช่วงเวลาที่ตรวจประเมินเท่านั้น มาตรการแก้ไขมีจุดมุ่งหมายเพื่อยกระดับความมั่นคงปลอดภัย โดยก่อนดำเนินการปรับปรุงการตั้งค่าบนระบบงานจริง ผู้ดูแลระบบควรทดสอบในสภาพแวดล้อมจำลอง (Staging Environment) และจัดทำสำเนาสำรองข้อมูล (Backup) ให้เรียบร้อย
       </div>
 
       <div class="sheet-footer no-print">
@@ -1429,19 +1453,19 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         เพื่อการพัฒนาและยกระดับประสิทธิภาพของระบบประเมินความมั่นคงปลอดภัยไซเบอร์ (OPScaner) รวมถึงการให้บริการข้อมูลทางเทคนิคของฝ่ายปฏิบัติการ ขอความอนุเคราะห์ผู้ดูแลระบบและผู้เกี่ยวข้องร่วมตอบแบบประเมินความพึงพอใจผ่านระบบอิเล็กทรอนิกส์
       </p>
 
-      <div style="margin: 28px auto; max-width: 540px; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 24px 20px; background: #f8fafc;">
-        <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 8px;">สแกนคิวอาร์โค้ดเพื่อทำแบบประเมินความพึงพอใจ</div>
-        <p class="adv-para" style="text-indent: 0; text-align: center; margin-bottom: 16px; color: #475569;">
+      <div style="margin: 14px auto; max-width: 480px; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; background: #f8fafc;">
+        <div style="font-size: 16pt; font-weight: bold; color: #0f172a; margin-bottom: 4px;">สแกนคิวอาร์โค้ดเพื่อทำแบบประเมินความพึงพอใจ</div>
+        <p class="adv-para" style="text-indent: 0; text-align: center; margin-bottom: 10px; color: #475569;">
           ผู้รับเอกสารสามารถใช้สมาร์ตโฟนสแกน QR Code ด้านล่างนี้เพื่อเข้าสู่แบบประเมินและส่งข้อเสนอแนะ
         </p>
-        {"<div style='margin-bottom: 14px;'><img src='" + survey_qr_img + "' style='width: 140px; height: 140px; border: 1px solid #cbd5e1; padding: 6px; border-radius: 6px; background: #ffffff; display: inline-block;' alt='Survey QR' /></div>" if survey_qr_img else ""}
-        <div style="font-size: 16pt; color: #1e293b; margin-top: 8px; line-height: 1.4;">
+        {"<div style='margin-bottom: 8px;'><img src='" + survey_qr_img + "' style='width: 115px; height: 115px; border: 1px solid #cbd5e1; padding: 4px; border-radius: 6px; background: #ffffff; display: inline-block;' alt='Survey QR' /></div>" if survey_qr_img else ""}
+        <div style="font-size: 16pt; color: #1e293b; line-height: 1.35;">
           <strong>ลิงก์ทำแบบประเมินออนไลน์:</strong> <br>
-          <a href="https://www.ncsa.or.th" target="_blank" style="color: #0284c7; text-decoration: underline; font-weight: bold;">https://www.ncsa.or.th/survey</a>
+          <a href="https://www.ncsa.or.th/survey" target="_blank" style="color: #0284c7; text-decoration: underline; font-weight: bold;">https://www.ncsa.or.th/survey</a>
         </div>
       </div>
 
-      <div class="adv-heading" style="margin-top: 24px;">หัวข้อและประเด็นในการประเมิน</div>
+      <div class="adv-heading" style="margin-top: 14px;">หัวข้อและประเด็นในการประเมิน</div>
       <ul class="adv-list">
         <li>ความถูกต้องและความแม่นยำของผลการตรวจประเมินทางเทคนิค (Detection Precision)</li>
         <li>ความชัดเจนและความเป็นประโยชน์ของคำแนะนำในการแก้ไขปัญหา (Remediation Guidance)</li>
@@ -1449,7 +1473,7 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
         <li>ข้อเสนอแนะเพิ่มเติมสำหรับการพัฒนาขีดความสามารถของเครื่องมือในอนาคต</li>
       </ul>
 
-      <p class="adv-para" style="margin-top: 20px;">
+      <p class="adv-para" style="margin-top: 12px;">
         ข้อมูลและข้อคิดเห็นของท่านจะถูกนำไปใช้เพื่อยกระดับคุณภาพของเครื่องมือและการปฏิบัติงานด้านความมั่นคงปลอดภัยไซเบอร์ ทางทีมงานขอขอบพระคุณในความร่วมมือเป็นอย่างยิ่ง
       </p>
 
