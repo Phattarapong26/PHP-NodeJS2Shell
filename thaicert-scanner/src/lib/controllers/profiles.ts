@@ -1,4 +1,4 @@
-import { apiFetch } from './api';
+import { apiFetch, apiUrl, openExternal } from './api';
 import { renderThaiCertDualCharts, renderThaiCertVisualCharts } from './charts';
 import { badgeFilteredCount, btnCancelProfileForm, btnClearCustomHeaders, btnCloseDetailDrawerBottom, btnCloseProfileDetailDrawer, btnCloseProfileFormModal, btnDetailActivateProfile, btnDetailEditProfile, btnDrawerAutoDetect, btnDrawerCreateProfile, btnEmptyCreateProfile, btnFormDetectNetwork, btnHeaderPresetProxy, btnHeaderPresetRef, btnHeaderPresetXff, btnHeaderProfile, btnOpenCreateProfileFromList, btnPresetSpeedBalanced, btnPresetSpeedStealth, btnPresetSpeedTurbo, headerProfileName, mainSubnetInput, profileDetailDrawer, profileDrawerBackdrop, profileEmptyState, profileForm, profileFormConcurrency, profileFormConcurrencyDisplay, profileFormCustomHeaders, profileFormCustomPorts, profileFormCustomPortsWrapper, profileFormCustomUa, profileFormCustomUaWrapper, profileFormDesc, profileFormHeading, profileFormId, profileFormNetwork, profileFormSetActive, profileFormTimeout, profileFormTimeoutDisplay, profileFormTitle, profileFormUaPreset, profileSelectDrawer, profilesListContainer, quickPhpCount, scanElapsedDuration } from './dom';
 import { autoDetectLocalNetwork, recalculateSubnet } from './network';
@@ -540,7 +540,7 @@ export async function renderProfileScanHistory(profileId: number, limitOverride?
         }
       }
       if (btnLatestAction) {
-        btnLatestAction.onclick = () => handleRestoreScanHistory(latest.id);
+        btnLatestAction.onclick = () => handlePreviewScanHistoryReport(latest.id);
       }
       detailLatestScanSummaryCard.classList.remove('hidden');
     } else if (detailLatestScanSummaryCard) {
@@ -566,9 +566,10 @@ export function closeProfileDetailDrawer() {
   }, 300);
 }
 
-export function handlePreviewScanHistoryReport(historyId: number | string | undefined) {
+export async function handlePreviewScanHistoryReport(historyId: number | string | undefined) {
   if (!historyId) return;
-  window.open(apiUrl(`/api/report/preview?history_id=${historyId}`), '_blank');
+  const url = apiUrl(`/api/report/preview?history_id=${historyId}`);
+  await openExternal(url);
 }
 
 export async function handleRestoreScanHistory(historyId: number | string | undefined) {
