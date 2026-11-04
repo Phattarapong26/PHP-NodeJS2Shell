@@ -164,14 +164,22 @@ def collect_target_cves(
                 "severity": "Critical",
                 "cvss": 9.8,
                 "cvss_version": "CVSS v3.1",
-                "score_source": "PHP Group / NVD",
-                "vendor_severity": "Critical",
+                "score_source": "PHP Group / NVD / CERT-EU",
+                "vendor_severity": "Critical (PHP Group)",
                 "verification_type": "Confirmed Vulnerability" if is_cgi_rce else "Conditional Finding",
                 "evidence_confidence": "High (Empirical Callback)" if is_cgi_rce else "Medium (Observed Windows / CGI Fingerprint)",
-                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ส่ง directives ผ่าน PHP-CGI Argument Injection และสั่งประมวลผลโค้ดสำเร็จ" if is_cgi_rce else f"PHP ({php_ver}) บนระบบปฏิบัติการ Windows เสี่ยงต่อ CVE-2024-4577 ผ่านการแปลง Best-fit mapping",
-                "host_check": "php -v && (php -i | grep 'Server API')",
-                "confirm_vuln": "PHP < 8.2.20 / 8.3.8 บน Windows CGI/FastCGI",
-                "confirm_safe": "การแก้ไขถาวร: PHP ≥ 8.2.20 / 8.3.8 หรือย้ายสู่ Linux | มาตรการบรรเทา: mod_rewrite บล็อกอักขระ %AD",
+                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ส่ง directives ผ่าน PHP-CGI Argument Injection และสั่งประมวลผลโค้ดสำเร็จ" if is_cgi_rce else f"PHP ({php_ver}) บนระบบปฏิบัติการ Windows เสี่ยงต่อ CVE-2024-4577 ผ่านการแปลง Best-fit mapping (ต้องเป็น Windows + PHP-CGI + Codepage เช่น CP932/CP936/CP950)",
+                "host_check": (
+                    "[PowerShell (Windows / IIS)]\n"
+                    "[ขั้นตอนที่ 1] ตรวจสอบ FastCGI Application & Handler Mapping ที่ IIS ใช้งานจริง:\n"
+                    "[xml]$iis = Get-Content \"$env:SystemRoot\\System32\\inetsrv\\config\\applicationHost.config\" -ErrorAction SilentlyContinue\n"
+                    "$iis.SelectNodes(\"//handlers/add[contains(@scriptProcessor, 'php')]\") | Select-Object name, path, scriptProcessor\n"
+                    "$iis.SelectNodes(\"//fastCgi/application\") | Select-Object fullPath, arguments\n\n"
+                    "[ขั้นตอนที่ 2] ตรวจสอบ System Locale ของระบบปฏิบัติการ:\n"
+                    "Get-WinSystemLocale"
+                ),
+                "confirm_vuln": "PHP < 8.1.29 / 8.2.20 / 8.3.8 บน Windows รันผ่าน PHP-CGI (หรือ FastCGI บน IIS ที่เรียก php-cgi.exe) ภายใต้ Codepage ที่แปลง 0xAD เป็นขีด '-'",
+                "confirm_safe": "การแก้ไขหลักถาวร: อัปเกรดเป็น PHP ≥ 8.1.29 / 8.2.20 / 8.3.8+ | มาตรการบรรเทาความเสี่ยง: กำหนด IIS URL Rewrite Rule เพื่อบล็อกอักขระ %AD และพารามิเตอร์ CGI ที่น่าสงสัย",
                 "confidence": "Confirmed" if is_cgi_rce else "Likely",
                 "confirmed": is_cgi_rce,
                 "verification_status": "RCE_CONFIRMED" if is_cgi_rce else "SUSPECTED_RISK"
@@ -215,7 +223,7 @@ def collect_target_cves(
                     "reason": f"PHP {php_ver} ต่ำกว่าแพตช์ 8.2.35 / 8.3.36 ร่วมกับ upload_progress",
                     "host_check": "php -i | grep session.upload_progress",
                     "confirm_vuln": "session.upload_progress.enabled = On บน PHP < 8.2.35 / 8.3.36",
-                    "confirm_safe": "การแก้ไขถาวร: PHP ≥ 8.2.35 / 8.3.36 | มาตรการบรรเทา: กำหนด pm.max_requests > 0 และปิด session.upload_progress",
+                    "confirm_safe": "การแก้ไขถาวร: อัปเกรดเป็น PHP ≥ 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12+ | มาตรการบรรเทาความเสี่ยงชั่วคราว: กำหนด session.upload_progress.enabled = 0 ใน php.ini | การเพิ่มความแข็งแกร่งของโพรเซส: กำหนด pm.max_requests = 500-1000 ใน www.conf เพื่อหมุนเวียน Worker Process ป้องกัน State ตกค้าง",
                     "confidence": "Likely",
                     "verification_status": "SUSPECTED_RISK"
                 })
@@ -229,15 +237,15 @@ def collect_target_cves(
                 "category": "PHP",
                 "severity": "Critical" if is_session_rce else "High",
                 "cvss": 9.8 if is_session_rce else None,
-                "cvss_version": "CVSS v3.1" if is_session_rce else "Pending Official NVD Scoring",
-                "score_source": "Empirical Assessment" if is_session_rce else "PHP Security Advisory (2026-10-23)",
-                "vendor_severity": "Advisory Workaround",
-                "verification_type": "Confirmed Vulnerability" if is_session_rce else "Conditional Finding",
-                "evidence_confidence": "High (Canary Execution)" if is_session_rce else "Medium (Observable LFI Vector)",
-                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ตรวจพบ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด Canary ใน Session Upload Progress สำเร็จ" if is_session_rce else "ตรวจพบเงื่อนไข Session Upload Progress เสี่ยงต่อการสลับ serialize_handler",
+                "cvss_version": "CVSS v3.1 (Empirical RCE)" if is_session_rce else "Pending Official NVD Scoring",
+                "score_source": "Empirical Assessment" if is_session_rce else "PHP Group / ThaiCERT Advisory",
+                "vendor_severity": "Critical" if is_session_rce else "Advisory Workaround (High)",
+                "verification_type": "Confirmed Vulnerability" if is_session_rce else "Conditional Finding (Preconditions Required)",
+                "evidence_confidence": "High (Canary Execution)" if is_session_rce else "Medium (Observable LFI Vector / Upload Progress)",
+                "reason": "ยืนยันผลการประเมินเชิงประจักษ์: ตรวจพบ LFI และเซิร์ฟเวอร์ประมวลผลโค้ด Canary ใน Session Upload Progress สำเร็จ" if is_session_rce else "เงื่อนไขการโจมตีต้องสอดคล้องครบทั้ง 4 ประการ: (1) serialize_handler เป็น php_binary หรือ php_serialize, (2) แอปสลับ handler เป็น php ผ่าน ini_set(), (3) สลับก่อน session_start(), และ (4) upload_progress.enabled = 1",
                 "host_check": "php -i | grep -E 'session.serialize_handler|session.upload_progress'",
-                "confirm_vuln": "แอปสลับ serialize_handler ข้ามรูปแบบตอน runtime หรือเปิดรับ LFI parameter สู่ session directory",
-                "confirm_safe": "การแก้ไขถาวร: รอแพตช์ทางการ | มาตรการบรรเทา: ตั้ง session.upload_progress.enabled = Off ใน php.ini",
+                "confirm_vuln": "พบการสลับ serializer handler ข้ามรูปแบบก่อน session_start() และเปิด upload_progress",
+                "confirm_safe": "การแก้ไขถาวร: รอแพตช์ทางการจาก PHP Group | มาตรการบรรเทาความเสี่ยง: ตั้งค่า session.upload_progress.enabled = 0 ใน php.ini และหลีกเลี่ยงการสลับ serializer handler ตอน runtime",
                 "confirmed": is_session_rce,
                 "confidence": "Confirmed" if is_session_rce else "Conditional",
                 "verification_status": "RCE_CONFIRMED" if is_session_rce else "PRECONDITION_IDENTIFIED"

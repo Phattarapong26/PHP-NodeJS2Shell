@@ -637,7 +637,7 @@ def evaluate_security_chains(
         chain_e_verdict_code = "HARDENED"
         conf_e = "Not Applicable"
 
-    chain_e_remedy = "; [มาตรการแก้ไขถาวร (Permanent Fix)]:\n; อัปเกรด PHP เป็นเวอร์ชันที่ได้รับการแก้ไข: PHP >= 8.2.35, 8.3.36, 8.4.27 หรือ 8.5.12+\n\n; [มาตรการบรรเทาความเสี่ยงเชิงโครงสร้าง (Configuration Mitigation)]:\n; ใน /etc/php/*/fpm/pool.d/www.conf:\npm.max_requests = 500\n; ใน /etc/php/*/fpm/php.ini:\nsession.upload_progress.enabled = Off\nmemory_limit = 256M\npost_max_size = 32M"
+    chain_e_remedy = "; 1. [มาตรการลดความเสี่ยงโดยตรงสำหรับ GHSA-6wmf-4rv5-p3rp / CVE-2026-109619]:\n; ในไฟล์ pool.d/www.conf กำหนด pm.max_requests = 500 (รีไซเคิล Worker Process ป้องกันสถานะ FastCGI ตกค้าง) และใน php.ini ปิด session.upload_progress.enabled = Off\n\n; 2. [เกณฑ์ Baseline การปฏิบัติงานทั่วไป (Operational Baseline Sizing)]:\n; ปรับแต่งตามขนาดภาระงานจริงของระบบ เช่น memory_limit = 256M และ post_max_size = 32M"
     chain_e_cli_stages = [
         {"num": "1/6", "name": "tcp reachability", "status": "PASS", "evidence": "target port responsive (HTTP open)"},
         {"num": "2/6", "name": "FastCGI worker lifecycle", "status": "PASS" if is_fpm else "STANDALONE", "evidence": f"PHP-FPM worker pool ({sapi_desc})" if is_fpm else "Apache prefork / mod_php"},
@@ -743,7 +743,7 @@ def evaluate_security_chains(
                 "stages": chain_e_stages,
                 "cli_stages": chain_e_cli_stages,
                 "info": chain_e_info,
-                "hardening_ini": "; [Chain E: ควบคุมวงรอบเวิร์กเกอร์ PHP-FPM และป้องกันบัฟเฟอร์ตกค้าง]\n; ในไฟล์ pool.d/www.conf:\n; pm.max_requests = 500\n; ในไฟล์ php.ini:\nsession.upload_progress.enabled = Off\nmemory_limit = 256M\npost_max_size = 32M"
+                "hardening_ini": "; --- 1. Direct Vulnerability Mitigation (GHSA-6wmf-4rv5-p3rp / CVE-2026-109619) ---\n; ในไฟล์ php-fpm pool config (เช่น /etc/php/*/fpm/pool.d/www.conf):\npm.max_requests = 500\n\n; ในไฟล์ php.ini:\nsession.upload_progress.enabled = Off\n\n; --- 2. Operational Baseline Sizing (คำแนะนำทั่วไปตามขอบเขตงานระบบ) ---\nmemory_limit = 256M\npost_max_size = 32M"
             }
         },
         "hardening_ini": "; [Chain B Defense: ปิดกั้นการเปิดเผยข้อมูลสภาพแวดล้อม]\nexpose_php = Off\ndisplay_errors = Off\nlog_errors = On\nerror_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT\n\n; [Chain A Defense: ป้องกันการสร้างข้อมูลเซสชันแฝงผ่าน Upload Progress]\nsession.upload_progress.enabled = Off\nsession.upload_progress.cleanup = On\nsession.use_strict_mode = 1\n\n; [Chain C Defense: ป้องกันความไม่สอดคล้องของ Serializer]\n; บังคับใช้ session.serialize_handler สม่ำเสมอทั่วทั้งแอปพลิเคชัน\n\n; [Chain D Defense: ควบคุมการใช้หน่วยความจำและแยกพื้นที่จัดเก็บเซสชัน]\nmemory_limit = 256M\nsession.save_path = \"/var/lib/php/sessions\"\n\n; [Chain E Defense: ควบคุมวงรอบเวิร์กเกอร์ PHP-FPM และป้องกันบัฟเฟอร์ตกค้าง]\n; ในไฟล์ pool.d/www.conf: pm.max_requests = 500\npost_max_size = 32M"

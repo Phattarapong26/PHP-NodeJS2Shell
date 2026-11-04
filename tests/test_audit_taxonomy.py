@@ -16,14 +16,14 @@ class TestAuditTaxonomyAndCVSS(unittest.TestCase):
         self.assertEqual(NGINX_CVE_DESCS["CVE-2021-23017"]["cvss_version"], "CVSS v3.1")
         self.assertEqual(NGINX_CVE_DESCS["CVE-2021-23017"]["vendor_severity"], "Medium (NGINX)")
 
-        # CVE-2026-15176: F5 CNA / CSA CVSS v4.0 = 9.2, Vendor: Medium
-        self.assertEqual(NGINX_CVE_DESCS["CVE-2026-15176"]["cvss"], 9.2)
-        self.assertEqual(NGINX_CVE_DESCS["CVE-2026-15176"]["cvss_version"], "CVSS v4.0")
+        # CVE-2026-15176: F5 CNA CVSS v3.1 = 8.1 (CVSS v4.0: 9.2), Vendor: Medium
+        self.assertEqual(NGINX_CVE_DESCS["CVE-2026-15176"]["cvss"], 8.1)
+        self.assertIn("CVSS v3.1", NGINX_CVE_DESCS["CVE-2026-15176"]["cvss_version"])
         self.assertEqual(NGINX_CVE_DESCS["CVE-2026-15176"]["vendor_severity"], "Medium (NGINX)")
 
-        # CVE-2026-97205: CVSS v4.0 = 9.2
-        self.assertEqual(NGINX_CVE_DESCS["CVE-2026-97205"]["cvss"], 9.2)
-        self.assertEqual(NGINX_CVE_DESCS["CVE-2026-97205"]["cvss_version"], "CVSS v4.0")
+        # CVE-2026-97205: CVSS v3.1 = 8.1 (Singapore CSA v4.0 = 9.2)
+        self.assertEqual(NGINX_CVE_DESCS["CVE-2026-97205"]["cvss"], 8.1)
+        self.assertIn("CVSS v3.1", NGINX_CVE_DESCS["CVE-2026-97205"]["cvss_version"])
 
     def test_cve_database_catalog(self):
         cve_map = {c["id"]: c for c in CVE_DATABASE}
@@ -99,7 +99,64 @@ class TestAuditTaxonomyAndCVSS(unittest.TestCase):
         self.assertIn("Conditional Findings", html)
         self.assertIn("Software Lifecycle Risks - EOL", html)
         self.assertIn("Host-based Verification Guide", html)
-        self.assertIn("OPScaner Engine v2.0", html)
+        self.assertIn("OPScaner Engine", html)
+        self.assertNotIn("v2.0", html)
+        self.assertNotIn("V2.0", html)
+        self.assertIn("Assessment Status Taxonomy", html)
+        self.assertIn("Observed Evidence", html)
+        self.assertIn("Internal Preconditions", html)
+        self.assertIn("Assessment Conclusion", html)
+        self.assertIn("Port &amp; Service Fingerprint Mapping", html)
+        self.assertIn("8.1", html)
+        self.assertIn("F5 CNA", html)
+
+    def test_multi_port_eol_instance_counting(self):
+        # When multiple ports run EOL software, instances and ports must match
+        multi_port_data = {
+            "target": "10.255.250.0/24",
+            "hosts": [
+                {"ip": "10.255.250.102", "port": 8081, "phpVersion": "PHP/7.4.33"},
+                {"ip": "10.255.250.102", "port": 8082, "phpVersion": "PHP/7.4.33"},
+                {"ip": "10.255.250.102", "port": 8084, "phpVersion": "PHP/5.6.40"}
+            ]
+        }
+        html = build_amber_advisory_html(multi_port_data)
+        self.assertIn("3 instances บน 3 พอร์ตบริการ", html)
+
+    def test_cve_2024_4577_and_97205_accuracy(self):
+        cve_map = {c["id"]: c for c in CVE_DATABASE}
+        # CVE-2024-4577 must verify FastCGI invoking php-cgi.exe on Windows via PowerShell
+        cve_4577 = cve_map["CVE-2024-4577"]
+        self.assertIn("php-cgi.exe", cve_4577["expected_safe"])
+        self.assertIn("PowerShell", cve_4577["host_check"])
+        self.assertIn("php-cgi.exe", cve_4577["confirm_vuln"])
+
+        # CVE-2026-97205 must split host check into 2 steps
+        cve_97205 = NGINX_CVE_DESCS["CVE-2026-97205"]
+        self.assertIn("ขั้นตอนที่ 1", cve_97205["host_check"])
+        self.assertIn("ขั้นตอนที่ 2", cve_97205["host_check"])
+        self.assertIn("<!--#include", cve_97205["host_check"])
+
+    def test_architecture_verification_commands_formatting(self):
+        mock_data = {
+            "target": "10.255.250.0/24",
+            "hosts": [
+                {"ip": "10.255.250.102", "port": 5050, "webServer": "Werkzeug/3.1.9 Python/3.11.18"},
+                {"ip": "10.255.250.102", "port": 8080, "webServer": "Apache / Nginx", "phpVersion": "PHP/8.2.35"},
+                {"ip": "10.255.250.102", "port": 8081, "webServer": "Apache", "phpVersion": "PHP/7.4.33"}
+            ]
+        }
+        html = build_amber_advisory_html(mock_data)
+        # Must escape Docker format template correctly
+        self.assertIn(r'table {{.Names}}\t{{.Ports}}\t{{.Image}}', html)
+        # ss must cover port 5050
+        self.assertIn(r':(5050|808[0-8])\b', html)
+        # Port 8080 ambiguous service & evidence
+        self.assertIn("HTTP Service — Server Identity Ambiguous (Apache / Nginx)", html)
+        self.assertIn("Server Banner: Apache / Nginx | Runtime from Header: X-Powered-By: PHP/8.2.35", html)
+        # Device name
+        self.assertIn("Target Host / Multi-Service IP", html)
+        self.assertNotIn("เครื่องนี้", html)
 
 
 if __name__ == "__main__":
