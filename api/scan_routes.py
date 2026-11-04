@@ -522,7 +522,7 @@ def scan():
                     valid_ports.append(p_int)
             except (ValueError, TypeError):
                 continue
-        ports = valid_ports if valid_ports else [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
+        ports = valid_ports if valid_ports else [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
     elif active_profile and active_profile.get("port_mode") == "wide":
         ports = TOP_100_WIDE_PORTS
     elif active_profile and active_profile.get("port_mode") == "custom" and active_profile.get("custom_ports"):
@@ -533,9 +533,9 @@ def scan():
                 val = int(p_item)
                 if 1 <= val <= 65535 and val not in parsed_ports:
                     parsed_ports.append(val)
-        ports = parsed_ports if parsed_ports else [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
+        ports = parsed_ports if parsed_ports else [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
     else:
-        ports = [80, 443, 8080, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
+        ports = [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5050, 4000, 5173, 9000, 9090, 9999, 10000, 2222]
 
     host_strings = set(str(h) for h in hosts)
     curr_is_docker = net_info.get("is_docker", False)
@@ -912,7 +912,22 @@ def scan():
     php_list, node_list, all_active_list = asyncio.run(run_probes())
     elapsed = round(time.perf_counter() - t_start, 2)
 
-    vuln_list = [h for h in all_active_list if h.get("vulnerability") in ("Critical", "Outdated", "Warning")]
+    def is_target_vuln(h):
+        if not h:
+            return False
+        v = h.get("vulnerability")
+        if v in ("Critical", "High", "Lifecycle Risk (EOL)", "Outdated", "Warning"):
+            return True
+        if h.get("matched_cves") and len(h.get("matched_cves")) > 0:
+            return True
+        if h.get("is_rce_proved") or (h.get("rce_proof") and h.get("rce_proof", {}).get("is_rce_proved")):
+            return True
+        pv = str(h.get("phpVersion", ""))
+        if any(ver in pv for ver in ("5.", "7.", "8.0", "8.1")):
+            return True
+        return False
+
+    vuln_list = [h for h in all_active_list if (h.get("is_php") or h.get("is_node")) and is_target_vuln(h)]
 
     def _sort_target_key(item):
         clean_ip = str(item.get("ip", "")).split()[0]
@@ -953,7 +968,7 @@ def scan():
 
     for h in all_active_list:
         groups = h.get("thaicert_groups", [])
-        is_v = h.get("vulnerability") in ("Critical", "Outdated", "Warning")
+        is_v = (h.get("is_php") or h.get("is_node")) and is_target_vuln(h)
         for g in groups:
             if g in thaicert_summary:
                 thaicert_summary[g]["total"] += 1

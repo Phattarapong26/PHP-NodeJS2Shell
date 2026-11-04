@@ -1,4 +1,5 @@
 import { appState } from './state';
+import { isHostVulnerable } from './results';
 
 // Global Tooltip for ThaiCERT Security Assessment
 export function initThaiCertTooltip() {
@@ -185,7 +186,7 @@ export function getThaiCertGroupStats() {
   for (let g = 1; g <= 8; g++) {
     const groupHosts = allHosts.filter(h => (h.thaicert_groups || []).includes(g));
     const total = groupHosts.length;
-    const vuln = groupHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+    const vuln = groupHosts.filter(isHostVulnerable).length;
     stats[g] = {
       ...THAICERT_GROUP_META[g],
       total: total,

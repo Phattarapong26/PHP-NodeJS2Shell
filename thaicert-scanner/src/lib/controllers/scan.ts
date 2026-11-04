@@ -1,7 +1,7 @@
 import { apiFetch } from './api';
 import { btnHeroSearch, btnScanContent, btnScanSpinner, heroSearchInput, mainSubnetInput, quickPhpCount, radarSvg, scanElapsedDuration, scanPercentText, scanProgressBar, scanProgressStats, scanProgressWrapper, scanningRipple, statusIndicatorDot, statusPillText } from './dom';
 import { parseSubnetDetails } from './network';
-import { openResultsModal, renderResultsTable } from './results';
+import { isHostVulnerable, openResultsModal, renderResultsTable } from './results';
 import { openProfileModal } from './shell';
 import { appState } from './state';
 import { delay, highlightWorkflowStep, showToast, updateStepBadge } from './ui';
@@ -182,7 +182,7 @@ export async function startScanWorkflow() {
   const phpCount = appState.totalPhpFound;
   const nodeCount = appState.totalNodeFound;
   const activeCount = appState.totalActiveFound;
-  const vulnServers = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+  const vulnServers = appState.allHosts.filter(isHostVulnerable).length;
 
   if (vulnServers > 0) {
     updateStepBadge(`5. ตรวจพบความเสี่ยง ${vulnServers} เครื่อง! (PHP: ${phpCount}, Node.js: ${nodeCount})`, "ph-shield-warning");
@@ -215,7 +215,7 @@ export function finishScan(elapsedSec) {
   const totalOnline = appState.allHosts.length;
   const totalPhp = appState.foundPhpHosts.length;
   const totalNode = appState.foundNodeHosts.length;
-  const totalVuln = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+  const totalVuln = appState.allHosts.filter(isHostVulnerable).length;
   
   statusPillText.textContent = `สแกนสำเร็จ (${elapsedSec}s) · ออนไลน์ ${totalOnline} เครื่อง · PHP: ${totalPhp} · Node.js: ${totalNode}`;
 

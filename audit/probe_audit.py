@@ -944,7 +944,7 @@ async def probe_endpoint(
         }
 
         # Step 5: Evaluate & Return Classification
-        sev_order = {"Critical": 4, "High": 3, "Lifecycle Risk (EOL)": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Patched for this CVE": 0, "Secure": 0}
+        sev_order = {"Critical": 5, "High": 4, "Lifecycle Risk (EOL)": 3, "Outdated": 3, "Warning": 2, "Review Needed": 1, "Patched for this CVE": 0, "Secure": 0}
 
         if is_node and is_php:
             v_php, note_php = evaluate_php_security(php_version_str or "PHP")
@@ -966,6 +966,10 @@ async def probe_endpoint(
                 rce_technique=rce_proof.get("technique", ""),
                 rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
+            for mc in matched_cves:
+                mc_sev = mc.get("severity")
+                if sev_order.get(mc_sev, 0) > sev_order.get(vuln, 0):
+                    vuln = mc_sev
             cve_note = f"PHP: {note_php} | Node.js: {note_node}"
             if rce_proof.get("is_rce_proved"):
                 cve_note = f"🔥 RCE ยืนยันแล้ว: {rce_proof.get('technique')} (ผลลัพธ์: {rce_proof.get('execution_output','')[:35]}...)"
@@ -1029,6 +1033,10 @@ async def probe_endpoint(
                 rce_technique=rce_proof.get("technique", ""),
                 rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
+            for mc in matched_cves:
+                mc_sev = mc.get("severity")
+                if sev_order.get(mc_sev, 0) > sev_order.get(vuln, 0):
+                    vuln = mc_sev
             display_ver = node_version_str
             if has_brotli and "[Brotli]" not in display_ver:
                 display_ver += " [Brotli]"
@@ -1086,6 +1094,10 @@ async def probe_endpoint(
                 rce_technique=rce_proof.get("technique", ""),
                 rce_endpoint=rce_proof.get("exploit_endpoint", "")
             )
+            for mc in matched_cves:
+                mc_sev = mc.get("severity")
+                if sev_order.get(mc_sev, 0) > sev_order.get(vuln, 0):
+                    vuln = mc_sev
             return {
                 "target_id": f"{display_ip}:{port}",
                 "port": port,

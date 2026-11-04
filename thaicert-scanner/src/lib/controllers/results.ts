@@ -5,12 +5,32 @@ import { getWebTargetUrl } from './network';
 import { appState } from './state';
 import { showToast } from './ui';
 
+// Helper: Check if host/service is vulnerable according to ThaiCERT criteria
+export function isHostVulnerable(h: any): boolean {
+  if (!h) return false;
+  if (!h.is_php && !h.is_node) return false;
+  const v = h.vulnerability || '';
+  const vn = h.vulnerabilityNode || '';
+  const deep = h.deep_audit || {};
+  const nginxSev = (deep.nginx_audit || {}).severity || '';
+  const hasCves = Array.isArray(h.matched_cves) && h.matched_cves.length > 0;
+  const isRce = Boolean(h.is_rce_proved || (h.rce_proof && h.rce_proof.is_rce_proved));
+  
+  if (isRce || hasCves) return true;
+  if (['Critical', 'High', 'Medium', 'Lifecycle Risk (EOL)', 'Outdated', 'Warning'].includes(v)) return true;
+  if (['Critical', 'High', 'Medium', 'Outdated', 'Warning'].includes(vn)) return true;
+  if (['Critical', 'High'].includes(nginxSev)) return true;
+  const pv = String(h.phpVersion || '');
+  if (['5.', '7.', '8.0', '8.1'].some(sub => pv.includes(sub))) return true;
+  return false;
+}
+
 // Step 5: Render and Filter Results Table
 export function renderResultsTable() {
   const totalAllOnline = appState.allHosts.length;
   const totalPhp = appState.foundPhpHosts.length;
   const totalNode = appState.foundNodeHosts.length;
-  const totalVuln = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+  const totalVuln = appState.allHosts.filter(isHostVulnerable).length;
   const totalWorkstations = appState.allHosts.filter(h => !h.is_php && !h.is_node).length;
 
   // Update badge in modal header
@@ -80,7 +100,7 @@ export function renderResultsTable() {
   for (let g = 1; g <= 8; g++) {
     const groupHosts = appState.allHosts.filter(h => (h.thaicert_groups || []).includes(g));
     const gTotal = groupHosts.length;
-    const gVuln = groupHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning')).length;
+    const gVuln = groupHosts.filter(isHostVulnerable).length;
     
     const countBadge = document.getElementById(`badgeGroupCount${g}`);
     if (countBadge) {
@@ -188,9 +208,13 @@ export function renderResultsTable() {
 
     const deep = item.deep_audit || {};
     const nginxSev = (deep.nginx_audit || {}).severity;
-    const isCrit = item.vulnerability === "Critical" || item.vulnerabilityNode === "Critical" || nginxSev === "Critical";
-    const isHigh = item.vulnerability === "High" || item.vulnerabilityNode === "High" || nginxSev === "High";
-    const isWarn = item.vulnerability === "Warning" || item.vulnerability === "Outdated" || item.vulnerabilityNode === "Warning";
+    const hasCritCve = (item.matched_cves || []).some((c: any) => c.severity === 'Critical');
+    const hasHighCve = (item.matched_cves || []).some((c: any) => c.severity === 'High');
+    const isCrit = item.vulnerability === "Critical" || item.vulnerabilityNode === "Critical" || nginxSev === "Critical" || hasCritCve;
+    const isHigh = item.vulnerability === "High" || item.vulnerabilityNode === "High" || nginxSev === "High" || hasHighCve;
+    const pvStr = String(item.phpVersion || '');
+    const isEol = item.vulnerability === "Lifecycle Risk (EOL)" || item.vulnerability === "Outdated" || ['5.', '7.', '8.0', '8.1'].some(s => pvStr.includes(s));
+    const isWarn = item.vulnerability === "Warning" || item.vulnerabilityNode === "Warning";
 
     const rceProof = item.rce_proof || deep.rce_proof || {};
     const isRceProved = item.is_rce_proved || !!rceProof.is_rce_proved;
@@ -227,7 +251,7 @@ export function renderResultsTable() {
       } else {
         shortStatus = "เสี่ยงระดับสูง (High)";
       }
-    } else if (item.vulnerability === "Outdated") {
+    } else if (isEol) {
       shortStatus = "เวอร์ชันเก่า (EOL)";
       shortStatusIcon = "ph-clock-countdown";
       statusBadgeStyle = "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-2xs font-semibold";
@@ -371,7 +395,7 @@ export function renderResultsTable() {
               ${(item.thaicert_groups && item.thaicert_groups.length > 0 ? item.thaicert_groups : [4]).map(g => {
                 const meta = THAICERT_GROUP_META[g];
                 const isG6 = g === 6;
-                const isV = item.vulnerability === 'Critical' || item.vulnerability === 'Warning';
+                const isV = isHostVulnerable(item);
                 let bgCls = meta ? meta.pillClass : 'bg-slate-100 text-slate-600 border-slate-200';
                 if (isG6 && isV) {
                   bgCls = 'bg-rose-100 text-rose-800 border-rose-300 font-bold';
@@ -448,7 +472,7 @@ export function getFilteredResultsList() {
   } else if (appState.activeFilter === 'node_only') {
     baseList = appState.allHosts.filter(h => h.is_node);
   } else if (appState.activeFilter === 'vulnerable') {
-    baseList = appState.allHosts.filter(h => (h.is_php || h.is_node) && (h.vulnerability === 'Critical' || h.vulnerability === 'Outdated' || h.vulnerability === 'Warning'));
+    baseList = appState.allHosts.filter(isHostVulnerable);
   } else if (appState.activeFilter === 'workstations') {
     baseList = appState.allHosts.filter(h => !h.is_php && !h.is_node);
   } else {
