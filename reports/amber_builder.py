@@ -13,6 +13,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .assets import NCSA_LOGO_B64, SURVEY_QR_PNG_B64
+from .chart_renderer import (
+    build_group_stats,
+    extract_top_cves_from_hosts,
+    build_visual_analytics_dashboard_html,
+)
 
 try:
     from audit.thaicert_rules import THAICERT_GROUP_PROFILES
@@ -778,11 +783,22 @@ def get_css_styles() -> str:
         page-break-before: always !important;
       }
 
-      #sheet-references, #sheet-survey {
+      #sheet-references, #sheet-survey, #sheet-visual-dashboard {
         break-before: page !important;
         page-break-before: always !important;
         break-inside: avoid !important;
         page-break-inside: avoid !important;
+      }
+
+      #sheet-visual-dashboard .adv-para {
+        font-size: 14pt !important;
+        line-height: 1.25 !important;
+        margin-bottom: 6px !important;
+      }
+
+      #sheet-visual-dashboard .adv-heading {
+        font-size: 16pt !important;
+        margin-bottom: 4px !important;
       }
 
       #sheet-references .adv-list li {
@@ -1070,6 +1086,11 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
 
     header_banner = get_ncsa_header_banner_html()
     css_styles = get_css_styles()
+
+    # Build Visual Risk Analytics Dashboard (ThaiCERT 8 Groups Radar, Lollipop & Top CVEs)
+    group_stats = build_group_stats(hosts_list, scan_report_data.get("thaicert_summary"))
+    top_cves_list = extract_top_cves_from_hosts(hosts_list)
+    dashboard_html = build_visual_analytics_dashboard_html(group_stats, top_cves_list)
 
     # Table rows for Attack Surface Ledger (No bold, no background colors)
     table_rows_html = ""
@@ -2057,7 +2078,26 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
       </div>
     </div>
 
-    <!-- PAGE 2+: Technical Findings & Hardening Blueprints -->
+    <!-- PAGE 2: Visual Threat & Asset Distribution Analytics -->
+    <div class="a4-paper-sheet page-break-section" id="sheet-visual-dashboard">
+      <div class="adv-heading">แผนภาพวิเคราะห์ภาพรวมความเสี่ยงและโครงสร้างสินทรัพย์ (Visual Risk &amp; Threat Analytics)</div>
+      <p class="adv-para" style="margin-bottom: 8px;">
+        สรุปการกระจายตัวของอุปกรณ์ที่ตรวจพบตามกรอบมาตรฐาน ThaiCERT 8 กลุ่มสินทรัพย์ และสถิติความถี่ของช่องโหว่ความมั่นคงปลอดภัยสากล เพื่อสนับสนุนการวางแผนบริหารความเสี่ยงในภาพรวมของผู้บริหารและทีมปฏิบัติการความมั่นคงปลอดภัย
+      </p>
+
+      {dashboard_html}
+
+      <div class="sheet-footer no-print">
+        <div class="sheet-footer-line"></div>
+        <div class="sheet-footer-row">
+          <div class="sheet-footer-left">รายงานประเมินความมั่นคงปลอดภัยไซเบอร์</div>
+          <div class="sheet-footer-center">TLP:AMBER ●</div>
+          <div class="sheet-footer-right">2 | P a g e</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 3+: Technical Findings & Hardening Blueprints -->
     <div class="a4-paper-sheet page-break-section" id="sheet-page-2">
       <div class="adv-heading">{page2_heading}</div>
       {page2_content}
