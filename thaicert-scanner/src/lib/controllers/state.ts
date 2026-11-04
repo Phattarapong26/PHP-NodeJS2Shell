@@ -35,7 +35,7 @@ export const appState: AppState = {
   selectedStandardPorts: [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 18080, 9000, 5050, 8880, 9090],
   wideScopeCount: 100,
   selectedPorts: [80, 443, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8443, 8000, 8888, 3000, 5000, 5173, 4000, 18080, 9000, 5050, 8880, 9090],
-  allowActiveRce: false,
+  allowActiveRce: true,
   activeGroupFilter: null,
   scopePreset: 'all',
   selectedAuditHost: null,

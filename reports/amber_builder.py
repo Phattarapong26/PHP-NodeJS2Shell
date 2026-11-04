@@ -1381,6 +1381,10 @@ def build_amber_advisory_html(scan_report_data: Dict[str, Any]) -> str:
                     {f'<div style="color: #475569; font-size: 12pt; margin-top: 4px;">คำสั่งทดสอบจริง (CLI): {html.escape(rce_proof.get("reproduce_curl", ""))}</div>' if rce_proof.get("reproduce_curl") else ''}
                     {trail_html}
                   </div>
+                  <div style="margin-top: 6px; padding: 6px 10px; background-color: #f8fafc; border-left: 3px solid #0284c7; font-size: 11pt; color: #334155; line-height: 1.4;">
+                    <strong>หมายเหตุการทดสอบและแนวทาง Clean-up หลังการตรวจประเมิน:</strong><br/>
+                    การพิสูจน์ผลกระทบ (PoC) ดำเนินการผ่าน Non-Destructive Arithmetic / Canary Token เพื่อยืนยันว่าคำสั่งถูกประมวลผลจริงในหน่วยความจำ โดยไม่มีการฝัง Backdoor, Web Shell หรือแก้ไขไฟล์ถาวรบนระบบปฏิบัติการ ทั้งนี้ แนะนำให้ผู้ดูแลระบบตรวจสอบและล้างไฟล์เซสชันชั่วคราว (เช่น ลบไฟล์ <code>sess_*</code> ในโฟลเดอร์ Temp หรือรีสตาร์ท Web Service) และปิดกั้นช่องโหว่ตามคู่มือแก้ไขอย่างเร่งด่วน
+                  </div>
                 </div>
                 """
 

@@ -542,14 +542,20 @@ def scan():
     curr_host_ip = net_info.get("ip", "")
     curr_docker_gw = get_docker_gateway() if curr_is_docker else None
 
-    # Safety Gate for Web API: verify consent and ownership for public targets
+    # Safety Gate & Automated Active RCE Verification:
+    # For RFC1918 / Private LAN / Localhost targets, default to True so end-to-end RCE proof is automated.
+    # For public targets, require explicit ownership affirmation to satisfy Safety Gate.
+    is_target_public = is_public_target(target_domain or subnet_str)
+    if "allow_active_rce" in data:
+        allow_active_rce = bool(data["allow_active_rce"])
+    else:
+        allow_active_rce = not is_target_public
+
     safety_gate_notice = None
-    if allow_active_rce:
-        is_target_public = is_public_target(target_domain or subnet_str)
-        if is_target_public:
-            if not i_own_this_target or consent_phrase != "I_CONFIRM_TARGET_OWNERSHIP":
-                allow_active_rce = False
-                safety_gate_notice = "Safety Gate: Active RCE disabled for public/external target without explicit ownership affirmation (i_own_this_target=True, consent_phrase='I_CONFIRM_TARGET_OWNERSHIP')."
+    if allow_active_rce and is_target_public:
+        if not i_own_this_target or consent_phrase != "I_CONFIRM_TARGET_OWNERSHIP":
+            allow_active_rce = False
+            safety_gate_notice = "Safety Gate: Active RCE disabled for public/external target without explicit ownership affirmation (i_own_this_target=True, consent_phrase='I_CONFIRM_TARGET_OWNERSHIP')."
 
     # Stealth and anti-detection settings from request or active profile
     user_agent = data.get("user_agent") or (active_profile.get("user_agent") if active_profile else None)
